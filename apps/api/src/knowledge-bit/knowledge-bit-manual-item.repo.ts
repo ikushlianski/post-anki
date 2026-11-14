@@ -194,6 +194,7 @@ export async function insertManualKnowledgeItem(
   entryId: string,
   input: CreateKnowledgeItemInput,
   db: DbExecutor = getDb(),
+  allowDuplicate = false,
 ): Promise<InsertManualKnowledgeItemResult> {
   return db.transaction(async (tx) => {
     const [entry] = await tx
@@ -223,6 +224,7 @@ export async function insertManualKnowledgeItem(
       entryId,
       input,
       initialBitState(await getTriageEnabled(tx)),
+      allowDuplicate,
     );
 
     if ("ok" in created) {

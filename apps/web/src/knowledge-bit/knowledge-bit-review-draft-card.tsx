@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { CreateKnowledgeItemInput, PendingKnowledgeBitForReview } from '@post-anki/shared'
+import type { CreateKnowledgeItemInput, DuplicateCheck, PendingKnowledgeBitForReview } from '@post-anki/shared'
 import { draftNote } from './knowledge-bit-review-note-edit'
 import type { ManualDraft } from './knowledge-bit-review-manual-drafts'
 
@@ -15,7 +15,9 @@ interface Props {
   bit: PendingKnowledgeBitForReview | undefined
   isResolving: boolean
   errorMessage: string | null
-  onCreate: (input: CreateKnowledgeItemInput) => Promise<boolean>
+  onCreate: (input: CreateKnowledgeItemInput, allowDuplicate?: boolean) => Promise<boolean>
+  duplicates?: DuplicateCheck | null
+  onDismissDuplicates?: () => void
   onCancel: () => void
   onEditingChange: (editing: boolean) => void
   onApprove: (bitId: string) => void
@@ -31,6 +33,8 @@ export function KnowledgeBitReviewDraftCard({
   isResolving,
   errorMessage,
   onCreate,
+  duplicates = null,
+  onDismissDuplicates,
   onCancel,
   onApprove,
   onReject,
@@ -59,8 +63,26 @@ export function KnowledgeBitReviewDraftCard({
     ? hasNote && clozeDraft.problem === null
     : front.trim().length > 0 && back.trim().length > 0 && !frontTooLong
 
+  function currentInput(): CreateKnowledgeItemInput {
+    const trimmedExample = example.trim() || undefined
+
+    return isCloze
+      ? { note: note.trim(), example: trimmedExample }
+      : { front: front.trim(), back: back.trim(), example: trimmedExample }
+  }
+
+  async function saveAnyway() {
+    createdRef.current = true
+
+    if (await onCreate(currentInput(), true)) {
+      savedNoteRef.current = note.trim()
+    } else {
+      createdRef.current = false
+    }
+  }
+
   useEffect(() => {
-    if (bit || createdRef.current) {
+    if (bit || createdRef.current || duplicates) {
       return
     }
 
@@ -78,12 +100,7 @@ export function KnowledgeBitReviewDraftCard({
       }
 
       createdRef.current = true
-      const trimmedExample = example.trim() || undefined
-      const success = await onCreate(
-        isCloze
-          ? { note: note.trim(), example: trimmedExample }
-          : { front: front.trim(), back: back.trim(), example: trimmedExample },
-      )
+      const success = await onCreate(currentInput())
 
       if (success) {
         savedNoteRef.current = note.trim()
@@ -170,7 +187,10 @@ export function KnowledgeBitReviewDraftCard({
           <textarea
             data-testid={`knowledge-bit-review-draft-note-${draftId}`}
             value={note}
-            onChange={(e) => setNote(e.target.value)}
+            onChange={(e) => {
+              onDismissDuplicates?.()
+              setNote(e.target.value)
+            }}
             placeholder="Note with gaps"
           />
           <p>{CLOZE_HINT}</p>
@@ -192,13 +212,19 @@ export function KnowledgeBitReviewDraftCard({
           <input
             data-testid={`knowledge-bit-review-draft-front-${draftId}`}
             value={front}
-            onChange={(e) => setFront(e.target.value)}
+            onChange={(e) => {
+              onDismissDuplicates?.()
+              setFront(e.target.value)
+            }}
             placeholder="Front"
           />
           <input
             data-testid={`knowledge-bit-review-draft-back-${draftId}`}
             value={back}
-            onChange={(e) => setBack(e.target.value)}
+            onChange={(e) => {
+              onDismissDuplicates?.()
+              setBack(e.target.value)
+            }}
             placeholder="Back"
           />
         </>
@@ -217,6 +243,29 @@ export function KnowledgeBitReviewDraftCard({
       )}
 
       {errorMessage && <span>{errorMessage}</span>}
+
+      {!bit && duplicates && (
+        <div data-testid={`knowledge-bit-review-draft-duplicates-${draftId}`}>
+          <strong>Possible duplicate</strong>
+          <ul>
+            {duplicates.matches.map((match) => (
+              <li key={match.id} data-testid={`knowledge-bit-review-draft-duplicate-${match.id}`}>
+                <em>{match.kind === 'duplicate' ? 'Duplicate' : 'Similar question'}</em> {match.front}
+                {match.back ? ` — ${match.back}` : ''}
+                {match.subject ? ` (${match.subject.name})` : ''}
+              </li>
+            ))}
+          </ul>
+          {!duplicates.semanticChecked && <p>Only exact wording was compared; similar-meaning cards were not checked.</p>}
+          <button
+            type="button"
+            data-testid={`knowledge-bit-review-draft-save-anyway-${draftId}`}
+            onClick={() => void saveAnyway()}
+          >
+            Save anyway
+          </button>
+        </div>
+      )}
 
       {!bit && (
         <button

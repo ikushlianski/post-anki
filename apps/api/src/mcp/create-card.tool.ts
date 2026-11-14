@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { CLOZE_ERROR_MESSAGES, createKnowledgeItemInput } from "@post-anki/shared";
+import { CLOZE_ERROR_MESSAGES, createKnowledgeItemInput, parseCloze, stripClozeMarkers, type DuplicateCheck } from "@post-anki/shared";
+import { findDuplicateCards } from "../knowledge-bit/knowledge-bit-duplicate-finder.js";
 import type { RequestAuthContext } from "../auth/request-auth-context.js";
 import { getKnowledgeBitById } from "../knowledge-bit/knowledge-bit-read.repo.js";
 import { insertManualKnowledgeItem } from "../knowledge-bit/knowledge-bit-manual-item.repo.js";
@@ -15,6 +16,10 @@ export const createCardInputSchema = z.object({
   back: z.string().optional().describe("Answer side of a basic card"),
   cloze: z.string().optional().describe("Cloze note like \"{{c1::Paris}} is in France\"; use instead of front/back"),
   example: z.string().optional().describe("Optional example shown with the card"),
+  allowDuplicate: z
+    .boolean()
+    .optional()
+    .describe("Save even when duplicates or similar-question cards exist; only after showing the user the matches returned by a first attempt"),
 });
 
 export const createCardResultSchema = z.object({
@@ -31,7 +36,24 @@ export type CreateCardResult = z.infer<typeof createCardResultSchema>;
 export type CreateCardOutcome =
   | CreateCardResult
   | { error: "missing_scope" | "invalid_path" | "duplicate_card" }
-  | { error: "invalid_input" | "invalid_cloze"; message: string };
+  | { error: "invalid_input" | "invalid_cloze"; message: string }
+  | ({ error: "possible_duplicates"; message: string } & DuplicateCheck);
+
+function duplicateDraft(item: z.infer<typeof createKnowledgeItemInput>) {
+  if ("note" in item) {
+    const cloze = parseCloze(item.note);
+
+    return cloze.ok ? { front: stripClozeMarkers(cloze.note), back: "" } : null;
+  }
+
+  return { front: item.front, back: item.back };
+}
+
+function duplicateMessage(check: DuplicateCheck): string {
+  const note = check.semanticChecked ? "" : " Only literal matching ran; the similarity check was unavailable.";
+
+  return `Not saved: found ${check.matches.length} existing card(s) (kind "duplicate" = same front and back, "possible_duplicate" = similar front). Show them to the user; retry with allowDuplicate: true to save anyway.${note} ${JSON.stringify(check.matches)}`;
+}
 
 export async function createCard(
   input: CreateCardInput,
@@ -56,8 +78,21 @@ export async function createCard(
     return { error: "invalid_path" };
   }
 
+  if (!input.allowDuplicate) {
+    const draft = duplicateDraft(parsed.data);
+    const check = draft ? await findDuplicateCards(draft) : null;
+
+    if (check && check.matches.length > 0) {
+      return {
+        error: "possible_duplicates",
+        message: duplicateMessage(check),
+        ...check,
+      };
+    }
+  }
+
   const sourceId = await getOrCreateManualCardSource(subject.subjectId);
-  const result = await insertManualKnowledgeItem(sourceId, parsed.data);
+  const result = await insertManualKnowledgeItem(sourceId, parsed.data, undefined, input.allowDuplicate ?? false);
 
   if (!result.ok) {
     if (result.error === "invalid_cloze") {

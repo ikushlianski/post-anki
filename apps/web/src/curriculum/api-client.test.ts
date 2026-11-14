@@ -273,6 +273,16 @@ describe('manual and derived knowledge item creation', () => {
     expect(result).toEqual(item)
   })
 
+  it('should resend the card with allowDuplicate when the user chose to save anyway', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(201, item))
+
+    await createManualKnowledgeItem('ks-1', { front: 'Q', back: 'A' }, true)
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+
+    expect(JSON.parse(init.body as string)).toEqual({ front: 'Q', back: 'A', allowDuplicate: true })
+  })
+
   it('should post a cloze note body to the source items route', async () => {
     fetchMock.mockResolvedValue(jsonResponse(201, item))
 

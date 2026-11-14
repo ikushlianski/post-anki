@@ -172,4 +172,16 @@ describe("overview state and origin filters (real Postgres)", () => {
     expect(second.keys).toHaveLength(1);
     expect(second.page.hasMore).toBe(false);
   });
+
+  it("should combine a text query, suspended state and a tag-style id restriction", async () => {
+    const restricted = await listKnowledgeBitOverview(
+      { limit: 100, offset: 0, q: "nginx", states: ["learning"] },
+      NOW,
+      getDb(),
+      { bitIds: [ids.nginxA!] },
+    );
+
+    expect(restricted.items.map((item) => item.knowledgeBitId)).toEqual([ids.nginxA]);
+    expect((await overview({ states: ["suspended"], q: "suspended" })).keys).toEqual(["suspended"]);
+  });
 });

@@ -53,7 +53,7 @@ export function registerCardWriteTools(server: McpServer, auth: RequestAuthConte
     {
       title: "Create card",
       description:
-        "Add one flashcard (front/back, or a cloze note) to a subject given as id or path like \"English/Words\". It lands in the same state as a card added by hand in the app. Needs the cards:write scope.",
+        "Add one flashcard (front/back, or a cloze note) to a subject given as id or path like \"English/Words\". It lands in the same state as a card added by hand in the app. Nothing is saved when a duplicate (same front and back) or a similar-question card already exists: the matches come back as an error to show the user, and allowDuplicate: true saves anyway. Needs the cards:write scope.",
       inputSchema: createCardInputSchema.shape,
       outputSchema: createCardResultSchema.shape,
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },

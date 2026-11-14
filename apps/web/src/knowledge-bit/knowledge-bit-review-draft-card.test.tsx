@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 
-import type { CreateKnowledgeItemInput, PendingKnowledgeBitForReview } from '@post-anki/shared'
+import type { CreateKnowledgeItemInput, DuplicateCheck, PendingKnowledgeBitForReview } from '@post-anki/shared'
 
 import { KnowledgeBitReviewDraftCard } from './knowledge-bit-review-draft-card'
 import type { ManualDraft } from './knowledge-bit-review-manual-drafts'
@@ -17,7 +17,7 @@ const CREATED_BIT: PendingKnowledgeBitForReview = {
   variants: [{ id: 'var-new', kind: 'basic', prompt: 'Front text', answer: 'Back text' }],
 }
 
-const onCreate = vi.fn<(input: CreateKnowledgeItemInput) => Promise<boolean>>()
+const onCreate = vi.fn<(input: CreateKnowledgeItemInput, allowDuplicate?: boolean) => Promise<boolean>>()
 const onCancel = vi.fn()
 const onSaveVariant = vi.fn<(bitId: string, variantId: string, prompt: string, answer: string) => Promise<boolean>>()
 const onSaveBit = vi.fn<(bitId: string, body: string, background: string | null) => Promise<boolean>>()
@@ -33,7 +33,7 @@ const CLOZE_BIT: PendingKnowledgeBitForReview = {
   ],
 }
 
-function card(bit?: PendingKnowledgeBitForReview) {
+function card(bit?: PendingKnowledgeBitForReview, duplicates: DuplicateCheck | null = null, onDismiss = vi.fn()) {
   return (
     <ul>
       <KnowledgeBitReviewDraftCard
@@ -42,6 +42,8 @@ function card(bit?: PendingKnowledgeBitForReview) {
         isResolving={false}
         errorMessage={null}
         onCreate={onCreate}
+        duplicates={duplicates}
+        onDismissDuplicates={onDismiss}
         onCancel={onCancel}
         onEditingChange={vi.fn()}
         onApprove={vi.fn()}
@@ -254,5 +256,58 @@ describe('KnowledgeBitReviewDraftCard', () => {
       expect(screen.getByTestId('knowledge-bit-review-draft-front-draft-1')).toBeDefined()
       expect(screen.queryByTestId('knowledge-bit-review-draft-note-draft-1')).toBeNull()
     })
+  })
+})
+
+describe('KnowledgeBitReviewDraftCard duplicate warning', () => {
+  const duplicates: DuplicateCheck = {
+    semanticChecked: true,
+    matches: [
+      { id: 'kb-1', front: 'Same Q', back: 'Same A', subject: { id: 's', name: 'Geo' }, similarity: 1, matchKind: 'literal', kind: 'duplicate' },
+      { id: 'kb-2', front: 'Like Q', back: 'Other A', subject: null, similarity: 0.85, matchKind: 'semantic', kind: 'possible_duplicate' },
+    ],
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    onCreate.mockReset()
+    onCreate.mockResolvedValue(true)
+  })
+
+  afterEach(() => {
+    cleanup()
+    vi.useRealTimers()
+  })
+
+  it('should list the matches as Duplicate or Similar question and not retry the save on its own', async () => {
+    render(card(undefined, duplicates))
+    type('front', 'Same Q')
+    type('back', 'Same A')
+
+    await idle(5000)
+
+    expect(screen.getByText('Possible duplicate')).toBeDefined()
+    expect(screen.getByTestId('knowledge-bit-review-draft-duplicate-kb-1').textContent).toContain('Duplicate')
+    expect(screen.getByTestId('knowledge-bit-review-draft-duplicate-kb-2').textContent).toContain('Similar question')
+    expect(onCreate).not.toHaveBeenCalled()
+  })
+
+  it('should resend the same card with allowDuplicate when Save anyway is pressed', async () => {
+    render(card(undefined, duplicates))
+    type('front', 'Same Q')
+    type('back', 'Same A')
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-draft-save-anyway-draft-1'))
+    await idle(0)
+
+    expect(onCreate).toHaveBeenCalledWith({ front: 'Same Q', back: 'Same A', example: undefined }, true)
+  })
+
+  it('should clear the warning when the user edits the front', () => {
+    const onDismiss = vi.fn()
+
+    render(card(undefined, duplicates, onDismiss))
+    type('front', 'Another Q')
+
+    expect(onDismiss).toHaveBeenCalled()
   })
 })

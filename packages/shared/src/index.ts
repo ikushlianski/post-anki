@@ -40,6 +40,7 @@ export * from "./chat-model";
 export * from "./study-chat";
 export * from "./qa-chat";
 export * from "./global-card-chat";
+export * from "./card-duplicates";
 export * from "./subject-chat";
 export * from "./next-step";
 export * from "./streak";

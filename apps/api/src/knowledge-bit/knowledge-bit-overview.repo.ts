@@ -31,6 +31,7 @@ export async function listKnowledgeBitOverview(
   { subjectId, q, limit, offset, states, origins }: KnowledgeBitOverviewQuery,
   now: Date,
   db: DbExecutor = getDb(),
+  { bitIds }: { bitIds?: string[] } = {},
 ): Promise<KnowledgeBitOverviewPage> {
   const scopeIds = subjectId ? await resolveSubjectScopeIds(subjectId, db) : null;
   const pattern = q ? containsPattern(q) : null;
@@ -68,6 +69,7 @@ export async function listKnowledgeBitOverview(
             ),
         ),
         scopeIds ? inArray(effectiveSubjectIdSql, scopeIds) : undefined,
+        bitIds ? inArray(knowledgeBits.id, bitIds) : undefined,
         pattern ? questionOrAnswerContains(pattern, db) : undefined,
         states?.length ? inArray(studyStateSql(now), states) : undefined,
         origins?.length ? inArray(sourceTypeSql, origins) : undefined,

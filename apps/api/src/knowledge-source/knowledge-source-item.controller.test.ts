@@ -11,6 +11,12 @@ vi.mock("../knowledge-bit/knowledge-bit-manual-item.repo.js", () => ({
   insertManualKnowledgeItem: (...args: unknown[]) => insertManualKnowledgeItem(...args),
 }));
 
+const findDuplicateCards = vi.fn();
+
+vi.mock("../knowledge-bit/knowledge-bit-duplicate-finder.js", () => ({
+  findDuplicateCards: (...args: unknown[]) => findDuplicateCards(...args),
+}));
+
 const startKnowledgeBitPipelineKick = vi.fn();
 
 vi.mock("../shared/log.js", () => ({ log: { error: vi.fn() } }));
@@ -52,6 +58,33 @@ const createdItem = {
 describe("handleCreateKnowledgeSourceItem", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    findDuplicateCards.mockResolvedValue({ matches: [], semanticChecked: true });
+  });
+
+  it("should reply 409 with the matches and save nothing when a similar card exists", async () => {
+    const match = { id: "kb_old", front: "Q", back: "B", subject: null, similarity: 0.85, matchKind: "semantic", kind: "possible_duplicate" };
+
+    findDuplicateCards.mockResolvedValue({ matches: [match], semanticChecked: true });
+
+    const res = fakeRes();
+
+    await handleCreateKnowledgeSourceItem(fakeReq({ front: "Q", back: "A" }), res, "ks_1");
+
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: "possible_duplicates", matches: [match], semanticChecked: true });
+    expect(insertManualKnowledgeItem).not.toHaveBeenCalled();
+  });
+
+  it("should save without checking when the request passes allowDuplicate", async () => {
+    insertManualKnowledgeItem.mockResolvedValue({ ok: true, item: createdItem });
+
+    const res = fakeRes();
+
+    await handleCreateKnowledgeSourceItem(fakeReq({ front: "Q", back: "A", allowDuplicate: true }), res, "ks_1");
+
+    expect(res.status).toBe(201);
+    expect(findDuplicateCards).not.toHaveBeenCalled();
+    expect(insertManualKnowledgeItem).toHaveBeenCalledWith("ks_1", expect.not.objectContaining({ allowDuplicate: true }), undefined, true);
   });
 
   it("should reply 201 with the pending item shape for a valid front and back", async () => {
@@ -63,7 +96,7 @@ describe("handleCreateKnowledgeSourceItem", () => {
 
     expect(res.status).toBe(201);
     expect(res.body).toEqual(createdItem);
-    expect(insertManualKnowledgeItem).toHaveBeenCalledWith("ks_1", { front: "Q", back: "A", example: "ex", aiGenerated: false });
+    expect(insertManualKnowledgeItem).toHaveBeenCalledWith("ks_1", { front: "Q", back: "A", example: "ex", aiGenerated: false }, undefined, false);
   });
 
   it("should only request the follow-up passes after a manual item, not a new extraction", async () => {
@@ -102,7 +135,7 @@ describe("handleCreateKnowledgeSourceItem", () => {
     await handleCreateKnowledgeSourceItem(fakeReq({ front: "Q", back: "A", example: null }), res, "ks_1");
 
     expect(res.status).toBe(201);
-    expect(insertManualKnowledgeItem).toHaveBeenCalledWith("ks_1", { front: "Q", back: "A", example: undefined, aiGenerated: false });
+    expect(insertManualKnowledgeItem).toHaveBeenCalledWith("ks_1", { front: "Q", back: "A", example: undefined, aiGenerated: false }, undefined, false);
   });
 
   it.each([
@@ -156,7 +189,7 @@ describe("handleCreateKnowledgeSourceItem", () => {
     await handleCreateKnowledgeSourceItem(fakeReq({ note: " A {{c1::gap}} ", example: "ex" }), res, "ks_1");
 
     expect(res.status).toBe(201);
-    expect(insertManualKnowledgeItem).toHaveBeenCalledWith("ks_1", { note: "A {{c1::gap}}", example: "ex", aiGenerated: false });
+    expect(insertManualKnowledgeItem).toHaveBeenCalledWith("ks_1", { note: "A {{c1::gap}}", example: "ex", aiGenerated: false }, undefined, false);
   });
 
   it("should keep the manual caps equal to the extraction caps for the same fields", () => {

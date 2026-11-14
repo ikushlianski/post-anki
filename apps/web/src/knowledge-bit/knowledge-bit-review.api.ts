@@ -8,6 +8,8 @@ import {
   type TriageKnowledgeBitResponse,
   type GradeKnowledgeBitResponse,
   createKnowledgeItemInput,
+  duplicateCheckSchema,
+  type DuplicateCheck,
   type KnowledgeBitFeedbackByModelResponse,
   type RejectKnowledgeBitResponse,
   type CreateKnowledgeItemInput,
@@ -22,6 +24,7 @@ import {
 } from "@post-anki/shared";
 
 import {
+  ApiError,
   approveKnowledgeBit,
   bulkApproveKnowledgeBits,
   createManualKnowledgeItem,
@@ -278,15 +281,20 @@ export const getKnowledgeBitModelSuggestionForAdmin = createServerFn({
 }).handler(() => getKnowledgeBitModelSuggestion());
 
 const createManualKnowledgeItemForReviewInput = z
-  .object({ sourceId: z.string().min(1) })
+  .object({ sourceId: z.string().min(1), allowDuplicate: z.boolean().optional() })
   .and(createKnowledgeItemInput);
 
 function withoutSourceId({
   sourceId: _sourceId,
+  allowDuplicate: _allowDuplicate,
   ...input
 }: z.output<typeof createManualKnowledgeItemForReviewInput>): CreateKnowledgeItemInput {
   return input;
 }
+
+export type CreateManualItemOutcome =
+  | { ok: true; bit: PendingKnowledgeBitForReview }
+  | { ok: false; duplicates: DuplicateCheck };
 
 export const createManualKnowledgeItemForReview = createServerFn({
   method: "POST",
@@ -294,7 +302,25 @@ export const createManualKnowledgeItemForReview = createServerFn({
   .inputValidator((data: unknown) =>
     createManualKnowledgeItemForReviewInput.parse(data),
   )
-  .handler(
-    ({ data }): Promise<PendingKnowledgeBitForReview> =>
-      createManualKnowledgeItem(data.sourceId, withoutSourceId(data)),
-  );
+  .handler(async ({ data }): Promise<CreateManualItemOutcome> => {
+    try {
+      const bit = await createManualKnowledgeItem(
+        data.sourceId,
+        withoutSourceId(data),
+        data.allowDuplicate ?? false,
+      );
+
+      return { ok: true, bit };
+    } catch (error) {
+      const parsed =
+        error instanceof ApiError && error.status === 409 && error.code === "possible_duplicates"
+          ? duplicateCheckSchema.safeParse(error.details)
+          : null;
+
+      if (parsed?.success) {
+        return { ok: false, duplicates: parsed.data };
+      }
+
+      throw error;
+    }
+  });
