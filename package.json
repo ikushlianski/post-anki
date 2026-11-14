@@ -39,6 +39,7 @@
     "db:generate:bot": "npm run db:generate -w @post-anki/bot",
     "db:migrate:bot": "npm run db:migrate -w @post-anki/bot",
     "depcruise": "depcruise --config .dependency-cruiser.cjs --output-type err apps packages",
+    "smoke:prod": "node scripts/post-deploy-smoke.mjs",
     "check-no-dynamic-imports": "node scripts/check-no-dynamic-imports.mjs",
     "check-web-node-builtins": "node scripts/check-web-node-builtins.mjs",
     "e2e-local:mock-openrouter": "tsx e2e-local/mock-openrouter/server.ts",
