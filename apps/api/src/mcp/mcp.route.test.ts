@@ -117,6 +117,12 @@ describe("POST /mcp tools", () => {
     expect(writers.map((tool) => tool.name)).toEqual([
       "submit_knowledge",
       "submit_knowledge_to_subject",
+      "create_card",
+      "update_card",
+      "delete_card",
+      "tag_cards",
+      "add_subject",
+      "chat_about_card",
     ]);
 
     await client.close();

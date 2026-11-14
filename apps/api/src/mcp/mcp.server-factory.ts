@@ -4,6 +4,7 @@ import { registerBrowseTools } from "./register-browse-tools.js";
 import { registerCardsTools } from "./register-cards-tools.js";
 import { registerSearchTools } from "./register-search-tools.js";
 import { registerKnowledgeSourceTools } from "./register-knowledge-source-tools.js";
+import { registerCardWriteTools } from "./register-card-write-tools.js";
 import { registerWriteTools } from "./register-write-tools.js";
 
 export type McpAuthContext = RequestAuthContext;
@@ -22,6 +23,7 @@ export function createMcpServer(auth: McpAuthContext): McpServer {
   registerSearchTools(server);
   registerKnowledgeSourceTools(server);
   registerWriteTools(server, auth);
+  registerCardWriteTools(server, auth);
 
   return server;
 }
