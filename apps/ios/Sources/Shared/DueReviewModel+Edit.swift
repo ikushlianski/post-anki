@@ -24,7 +24,8 @@ extension DueReviewModel {
                 intervalPreview: latest.intervalPreview,
                 cardKey: latest.cardKey,
                 aiSuggestion: latest.aiSuggestion,
-                originalPhrase: latest.originalPhrase
+                originalPhrase: latest.originalPhrase,
+                subjectPath: latest.subjectPath
             )
 
             return nil
@@ -77,7 +78,8 @@ extension DueReviewModel {
                 intervalPreview: latest.intervalPreview,
                 cardKey: latest.cardKey,
                 aiSuggestion: latest.aiSuggestion,
-                originalPhrase: latest.originalPhrase
+                originalPhrase: latest.originalPhrase,
+                subjectPath: latest.subjectPath
             )
 
             return nil

@@ -8,6 +8,8 @@ import {
 import { readJsonBody, sendError, sendJson, sendInvalidQuery } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { recordActivityToday } from "../streak/streak.service.js";
+import { loadSubjectPathLabels } from "../subject/subject-path-labels.js";
+import { groupReviewCardsBySubject } from "./knowledge-bit-review-subject-groups.js";
 import { getKnowledgeBitReviewQueue } from "./knowledge-bit-review-queue.repo.js";
 import { buildReviewPack } from "./knowledge-bit-review-pack.service.js";
 import { resolveReviewedAt } from "./knowledge-bit-review-time.js";
@@ -33,7 +35,9 @@ export async function handleListKnowledgeBitReviewCards(
     { tz, now: new Date(), aheadDays },
   );
 
-  sendJson(res, 200, queue);
+  const labels = await loadSubjectPathLabels();
+
+  sendJson(res, 200, { ...queue, cards: groupReviewCardsBySubject(queue.cards, labels) });
 }
 
 export async function handleGetReviewPack(res: http.ServerResponse, search: string): Promise<void> {

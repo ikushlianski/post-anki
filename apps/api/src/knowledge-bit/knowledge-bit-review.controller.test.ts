@@ -12,6 +12,7 @@ vi.mock("./knowledge-bit-review-queue.repo.js", () => ({ getKnowledgeBitReviewQu
 vi.mock("./knowledge-bit-review.orchestrator.js", () => ({ recordKnowledgeBitReview }));
 vi.mock("./knowledge-bit-review-suspension.orchestrator.js", () => ({ updateKnowledgeBitScheduleControls }));
 vi.mock("./knowledge-bit-review-undo.orchestrator.js", () => ({ undoKnowledgeBitReview }));
+vi.mock("../subject/subject-path-labels.js", () => ({ loadSubjectPathLabels: vi.fn(async () => new Map()) }));
 vi.mock("../streak/streak.service.js", () => ({ recordActivityToday }));
 vi.mock("../shared/log.js", () => ({ log: { warn: vi.fn(), error: vi.fn() } }));
 

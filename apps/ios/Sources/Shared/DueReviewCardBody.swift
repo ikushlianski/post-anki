@@ -34,6 +34,19 @@ struct DueReviewCardBody<AnswerInput: View, RevealedFooter: View, Unrevealed: Vi
                         .foregroundStyle(.secondary)
                 }
 
+                if let subject = model.currentSubjectPath {
+                    Text(subject)
+                        .zoomFont(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("review-card-subject")
+                }
+
+                if let announcement = model.groupAnnouncement {
+                    Text(announcement)
+                        .zoomFont(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
                 if showsProgress, let header = progressHeader {
                     Text(header)
                         .zoomFont(.caption.weight(.medium))
@@ -110,7 +123,7 @@ struct DueReviewCardBody<AnswerInput: View, RevealedFooter: View, Unrevealed: Vi
     }
 
     private var progressHeader: String? {
-        let parts = [model.subjectName, model.progressLabel].compactMap { $0 }
+        let parts = [model.currentSubjectPath == nil ? model.subjectName : nil, model.progressLabel].compactMap { $0 }
 
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }

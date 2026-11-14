@@ -34,6 +34,7 @@ vi.mock("./knowledge-bit-review-pack.service.js", () => ({
   })),
 }));
 
+vi.mock("../subject/subject-path-labels.js", () => ({ loadSubjectPathLabels: vi.fn(async () => new Map()) }));
 vi.mock("../streak/streak.service.js", () => ({
   recordActivityToday: vi.fn(async () => ({ currentStreak: 1, longestStreak: 1, lastActiveDate: "2026-10-10" })),
 }));
