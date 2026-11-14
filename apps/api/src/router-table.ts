@@ -113,6 +113,11 @@ export const ROUTES: RouteDef[] = [
     name: "recordKnowledgeBitReview",
   },
   {
+    method: "POST",
+    pattern: "/knowledge-bits/reviews/known",
+    name: "recordKnownKnowledgeBitReview",
+  },
+  {
     method: "DELETE",
     pattern: /^\/knowledge-bits\/reviews\/([^/]+)$/,
     name: "undoKnowledgeBitReview",

@@ -128,6 +128,14 @@ public struct ReviewCardsResponse: Codable, Sendable {
     public let limit: Int?
 }
 
+public struct RecordKnownReviewInput: Encodable, Sendable {
+    public let variantId: String
+
+    public init(variantId: String) {
+        self.variantId = variantId
+    }
+}
+
 public struct RecordReviewInput: Encodable, Sendable {
     public let variantId: String
     public let grade: ReviewGrade

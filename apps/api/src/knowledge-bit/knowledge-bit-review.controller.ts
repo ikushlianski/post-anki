@@ -1,5 +1,6 @@
 import type http from "node:http";
 import {
+  recordKnownReviewInputSchema,
   recordReviewInputSchema,
   reviewCardsQuerySchema,
   reviewPackQuerySchema,
@@ -14,6 +15,7 @@ import { getKnowledgeBitReviewQueue } from "./knowledge-bit-review-queue.repo.js
 import { buildReviewPack } from "./knowledge-bit-review-pack.service.js";
 import { resolveReviewedAt } from "./knowledge-bit-review-time.js";
 import { recordKnowledgeBitReview } from "./knowledge-bit-review.orchestrator.js";
+import { recordKnownKnowledgeBitReview } from "./knowledge-bit-review-known.orchestrator.js";
 import { updateKnowledgeBitScheduleControls } from "./knowledge-bit-review-suspension.orchestrator.js";
 import { undoKnowledgeBitReview } from "./knowledge-bit-review-undo.orchestrator.js";
 
@@ -28,11 +30,11 @@ export async function handleListKnowledgeBitReviewCards(
     return;
   }
 
-  const { limit, tz, tagId, topicId, knowledgeBitId, subjectId, aheadDays } = parsed.data;
+  const { limit, tz, tagId, topicId, knowledgeBitId, subjectId, aheadDays, newCards } = parsed.data;
   const queue = await getKnowledgeBitReviewQueue(
     limit,
     { tagId, topicId, knowledgeBitId, subjectId },
-    { tz, now: new Date(), aheadDays },
+    { tz, now: new Date(), aheadDays, excludeNew: newCards === "exclude" },
   );
 
   const labels = await loadSubjectPathLabels();
@@ -85,6 +87,36 @@ export async function handleRecordKnowledgeBitReview(
     } catch (error) {
       log.warn({ error }, "record_activity_after_review_failed");
     }
+  }
+
+  sendJson(res, 201, result);
+}
+
+export async function handleRecordKnownKnowledgeBitReview(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+): Promise<void> {
+  const body = await readJsonBody(req, recordKnownReviewInputSchema);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const now = new Date();
+  const outcome = await recordKnownKnowledgeBitReview(body.data, now);
+
+  if (!outcome.ok) {
+    sendError(res, outcome.error === "not_approved" ? 403 : 404, outcome.error);
+    return;
+  }
+
+  const { ok: _ok, ...result } = outcome;
+
+  try {
+    await recordActivityToday(now.toISOString(), "review");
+  } catch (error) {
+    log.warn({ error }, "record_activity_after_known_review_failed");
   }
 
   sendJson(res, 201, result);

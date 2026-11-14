@@ -9,6 +9,10 @@ struct DueReviewBottomBar: View {
                 DueReviewSuspendedBanner(model: model)
             }
 
+            if model.knownUndo != nil {
+                DueReviewKnownBanner(model: model)
+            }
+
             if model.current != nil {
                 suspendRow
             }
@@ -36,6 +40,17 @@ struct DueReviewBottomBar: View {
 
     private var suspendRow: some View {
         HStack {
+            Button {
+                Task { await model.markCurrentKnown() }
+            } label: {
+                Label("I already know it", systemImage: "checkmark.seal")
+                    .zoomFont(.footnote)
+            }
+            .buttonStyle(.borderless)
+            .disabled(model.isGrading || model.current?.isRehearsal == true)
+            .accessibilityIdentifier("due-review-known")
+            .accessibilityHint("Hides this card for 6 to 12 months")
+
             Spacer()
 
             Button {
@@ -98,6 +113,38 @@ private struct DueReviewSuspendedBanner: View {
             guard !Task.isCancelled else { return }
 
             model.suspendedUndo = nil
+        }
+    }
+}
+
+private struct DueReviewKnownBanner: View {
+    let model: DueReviewModel
+
+    var body: some View {
+        HStack {
+            Text("Marked as known")
+                .zoomFont(.footnote)
+
+            Text("·")
+                .foregroundStyle(.secondary)
+
+            Button("Undo") {
+                Task { await model.undoKnown() }
+            }
+            .zoomFont(.footnote.weight(.semibold))
+            .buttonStyle(.borderless)
+            .disabled(model.isGrading)
+            .accessibilityIdentifier("due-review-known-undo")
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(.bar)
+        .task(id: model.knownUndo?.reviewId) {
+            try? await Task.sleep(for: .seconds(5))
+
+            guard !Task.isCancelled else { return }
+
+            model.knownUndo = nil
         }
     }
 }

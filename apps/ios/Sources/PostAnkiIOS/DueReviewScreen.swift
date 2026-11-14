@@ -71,6 +71,12 @@ struct DueReviewScreen: View {
             onSkip: { Task { await model.skipFailedSave() } }
         )
         .toolbar {
+            if model.scope == nil {
+                ToolbarItem(placement: .topBarTrailing) {
+                    DueReviewRepeatOnlyToggle(model: model)
+                }
+            }
+
             if model.state == .card, !model.isGrading, let card = model.current {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {

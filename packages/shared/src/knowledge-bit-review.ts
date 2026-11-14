@@ -22,6 +22,7 @@ export const reviewCardsQuerySchema = z.object({
   knowledgeBitId: optionalScopeId,
   subjectId: optionalScopeId,
   aheadDays: z.coerce.number().int().min(0).max(30).default(0),
+  newCards: z.enum(["include", "exclude"]).default("include"),
 });
 
 export type ReviewCardsQuery = z.infer<typeof reviewCardsQuerySchema>;
@@ -108,6 +109,12 @@ export const recordReviewInputSchema = z.object({
   reviewedAt: z.string().datetime({ offset: true }).optional(),
   sentAt: z.string().datetime({ offset: true }).optional(),
 });
+
+export const recordKnownReviewInputSchema = z.object({
+  variantId: z.string().min(1),
+});
+
+export type RecordKnownReviewInput = z.input<typeof recordKnownReviewInputSchema>;
 
 export type RecordReviewInput = z.input<typeof recordReviewInputSchema>;
 

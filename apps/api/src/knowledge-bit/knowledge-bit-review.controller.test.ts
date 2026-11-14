@@ -5,11 +5,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const getKnowledgeBitReviewQueue = vi.hoisted(() => vi.fn());
 const recordKnowledgeBitReview = vi.hoisted(() => vi.fn());
 const updateKnowledgeBitScheduleControls = vi.hoisted(() => vi.fn());
+const recordKnownKnowledgeBitReview = vi.hoisted(() => vi.fn());
 const undoKnowledgeBitReview = vi.hoisted(() => vi.fn());
 const recordActivityToday = vi.hoisted(() => vi.fn());
 
 vi.mock("./knowledge-bit-review-queue.repo.js", () => ({ getKnowledgeBitReviewQueue }));
 vi.mock("./knowledge-bit-review.orchestrator.js", () => ({ recordKnowledgeBitReview }));
+vi.mock("./knowledge-bit-review-known.orchestrator.js", () => ({ recordKnownKnowledgeBitReview }));
 vi.mock("./knowledge-bit-review-suspension.orchestrator.js", () => ({ updateKnowledgeBitScheduleControls }));
 vi.mock("./knowledge-bit-review-undo.orchestrator.js", () => ({ undoKnowledgeBitReview }));
 vi.mock("../subject/subject-path-labels.js", () => ({ loadSubjectPathLabels: vi.fn(async () => new Map()) }));
@@ -19,6 +21,7 @@ vi.mock("../shared/log.js", () => ({ log: { warn: vi.fn(), error: vi.fn() } }));
 import {
   handleListKnowledgeBitReviewCards,
   handleRecordKnowledgeBitReview,
+  handleRecordKnownKnowledgeBitReview,
   handleUndoKnowledgeBitReview,
   handleUpdateKnowledgeBitScheduleControls,
 } from "./knowledge-bit-review.controller.js";
@@ -45,6 +48,7 @@ beforeEach(() => {
   recordKnowledgeBitReview.mockReset();
   updateKnowledgeBitScheduleControls.mockReset();
   undoKnowledgeBitReview.mockReset();
+  recordKnownKnowledgeBitReview.mockReset();
   recordActivityToday.mockReset();
 });
 
@@ -100,6 +104,71 @@ describe("handleListKnowledgeBitReviewCards learn ahead", () => {
     await handleListKnowledgeBitReviewCards(res, "aheadDays=31");
 
     expect(sent(res).status).toBe(400);
+  });
+});
+
+describe("handleListKnowledgeBitReviewCards repeat-only", () => {
+  it("should keep new cards in the queue by default", async () => {
+    getKnowledgeBitReviewQueue.mockResolvedValue({ cards: [] });
+
+    await handleListKnowledgeBitReviewCards(fakeRes(), "limit=5");
+
+    expect(getKnowledgeBitReviewQueue.mock.calls[0]![2]).toMatchObject({ excludeNew: false });
+  });
+
+  it("should ask the queue to leave out new cards when newCards=exclude", async () => {
+    getKnowledgeBitReviewQueue.mockResolvedValue({ cards: [] });
+
+    await handleListKnowledgeBitReviewCards(fakeRes(), "newCards=exclude");
+
+    expect(getKnowledgeBitReviewQueue.mock.calls[0]![2]).toMatchObject({ excludeNew: true });
+  });
+
+  it("should answer 400 for an unknown newCards value", async () => {
+    const res = fakeRes();
+
+    await handleListKnowledgeBitReviewCards(res, "newCards=maybe");
+
+    expect(sent(res).status).toBe(400);
+  });
+});
+
+describe("handleRecordKnownKnowledgeBitReview", () => {
+  it("should answer 201 with the schedule and count the day as studied", async () => {
+    recordKnownKnowledgeBitReview.mockResolvedValue({ ok: true, reviewId: "r1", intervalDays: 200 });
+    const res = fakeRes();
+
+    await handleRecordKnownKnowledgeBitReview(fakeReq({ variantId: "v1" }), res);
+
+    expect(sent(res)).toEqual({ status: 201, body: { reviewId: "r1", intervalDays: 200 } });
+    expect(recordActivityToday).toHaveBeenCalledWith(expect.any(String), "review");
+  });
+
+  it("should answer 404 for an unknown card", async () => {
+    recordKnownKnowledgeBitReview.mockResolvedValue({ ok: false, error: "variant_not_found" });
+    const res = fakeRes();
+
+    await handleRecordKnownKnowledgeBitReview(fakeReq({ variantId: "nope" }), res);
+
+    expect(sent(res).status).toBe(404);
+  });
+
+  it("should answer 403 for a card that is not approved", async () => {
+    recordKnownKnowledgeBitReview.mockResolvedValue({ ok: false, error: "not_approved" });
+    const res = fakeRes();
+
+    await handleRecordKnownKnowledgeBitReview(fakeReq({ variantId: "v1" }), res);
+
+    expect(sent(res).status).toBe(403);
+  });
+
+  it("should answer 400 without a variant id", async () => {
+    const res = fakeRes();
+
+    await handleRecordKnownKnowledgeBitReview(fakeReq({}), res);
+
+    expect(sent(res).status).toBe(400);
+    expect(recordKnownKnowledgeBitReview).not.toHaveBeenCalled();
   });
 });
 

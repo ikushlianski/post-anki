@@ -79,6 +79,7 @@ export interface KnowledgeBitReviewQueueClock {
   tz: string;
   now: Date;
   aheadDays?: number;
+  excludeNew?: boolean;
   pack?: { subjectIds: string[]; dueCutoff: Date };
 }
 
@@ -104,7 +105,12 @@ async function listScopedBatch(
   db: DbExecutor,
   stepsFor: (subjectId: string | null) => ScheduleOptions,
   mixNewWithDue: boolean,
+  excludeNew: boolean,
 ): Promise<KnowledgeBitReviewCardRow[]> {
+  if (excludeNew) {
+    return listScopedCards(limit, scope, filter, now, db, stepsFor, "seen");
+  }
+
   if (!mixNewWithDue) {
     return listScopedCards(limit, scope, filter, now, db, stepsFor);
   }
@@ -124,6 +130,7 @@ export async function getKnowledgeBitReviewQueue(
   db: DbExecutor = getDb(),
 ): Promise<KnowledgeBitReviewQueue> {
   const { now } = clock;
+  const excludeNew = clock.excludeNew === true;
   const subjectScope = filter?.subjectId ? await resolveSubjectScope(filter.subjectId, db) : undefined;
   const scope = scopeCondition(filter, db, subjectScope?.ids ?? clock.pack?.subjectIds);
   const picked = pickedVariants(scope, now, db);
@@ -153,7 +160,7 @@ export async function getKnowledgeBitReviewQueue(
       }
 
       const mixed =
-        subjectOnlyScope && subjectScope && filter.subjectId
+        !excludeNew && subjectOnlyScope && subjectScope && filter.subjectId
           ? await listParentMixCards({
               rootId: filter.subjectId,
               subjectRows: subjectScope.rows,
@@ -165,14 +172,14 @@ export async function getKnowledgeBitReviewQueue(
             })
           : null;
 
-      return mixed ?? listScopedBatch(limit, scope, filter, now, db, stepsFor, mixNewWithDue);
+      return mixed ?? listScopedBatch(limit, scope, filter, now, db, stepsFor, mixNewWithDue, excludeNew);
     };
     const [cards, totals] = await Promise.all([readCards(), readEligibleTotals(picked, now, db)]);
 
     return {
       ...(subjectOnlyScope ? dailyFields : {}),
       cards,
-      counts: { new: totals.fresh, learning: totals.learning, review: totals.due },
+      counts: { new: excludeNew ? 0 : totals.fresh, learning: totals.learning, review: totals.due },
       newRemainingToday: remaining,
       newLimitReached: false,
       nextDueAt: (blocked ? dayEndsAt : totals.nextDue)?.toISOString() ?? null,
@@ -202,7 +209,7 @@ export async function getKnowledgeBitReviewQueue(
           stepsFor,
           dueCutoff,
         ),
-    blockedByDailyLimit
+    blockedByDailyLimit || excludeNew
       ? Promise.resolve([])
       : listPickedNewCards(picked, freshBySubject, allowance, limit, now, db, stepsFor),
     readEligibleTotals(picked, now, db),
@@ -224,7 +231,7 @@ export async function getKnowledgeBitReviewQueue(
   return {
     ...dailyFields,
     cards,
-    counts: { ...derived.counts, review: reviewCap.review },
+    counts: { ...derived.counts, new: excludeNew ? 0 : derived.counts.new, review: reviewCap.review },
     newRemainingToday: remaining,
     newLimitReached: derived.newLimitReached,
     nextDueAt: (blockedByDailyLimit ? dayEndsAt : reviewCap.nextDue)?.toISOString() ?? null,

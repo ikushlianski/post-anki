@@ -30,6 +30,8 @@ final class DueReviewModel {
     var failedGrade: ReviewGrade?
     var notice: String?
     var suspendedUndo: ReviewCard?
+    var knownUndo: KnownUndo?
+    var repeatOnly: Bool
     var nextDueAt: String?
     var dailyLimit: DailyReviewLimit?
     var noCardsYet = false
@@ -88,12 +90,14 @@ final class DueReviewModel {
         reviewPack: ReviewPackStore = .shared,
         scope: DueReviewScope? = nil,
         aheadDays: Int = 0,
+        repeatOnly: Bool = RepeatOnlyPreference.isOn,
         retryDelay: Duration? = .seconds(20)
     ) {
         self.gradeQueue = gradeQueue
         self.reviewPack = reviewPack
         self.scope = scope
         self.aheadDays = LearnAheadOption.clamped(aheadDays)
+        self.repeatOnly = repeatOnly && scope == nil
         self.retryDelay = retryDelay
 
         Task { [weak self] in

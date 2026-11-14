@@ -79,6 +79,13 @@ struct MacDueReviewView: View {
                 .help("Reload cards (Command-R)")
         }
 
+        if model.scope == nil {
+            ToolbarItem {
+                DueReviewRepeatOnlyToggle(model: model)
+                    .help("Show only cards you have studied before")
+            }
+        }
+
         if model.state == .card, !model.isGrading, let card = model.current {
             ToolbarItem {
                 Button {
@@ -124,7 +131,7 @@ private struct MacDueReviewCardView: View {
                     showsProgress: true,
                     answerInput: { EmptyView() },
                     revealedFooter: {
-                        Text("Press 1 Again, 2 Hard, 3 Good, 4 Easy, or Space for Good. C chats about the card. S suspends the card")
+                        Text("Press 1 Again, 2 Hard, 3 Good, 4 Easy, or Space for Good. C chats about the card. S suspends the card. K marks it as already known")
                             .zoomFont(.footnote)
                             .foregroundStyle(.secondary)
                     },
@@ -134,7 +141,7 @@ private struct MacDueReviewCardView: View {
                                 .buttonStyle(.borderedProminent)
                                 .help("Show the answer (Space or Return)")
 
-                            Text("Press Space or Return to show the answer. C chats about the card. S suspends the card")
+                            Text("Press Space or Return to show the answer. C chats about the card. S suspends the card. K marks it as already known")
                                 .zoomFont(.footnote)
                                 .foregroundStyle(.secondary)
                         }
@@ -152,6 +159,13 @@ private struct MacDueReviewCardView: View {
             guard press.modifiers.isEmpty || press.modifiers == .shift, !model.isGrading else { return .ignored }
 
             Task { await model.suspendCurrent() }
+
+            return .handled
+        }
+        .onKeyPress(characters: CharacterSet(charactersIn: "kK")) { press in
+            guard press.modifiers.isEmpty || press.modifiers == .shift, !model.isGrading else { return .ignored }
+
+            Task { await model.markCurrentKnown() }
 
             return .handled
         }

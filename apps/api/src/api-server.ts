@@ -46,6 +46,7 @@ import {
   handleGetReviewPack,
   handleListKnowledgeBitReviewCards,
   handleRecordKnowledgeBitReview,
+  handleRecordKnownKnowledgeBitReview,
   handleUndoKnowledgeBitReview,
   handleUpdateKnowledgeBitScheduleControls,
 } from "./knowledge-bit/knowledge-bit-review.controller.js";
@@ -762,6 +763,8 @@ async function route(
       return handleListSubjectReviewDueCounts(res, url.search);
     case "recordKnowledgeBitReview":
       return handleRecordKnowledgeBitReview(req, res);
+    case "recordKnownKnowledgeBitReview":
+      return handleRecordKnownKnowledgeBitReview(req, res);
     case "undoKnowledgeBitReview":
       return handleUndoKnowledgeBitReview(res, id);
     case "updateKnowledgeBitScheduleControls":

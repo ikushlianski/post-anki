@@ -16,7 +16,7 @@ extension DueReviewModel {
     }
 
     private var packScope: ReviewPackScope? {
-        guard aheadDays == 0, scope == nil else { return nil }
+        guard aheadDays == 0, scope == nil, !repeatOnly else { return nil }
 
         return .all
     }

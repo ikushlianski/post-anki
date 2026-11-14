@@ -130,7 +130,7 @@ describe("GET /knowledge-bits/review-cards", () => {
     expect(vi.mocked(getKnowledgeBitReviewQueue)).toHaveBeenCalledWith(
       10,
       { tagId: undefined, topicId: undefined, knowledgeBitId: undefined },
-      { tz: "UTC", now: expect.any(Date), aheadDays: 0 },
+      { tz: "UTC", now: expect.any(Date), aheadDays: 0, excludeNew: false },
     );
   });
 
@@ -140,7 +140,7 @@ describe("GET /knowledge-bits/review-cards", () => {
     expect(vi.mocked(getKnowledgeBitReviewQueue)).toHaveBeenCalledWith(
       5,
       { tagId: "tag_1", topicId: undefined, knowledgeBitId: undefined },
-      { tz: "UTC", now: expect.any(Date), aheadDays: 0 },
+      { tz: "UTC", now: expect.any(Date), aheadDays: 0, excludeNew: false },
     );
   });
 

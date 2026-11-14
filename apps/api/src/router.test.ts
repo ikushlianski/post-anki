@@ -600,6 +600,13 @@ describe("resolveRoute", () => {
       expect(resolveRoute("GET", "/knowledge-bits/reviews")?.name).toBe("getKnowledgeBitDetail");
     });
 
+    it("routes the already-known action to its own endpoint, not to undo", () => {
+      expect(resolveRoute("POST", "/knowledge-bits/reviews/known")?.name).toBe(
+        "recordKnownKnowledgeBitReview",
+      );
+      expect(resolveRoute("DELETE", "/knowledge-bits/reviews/known")?.name).toBe("undoKnowledgeBitReview");
+    });
+
     it("routes GET /knowledge-bits/suspended to the suspended list, not to a bit id", () => {
       expect(resolveRoute("GET", "/knowledge-bits/suspended")?.name).toBe(
         "listSuspendedKnowledgeBits",

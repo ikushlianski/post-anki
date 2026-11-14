@@ -34,6 +34,7 @@ export type RouteName =
   | "listRejectedKnowledgeBits"
   | "listSubjectReviewDueCounts"
   | "recordKnowledgeBitReview"
+  | "recordKnownKnowledgeBitReview"
   | "undoKnowledgeBitReview"
   | "updateKnowledgeBitScheduleControls"
   | "listPendingKnowledgeBitsForReview"
