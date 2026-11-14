@@ -1508,3 +1508,20 @@ directly. See the handoff report delivered to the user for the full scenario-lev
 ## approve-waiting-cards
 
 - 2026-11-11: A one-off script reports how many waiting triage cards it would add to each subject, and with its apply flag approves them so they become studyable, changing nothing on a second run.
+
+## mcp-anki-tools
+
+- 2026-11-14: Accept, reject or reword card proposals from a card chat through MCP.
+- 2026-11-14: Real-database tests cover API key listing and revoking, MCP manual cards and subject lookup.
+- 2026-11-14: The local MCP server runs against the database configured in the API env files.
+- 2026-11-14: Create, list and revoke personal API keys in the web app settings, shown once.
+- 2026-11-14: Create, list and revoke personal API keys in the Mac and iPhone apps.
+- 2026-11-14: The remote MCP endpoint accepts personal API keys and enforces each key's scopes.
+- 2026-11-14: Create, update and delete cards through MCP.
+- 2026-11-14: Tag cards through MCP.
+- 2026-11-14: Add a subject through MCP.
+- 2026-11-14: Start a card-crafting chat about a card through MCP.
+- 2026-11-14: List subjects and tags, and the cards carrying a tag, through MCP.
+- 2026-11-14: Move cards to another subject through MCP.
+- 2026-11-14: Suspend and unsuspend cards through MCP.
+- 2026-11-14: Review due cards through MCP: list what is due and grade a card.

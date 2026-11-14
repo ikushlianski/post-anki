@@ -7,6 +7,19 @@ updated: 2026-09-04
 ---
 # Run todo
 
+## mcp-anki-tools
+
+### Scope
+- One local MCP server over stdio with no login, and one remote MCP endpoint on the prod API, offering the same tools.
+- Remote access uses personal API keys the user creates and revokes in the web, Mac and iPhone apps; keys are shown once and stored only as hashes.
+- Anki-style write tools: create, update, delete and tag cards, add subjects, start a card-crafting chat.
+- Out of scope: An OAuth sign-in flow or access for other users.
+
+### Coding tasks
+
+### Notes
+
+
 ## subject-card-prompts
 
 ### Scope
@@ -1187,6 +1200,8 @@ updated: 2026-09-04
 - Out of scope: Replacing the typed-answer LLM-graded mode; it stays as a separate mode
 
 ### Coding tasks
+- [ ] Show the subject of the card currently being reviewed.
+- [ ] Today review goes subject by subject, announcing the next subject and cards left.
 - [x] A daily review limit ends the session with a done-for-today message, and review-ahead stays available.
 - [x] Mac Review shows a collapsible subject tree with due new and repeat counts, and reviews on click.
 - [x] On the Mac, Space, Return and numpad Enter all continue the review as Good.
@@ -1880,6 +1895,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: changes to the-me-agent itself — post-anki's side of the integration only
 
 ### Coding tasks
+- [ ] Add a Post Anki button that sends a todo to the user's Me agent.
 
 ### Notes
 - MCP is stdio-only; post-anki runs on Cloud Run — no prod path without a networked transport
@@ -1961,3 +1977,17 @@ Each root item below is one separate autonomous session, worked sequentially —
 ### Notes
 - EXHAUSTED-AT-SCOPE (round 1, 2026-11-08)
 
+
+## add-a-post-deploy-smoke-test-that-checks
+
+### Scope
+- Priority: medium
+- Add a post-deploy smoke test that checks the Telegram bot webhook config, the bot /push auth and the API GET /daily-push against the prod URLs, without deploying anything.
+
+### Coding tasks
+- [ ] Create scripts/post-deploy-smoke.mjs reading prod domains and bot token from environment, failing fast when missing.
+- [ ] Add webhook check: getWebhookInfo url must equal the bot /telegram URL, with no last_error_message.
+- [ ] Add /push check: missing and wrong bearer must both return 401; never send the valid secret.
+
+### Notes
+- goal run run-20261112t120426z
