@@ -176,6 +176,7 @@ struct MacSubjectsView: View {
             }
             .width(min: 50, ideal: 60, max: 90)
         }
+        .zoomFont(.body)
         .contextMenu(forSelectionType: String.self) { ids in
             let items = rows.map(\.subject).filter { ids.contains($0.id) }
 

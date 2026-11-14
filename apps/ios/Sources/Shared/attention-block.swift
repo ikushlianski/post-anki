@@ -38,7 +38,7 @@ struct AttentionBlock: View {
             }
 
             if let message = coordinator.batchMessage {
-                Text(message).font(.footnote).foregroundStyle(.red)
+                Text(message).zoomFont(.footnote).foregroundStyle(.red)
             }
         } header: {
             HStack {

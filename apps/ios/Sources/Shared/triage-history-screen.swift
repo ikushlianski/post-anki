@@ -35,7 +35,7 @@ struct TriageHistoryScreen: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(Self.title(for: entry))
                             Text(entry.summary)
-                                .font(.caption)
+                                .zoomFont(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -105,7 +105,7 @@ struct TriageHistoryDetailScreen: View {
 
                         if let note = record.note, !note.isEmpty {
                             Text(note)
-                                .font(.caption)
+                                .zoomFont(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }

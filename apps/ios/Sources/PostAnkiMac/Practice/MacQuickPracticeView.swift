@@ -101,6 +101,7 @@ struct MacQuickPracticeView: View {
                 Text(errorMessage).foregroundStyle(.red)
             }
         }
+        .zoomFont(.body)
         .formStyle(.grouped)
         .onChange(of: model.userAnswer) { model.saveDraft() }
     }

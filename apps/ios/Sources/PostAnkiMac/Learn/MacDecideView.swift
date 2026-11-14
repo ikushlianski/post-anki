@@ -82,6 +82,7 @@ struct MacDecideView: View {
 
                     if decisionClipped { DraftClippedNote() }
                 }
+                .zoomFont(.body)
 
                 Section("Where you lean") {
                     TextField(
@@ -186,6 +187,7 @@ struct MacDecideHistoryView: View {
                 TableColumn("Date") { Text(DueReviewModel.nextDueText($0.createdAt) ?? "") }
                     .width(140 * zoom)
             }
+            .zoomFont(.body)
             .contextMenu(forSelectionType: DecideSession.ID.self) { _ in
             } primaryAction: { ids in
                 if let session = model.sessions.first(where: { ids.contains($0.id) }) { onOpen(session) }

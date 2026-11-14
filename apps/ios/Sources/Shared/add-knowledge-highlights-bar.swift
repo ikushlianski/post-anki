@@ -29,26 +29,26 @@ struct AddKnowledgeHighlightsBar: View {
                 if !highlights.isEmpty {
                     Button("Clear highlights") { highlights = [] }
                         .buttonStyle(.borderless)
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("add-knowledge-highlights-clear")
                 }
 
                 if highlights.count >= KnowledgeHighlights.max {
                     Text("Up to \(KnowledgeHighlights.max) highlights.")
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
 
             Text("Highlight the parts the AI should focus on when writing questions.")
-                .font(.caption)
+                .zoomFont(.caption)
                 .foregroundStyle(.secondary)
 
             ForEach(Array(highlights.enumerated()), id: \.element) { index, range in
                 HStack(spacing: 6) {
                     Text(KnowledgeHighlights.excerpt(of: text, range))
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .lineLimit(1)
 
                     Button("Remove highlight", systemImage: "xmark.circle.fill") { highlights.remove(at: index) }

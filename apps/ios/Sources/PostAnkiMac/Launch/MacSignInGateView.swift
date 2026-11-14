@@ -6,12 +6,12 @@ struct MacSignInGateView: View {
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "person.crop.circle")
-                .font(.system(size: 44))
+                .zoomFont(.system(size: 44))
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
 
             Text("Sign in to Post Anki")
-                .font(.title2.bold())
+                .zoomFont(.title2.bold())
 
             VStack(spacing: 10) {
                 TextField("Email", text: $model.email)
@@ -30,7 +30,7 @@ struct MacSignInGateView: View {
             if let errorMessage = model.errorMessage {
                 Text(errorMessage)
                     .foregroundStyle(.red)
-                    .font(.callout)
+                    .zoomFont(.callout)
             }
 
             Button {

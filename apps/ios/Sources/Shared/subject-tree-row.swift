@@ -28,14 +28,14 @@ struct SubjectTreeRowView: View {
     private var label: some View {
         HStack(spacing: 8) {
             Text(row.node.entry.name)
-                .font(.body)
+                .zoomFont(.body)
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             SubjectDepthBar(entry: row.node.entry)
 
             Text("\(row.node.entry.count)")
-                .font(.subheadline)
+                .zoomFont(.subheadline)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
                 .frame(minWidth: 28, alignment: .trailing)

@@ -15,7 +15,7 @@ struct MacDevBand: View {
     var body: some View {
         if let label {
             Text(label.uppercased())
-                .font(.caption.bold())
+                .zoomFont(.caption.bold())
                 .tracking(2)
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity, minHeight: 22)

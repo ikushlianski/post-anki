@@ -65,11 +65,11 @@ struct RejectedCardsScreen: View {
         } else {
             List {
                 if let failure = model.failure {
-                    Text(failure).font(.caption).foregroundStyle(.red)
+                    Text(failure).zoomFont(.caption).foregroundStyle(.red)
                 }
 
                 if let notice = model.notice {
-                    Text(notice).font(.caption).foregroundStyle(.secondary)
+                    Text(notice).zoomFont(.caption).foregroundStyle(.secondary)
                 }
 
                 if model.isSelecting {
@@ -84,12 +84,12 @@ struct RejectedCardsScreen: View {
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text(CardKind.hideBlanks(card.body)).lineLimit(4)
-                            Text(reasonLine(card)).font(.caption).foregroundStyle(.secondary)
+                            Text(reasonLine(card)).zoomFont(.caption).foregroundStyle(.secondary)
                             RejectedSourceTitle(card: card)
                             RejectedNoteText(card: card)
 
                             if model.selection.hasFailed(card.id) {
-                                Text("Could not restore this card. Try again.").font(.caption).foregroundStyle(.red)
+                                Text("Could not restore this card. Try again.").zoomFont(.caption).foregroundStyle(.red)
                             }
                         }
                     }

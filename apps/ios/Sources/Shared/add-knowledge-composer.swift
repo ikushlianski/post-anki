@@ -32,7 +32,7 @@ struct AddKnowledgeComposer: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(title ?? "What do you want to remember?")
-                    .font(.headline)
+                    .zoomFont(.headline)
 
                 Spacer()
 
@@ -40,7 +40,7 @@ struct AddKnowledgeComposer: View {
                     Button("Remove", systemImage: "trash", action: onRemove)
                         .labelStyle(.titleAndIcon)
                         .buttonStyle(.borderless)
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("add-knowledge-remove-piece")
                 }
@@ -56,13 +56,13 @@ struct AddKnowledgeComposer: View {
 
             if let failure {
                 Label(failure, systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.red)
                     .accessibilityIdentifier("add-knowledge-piece-failure")
 
                 if canAddAnyway {
                     Button("Add anyway", action: onAddAnyway)
-                        .font(.caption)
+                        .zoomFont(.caption)
                 }
             }
         }
@@ -83,7 +83,7 @@ struct AddKnowledgeComposer: View {
             .overlay(alignment: .topLeading) {
                 if text.isEmpty {
                     Text(AddKnowledgeInput.placeholder)
-                        .font(.system(size: 16))
+                        .zoomFont(.system(size: 16))
                         .foregroundStyle(.tertiary)
                         .padding(.top, 18)
                         .padding(.leading, 15)

@@ -27,6 +27,7 @@ struct AdminSettingsScreen: View {
 
             ApiKeysSection()
         }
+        .zoomFont(.body)
         #if os(macOS)
         .formStyle(.grouped)
         #endif
@@ -60,8 +61,8 @@ struct AdminSettingsScreen: View {
             .disabled(model.savingField != nil)
 
             if let selected = AdminExtractionModel.all.first(where: { $0.id == model.knowledgeItemModelId }) {
-                Text(selected.priceText).font(.footnote).foregroundStyle(.secondary)
-                Text(selected.note).font(.footnote).foregroundStyle(.secondary)
+                Text(selected.priceText).zoomFont(.footnote).foregroundStyle(.secondary)
+                Text(selected.note).zoomFont(.footnote).foregroundStyle(.secondary)
             }
         } footer: {
             footer(

@@ -17,12 +17,12 @@ struct TriageRecentDecisionsScreen: View {
 
             if model.meaningUnavailable {
                 Text("Search by meaning is unavailable right now, showing word matches only.")
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
             }
 
             if let message = model.saveError {
-                Text(message).font(.caption).foregroundStyle(.red)
+                Text(message).zoomFont(.caption).foregroundStyle(.red)
             }
 
             content
@@ -103,18 +103,18 @@ struct TriageRecentDecisionRow: View {
             }
 
             if let back = decision.back, !back.isEmpty {
-                Text(back).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                Text(back).zoomFont(.caption).foregroundStyle(.secondary).lineLimit(2)
             }
 
             if let date = decision.decidedAt.flatMap(StudySessionDates.parse) {
                 Text(date.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption2)
+                    .zoomFont(.caption2)
                     .foregroundStyle(.secondary)
             }
 
             if decision.isRejected {
                 Button(action: onEditReason) {
-                    Text(reasonText).font(.caption).foregroundStyle(decision.needsReason ? .orange : .accentColor)
+                    Text(reasonText).zoomFont(.caption).foregroundStyle(decision.needsReason ? .orange : .accentColor)
                 }
                 .buttonStyle(.borderless)
             }

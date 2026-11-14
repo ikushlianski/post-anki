@@ -61,6 +61,14 @@ struct ZoomFont {
     static let defaultPadding: CGFloat = 16
     #endif
 
+    static var usesMacSizes: Bool {
+        #if os(macOS)
+        true
+        #else
+        false
+        #endif
+    }
+
     static func pointSize(of style: Font.TextStyle) -> CGFloat {
         #if os(macOS)
         switch style {
@@ -69,8 +77,10 @@ struct ZoomFont {
         case .title2: 17
         case .title3: 15
         case .headline, .body: 13
-        case .callout: 12
-        case .subheadline: 11
+        case .callout: 13
+        case .subheadline: 12
+        case .footnote: 12
+        case .caption: 11
         default: 10
         }
         #else
@@ -100,7 +110,7 @@ struct ZoomFont {
         var font: Font
 
         switch base {
-        case .style(let style) where scale == 1:
+        case .style(let style) where scale == 1 && !Self.usesMacSizes:
             font = .system(style, design: design)
         case .style(let style):
             let isHeadline = style == .headline
@@ -109,7 +119,7 @@ struct ZoomFont {
             font = .system(size: pointSize(scale: scale), weight: weight, design: design)
         }
 
-        if case .style = base, scale == 1, let weight {
+        if case .style = base, scale == 1, !Self.usesMacSizes, let weight {
             font = font.weight(weight)
         }
 

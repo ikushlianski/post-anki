@@ -101,6 +101,7 @@ struct MacStudySessionsView: View {
                 Text(statusText(item))
             }
         }
+        .zoomFont(.body)
         .contextMenu(forSelectionType: String.self) { ids in
             if let id = ids.first {
                 Button("Open") { history.open(id) }

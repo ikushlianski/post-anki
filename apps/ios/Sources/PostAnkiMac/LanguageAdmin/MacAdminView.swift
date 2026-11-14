@@ -97,6 +97,7 @@ struct MacAdminView: View {
             }
             .width(min: 120 * zoom, ideal: 240 * zoom)
         }
+        .zoomFont(.body)
         .contextMenu(forSelectionType: AdminScan.ID.self) { ids in
             if let scan = AdminScan.all.first(where: { ids.contains($0.id) }) {
                 Button("Run scan…") { pending = scan }

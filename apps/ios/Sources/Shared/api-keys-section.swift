@@ -10,7 +10,7 @@ struct ApiKeysSection: View {
         Group {
             Section {
                 Text("Keys let tools such as Claude connect to your cards over MCP. A key is shown once, right after you create it.")
-                    .font(.footnote)
+                    .zoomFont(.footnote)
                     .foregroundStyle(.secondary)
 
                 if let created = model.created { createdBanner(created) }
@@ -56,10 +56,10 @@ struct ApiKeysSection: View {
 
     private func createdBanner(_ created: CreatedApiToken) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Copy this key now. You won't see it again.").font(.subheadline.weight(.semibold))
+            Text("Copy this key now. You won't see it again.").zoomFont(.subheadline.weight(.semibold))
 
             Text(created.token)
-                .font(.system(.footnote, design: .monospaced))
+                .zoomFont(ZoomFont.footnote.monospaced())
                 .textSelection(.enabled)
 
             HStack {
@@ -83,25 +83,25 @@ struct ApiKeysSection: View {
     private func keyRow(_ key: ApiTokenSummary) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(key.name).font(.body.weight(.medium))
+                Text(key.name).zoomFont(.body.weight(.medium))
 
                 Spacer()
 
                 if key.isRevoked {
-                    Text("Revoked").font(.caption).foregroundStyle(.red)
+                    Text("Revoked").zoomFont(.caption).foregroundStyle(.red)
                 } else {
                     Button("Revoke", role: .destructive) { pendingRevoke = key }
                         .buttonStyle(.borderless)
                 }
             }
 
-            Text(key.scopeLabels.joined(separator: ", ")).font(.footnote).foregroundStyle(.secondary)
+            Text(key.scopeLabels.joined(separator: ", ")).zoomFont(.footnote).foregroundStyle(.secondary)
             Text("Created \(ApiKeyDate.text(key.createdAt)) · Last used \(ApiKeyDate.text(key.lastUsedAt))")
-                .font(.caption)
+                .zoomFont(.caption)
                 .foregroundStyle(.secondary)
 
             if let revokedAt = key.revokedAt {
-                Text("Revoked \(ApiKeyDate.text(revokedAt))").font(.caption).foregroundStyle(.secondary)
+                Text("Revoked \(ApiKeyDate.text(revokedAt))").zoomFont(.caption).foregroundStyle(.secondary)
             }
         }
         .opacity(key.isRevoked ? 0.6 : 1)

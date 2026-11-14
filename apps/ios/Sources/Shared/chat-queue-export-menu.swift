@@ -37,7 +37,7 @@ struct ChatQueueExportSheet: View {
         NavigationStack {
             VStack(spacing: 16) {
                 Image(systemName: "doc.text")
-                    .font(.largeTitle)
+                    .zoomFont(.largeTitle)
                     .accessibilityHidden(true)
 
                 Text("\(file.subjectName) conversations are ready")

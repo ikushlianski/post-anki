@@ -14,7 +14,7 @@ struct FusionSettingsSection: View {
             }
 
             if let hint = FusionSelection.hint(enabled: model.fusionEnabled, count: model.fusionModelIds.count) {
-                Text(hint).font(.footnote).foregroundStyle(.orange)
+                Text(hint).zoomFont(.footnote).foregroundStyle(.orange)
             }
 
             if let estimate = model.settings?.fusionEstimate, !model.fusionModelIds.isEmpty {
@@ -43,13 +43,13 @@ struct FusionSettingsSection: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(option.label)
-                    Text(option.priceText).font(.footnote).foregroundStyle(.secondary)
+                    Text(option.priceText).zoomFont(.footnote).foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
                 if selected, let cost = model.settings?.fusionEstimate?.costText(for: option.id) {
-                    Text(cost).font(.footnote).foregroundStyle(.secondary)
+                    Text(cost).zoomFont(.footnote).foregroundStyle(.secondary)
                 }
 
                 Image(systemName: selected ? "checkmark.circle.fill" : "circle")

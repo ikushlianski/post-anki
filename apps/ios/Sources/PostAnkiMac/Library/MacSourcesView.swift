@@ -104,6 +104,7 @@ struct MacSourcesView: View {
                 }
             }
         }
+        .zoomFont(.body)
         .contextMenu(forSelectionType: String.self) { ids in
             let items = rows.filter { ids.contains($0.id) }
             let links = items.filter(\.isLink)

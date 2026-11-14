@@ -86,6 +86,7 @@ struct MacCourseBuildsView: View {
                 TableColumn("Course", value: \.name)
                 TableColumn("Status") { Text($0.statusLabel) }
             }
+            .zoomFont(.body)
             .contextMenu(forSelectionType: CourseBuildCourse.ID.self) { ids in
                 if let course = course(in: ids) {
                     Button("Open") { open(.course(course)) }

@@ -17,39 +17,39 @@ struct AttentionNoticeRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(attention.firstWords.isEmpty ? "Untitled note" : attention.firstWords)
-                .font(.headline)
+                .zoomFont(.headline)
                 .lineLimit(2)
 
             Text(AttentionWording.age(since: attention.since))
-                .font(.caption)
+                .zoomFont(.caption)
                 .foregroundStyle(.secondary)
 
             Text(attention.wording)
-                .font(.subheadline)
+                .zoomFont(.subheadline)
                 .foregroundStyle(attention.isNothingExtracted ? Color.secondary : (attention.isInformational ? Color.blue : Color.primary))
 
             if !fullText.isEmpty {
                 DisclosureGroup("Show note text") {
                     Text(fullText)
-                        .font(.footnote)
+                        .zoomFont(.footnote)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .font(.footnote)
+                .zoomFont(.footnote)
             }
 
             if isRetrying {
                 HStack(spacing: 6) {
                     ProgressView().controlSize(.small)
-                    Text("Retrying…").font(.footnote).foregroundStyle(.secondary)
+                    Text("Retrying…").zoomFont(.footnote).foregroundStyle(.secondary)
                 }
             }
 
             if case .failed(let message) = phase {
-                Text(message).font(.footnote).foregroundStyle(.red)
+                Text(message).zoomFont(.footnote).foregroundStyle(.red)
             }
 
             if let discardError {
-                Text(discardError).font(.footnote).foregroundStyle(.red)
+                Text(discardError).zoomFont(.footnote).foregroundStyle(.red)
             }
 
             if attention.isNothingExtracted && !isRetrying {

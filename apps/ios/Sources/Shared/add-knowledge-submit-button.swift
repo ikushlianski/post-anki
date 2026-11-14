@@ -8,7 +8,7 @@ struct AddKnowledgeSubmitButton: View {
     var body: some View {
         Button(action: onSubmit) {
             ZStack {
-                Text("Submit").font(.headline).opacity(isSubmitting ? 0 : 1)
+                Text("Submit").zoomFont(.headline).opacity(isSubmitting ? 0 : 1)
 
                 if isSubmitting { ProgressView().controlSize(.small) }
             }

@@ -87,11 +87,11 @@ private struct MacSettingsSection<Content: View>: View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Label(pane.title, systemImage: pane.systemImage)
-                    .font(.title2.weight(.semibold))
+                    .zoomFont(.title2.weight(.semibold))
                     .accessibilityAddTraits(.isHeader)
 
                 Text(pane.summary)
-                    .font(.callout)
+                    .zoomFont(.callout)
                     .foregroundStyle(.secondary)
             }
 
@@ -131,6 +131,7 @@ struct MacGeneralSettingsPane: View {
 
             MacUpdateSettingsSection()
         }
+        .zoomFont(.body)
         .formStyle(.grouped)
     }
 }

@@ -14,7 +14,7 @@ struct AddKnowledgeComposerFooter: View {
         HStack(spacing: 8) {
             if let kind {
                 Label(kind, systemImage: kind == "Link" ? "link" : "text.alignleft")
-                    .font(.caption.weight(.medium))
+                    .zoomFont(.caption.weight(.medium))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(Color.accentColor.opacity(0.14), in: Capsule())
@@ -22,7 +22,7 @@ struct AddKnowledgeComposerFooter: View {
 
                 if kind == "Text" {
                     Text("\(AddKnowledgeComposerSummary.wordCount(text)) words")
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -33,7 +33,7 @@ struct AddKnowledgeComposerFooter: View {
                 Button("Clear", systemImage: "xmark.circle.fill") { text = "" }
                     .labelStyle(.titleAndIcon)
                     .buttonStyle(.borderless)
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("add-knowledge-clear")
             }

@@ -10,6 +10,7 @@ struct MacReviewSubjectsHeader: View {
             Text("New").foregroundStyle(CardMaturityPalette.new).frame(width: MacReviewCountColumns.width, alignment: .trailing)
             Text("Today").fontWeight(.semibold).frame(width: MacReviewCountColumns.width, alignment: .trailing)
         }
+        .zoomFont(.subheadline)
         .accessibilityHidden(true)
     }
 }
@@ -30,6 +31,7 @@ struct MacReviewCountColumns: View {
             Text("\(today)").fontWeight(.semibold).frame(width: Self.width, alignment: .trailing)
         }
         .monospacedDigit()
+        .zoomFont(.body)
         .accessibilityHidden(true)
     }
 }
@@ -66,6 +68,7 @@ struct MacReviewSubjectRowView: View {
                         today: item.todayCount
                     )
                 }
+                .zoomFont(.body)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

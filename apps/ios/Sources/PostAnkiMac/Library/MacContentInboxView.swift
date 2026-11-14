@@ -35,6 +35,7 @@ struct MacContentInboxView: View {
                 TableColumn("Source") { Text($0.sourceRef ?? "").lineLimit(1) }
                 TableColumn("Added") { Text($0.createdAt.prefix(10)) }
             }
+            .zoomFont(.body)
             .contextMenu(forSelectionType: String.self) { ids in
                 if ids.count == 1, let item = model.items.first(where: { ids.contains($0.id) }) {
                     Button("Show full text") { opened = item }

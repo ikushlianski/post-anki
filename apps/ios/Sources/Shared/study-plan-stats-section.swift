@@ -64,7 +64,7 @@ struct StudyPlanBars: View {
         let peak = max(summary.bars.map { $0.reviews + $0.newCards }.max() ?? 1, 1)
 
         VStack(alignment: .leading, spacing: 6) {
-            Text("Next \(CountLabel.text(summary.bars.count, "day"))").font(.caption).foregroundStyle(.secondary)
+            Text("Next \(CountLabel.text(summary.bars.count, "day"))").zoomFont(.caption).foregroundStyle(.secondary)
 
             HStack(alignment: .bottom, spacing: 4) {
                 ForEach(summary.bars) { day in
@@ -85,7 +85,7 @@ struct StudyPlanBars: View {
                 Label("Reviews", systemImage: "square.fill").foregroundStyle(Color.accentColor)
                 Label("New cards", systemImage: "square.fill").foregroundStyle(.orange)
             }
-            .font(.caption2)
+            .zoomFont(.caption2)
         }
         .padding(.vertical, 4)
         .accessibilityIdentifier("study-plan-bars")

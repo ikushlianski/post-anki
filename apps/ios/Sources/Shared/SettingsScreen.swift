@@ -298,6 +298,7 @@ struct SettingsScreen: View {
                 LabeledContent("Server", value: BuildInfo.serverHost)
             }
         }
+        .zoomFont(.body)
         #if os(macOS)
         .formStyle(.grouped)
         #endif

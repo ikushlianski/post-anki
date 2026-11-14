@@ -60,6 +60,7 @@ struct MacTagsView: View {
                     Text(model.mastery[tag.id]?.statusLabel ?? "New").foregroundStyle(.secondary)
                 }
             }
+            .zoomFont(.body)
             .contextMenu(forSelectionType: String.self) { ids in
                 if ids.count == 1, let tag = model.tags.first(where: { ids.contains($0.id) }) {
                     Button("Open") { history.open(tag) }

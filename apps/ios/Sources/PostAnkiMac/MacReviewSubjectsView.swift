@@ -65,7 +65,7 @@ struct MacReviewSubjectsView<Session: View>: View {
             NavigationLink {
                 RejectedCardsScreen()
             } label: {
-                Label("Rejected cards", systemImage: "xmark.bin")
+                Label("Rejected cards", systemImage: "xmark.bin").zoomFont(.body)
             }
 
             LearnAheadPicker(selection: $learnAhead)
@@ -89,12 +89,13 @@ struct MacReviewSubjectsView<Session: View>: View {
                 MacReviewSubjectsHeader()
             }
         }
+        .zoomFont(.body)
     }
 
     private var allRow: some View {
         Button { reviewsAll = true } label: {
             HStack {
-                Text("All subjects").font(.headline)
+                Text("All subjects").zoomFont(.headline)
                 Spacer()
                 MacReviewCountColumns(
                     mature: model.overallMaturity.mature,
@@ -103,6 +104,7 @@ struct MacReviewSubjectsView<Session: View>: View {
                     today: model.totalToday
                 )
             }
+            .zoomFont(.body)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

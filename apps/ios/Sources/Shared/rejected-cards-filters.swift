@@ -24,7 +24,7 @@ struct RejectedSubjectMenu: View {
                 }
             } label: {
                 Label(title, systemImage: "folder")
-                    .font(.subheadline)
+                    .zoomFont(.subheadline)
                     .lineLimit(1)
             }
             .accessibilityLabel("Filter by subject")
@@ -32,8 +32,8 @@ struct RejectedSubjectMenu: View {
             .accessibilityIdentifier("rejected-cards-subject")
 
             if let notice {
-                Text(notice).font(.caption).foregroundStyle(.secondary)
-                Button("Retry", action: onRetry).font(.caption)
+                Text(notice).zoomFont(.caption).foregroundStyle(.secondary)
+                Button("Retry", action: onRetry).zoomFont(.caption)
             }
 
             Spacer()
@@ -50,10 +50,10 @@ struct RejectedSourceTitle: View {
         if let title = card.sourceTitleText {
             if let link = card.sourceLink {
                 Link(title, destination: link)
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .lineLimit(1)
             } else {
-                Text(title).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(title).zoomFont(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
         }
     }
@@ -81,7 +81,7 @@ struct RejectedReasonChips: View {
     private func chip(_ title: String, isOn: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.subheadline)
+                .zoomFont(.subheadline)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .background(isOn ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.12), in: Capsule())
@@ -100,7 +100,7 @@ struct RejectedNoteText: View {
         if let note = card.noteText {
             Button { expanded.toggle() } label: {
                 Text(note)
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(expanded ? nil : 2)
                     .multilineTextAlignment(.leading)

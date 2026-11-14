@@ -19,8 +19,8 @@ struct OwnerStatsTiles: View {
 
     private func tile(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.caption).foregroundStyle(.secondary)
-            Text(value).font(.title3.weight(.semibold))
+            Text(label).zoomFont(.caption).foregroundStyle(.secondary)
+            Text(value).zoomFont(.title3.weight(.semibold))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
@@ -34,7 +34,7 @@ struct OwnerReviewsChart: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Reviews per day").font(.headline)
+            Text("Reviews per day").zoomFont(.headline)
 
             if days.allSatisfy({ $0.reviews == 0 }) {
                 Text("No reviews in this range").foregroundStyle(.secondary)
@@ -45,7 +45,7 @@ struct OwnerReviewsChart: View {
                 .chartXAxis(.hidden)
                 .frame(height: 160)
 
-                Text("Accuracy per day").font(.headline)
+                Text("Accuracy per day").zoomFont(.headline)
 
                 Chart(days.filter { $0.accuracy != nil }) { day in
                     LineMark(x: .value("Day", day.date), y: .value("Accuracy", (day.accuracy ?? 0) * 100))
@@ -63,7 +63,7 @@ struct OwnerSpendChart: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("AI spend per day (estimated)").font(.headline)
+            Text("AI spend per day (estimated)").zoomFont(.headline)
 
             if spend.days.isEmpty || spend.totalUsd == 0 {
                 Text("No priced AI spend in this range").foregroundStyle(.secondary)
@@ -74,12 +74,12 @@ struct OwnerSpendChart: View {
                 .chartXAxis(.hidden)
                 .frame(height: 160)
 
-                Text("Total \(ownerUsd(spend.totalUsd))").font(.caption).foregroundStyle(.secondary)
+                Text("Total \(ownerUsd(spend.totalUsd))").zoomFont(.caption).foregroundStyle(.secondary)
             }
 
             if spend.unpricedCalls > 0 {
                 Text("\(spend.unpricedCalls) calls (\(spend.unpricedTokens) tokens) have no known price and are not counted.")
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
             }
         }

@@ -72,7 +72,7 @@ struct SubjectHardestSection: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(CardKind.hideBlanks(item.question)).lineLimit(3)
                             Text("\(item.lapses) lapses" + (model.requestedIds.contains(item.id) ? " - practice requested" : ""))
-                                .font(.caption)
+                                .zoomFont(.caption)
                                 .foregroundStyle(.secondary)
                         }
 
@@ -87,7 +87,7 @@ struct SubjectHardestSection: View {
                 }
 
                 if let errorMessage = model.errorMessage {
-                    Text(errorMessage).font(.caption).foregroundStyle(.red)
+                    Text(errorMessage).zoomFont(.caption).foregroundStyle(.red)
                 }
             }
         }

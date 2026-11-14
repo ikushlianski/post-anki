@@ -32,7 +32,7 @@ struct AttentionEditSheet: View {
 
                 if isTooLong {
                     Text("This note is over \(Self.maxCharacters) characters. Split it and add the parts separately.")
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.red)
                 }
             }

@@ -33,7 +33,7 @@ struct AddKnowledgeStatusBanner: View {
                         model.isDetecting ? "Sent" : "Added",
                         systemImage: model.isDetecting ? "arrow.up.circle.fill" : "checkmark.circle.fill"
                     )
-                    .font(.headline)
+                    .zoomFont(.headline)
                     .foregroundStyle(model.isDetecting ? Color.accentColor : Color.green)
 
                     Text(model.isDetecting

@@ -103,7 +103,7 @@ struct SubjectManageScreen: View {
 
                                 if let badge = SubjectKindLabel.badge(for: subject.kind) {
                                     Text(badge)
-                                        .font(.caption2)
+                                        .zoomFont(.caption2)
                                         .foregroundStyle(.secondary)
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 1)
@@ -116,7 +116,7 @@ struct SubjectManageScreen: View {
                             if let countText = SubjectCardCountFormat.text(subject.cardCount) {
                                 Spacer()
                                 Text(countText)
-                                    .font(.subheadline)
+                                    .zoomFont(.subheadline)
                                     .monospacedDigit()
                                     .foregroundStyle(.secondary)
                                     .accessibilityLabel("\(subject.name), \(countText)")

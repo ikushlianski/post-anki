@@ -91,6 +91,7 @@ struct MacPhraseBankView: View {
                 TableColumn("Status") { Text($0.statusLabel) }
                     .width(110 * zoom)
             }
+            .zoomFont(.body)
             .contextMenu(forSelectionType: PhraseBankEntry.ID.self) { ids in
                 if let entry = entries.first(where: { ids.contains($0.id) }) {
                     Button("Copy phrase") {

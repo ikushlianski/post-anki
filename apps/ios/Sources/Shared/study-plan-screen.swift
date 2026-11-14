@@ -28,6 +28,7 @@ struct StudyPlanScreen: View {
                 saveSection
                 StudyPlanStatsSection(forecast: model.forecast, message: model.forecastMessage)
             }
+            .zoomFont(.body)
             .refreshable { await model.load() }
         } else if let message = model.loadMessage {
             ContentUnavailableView {

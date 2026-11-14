@@ -12,7 +12,7 @@ struct OwnerStatsScreen: View {
 
                 if let failure = model.failure {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(failure).font(.caption).foregroundStyle(.secondary)
+                        Text(failure).zoomFont(.caption).foregroundStyle(.secondary)
                         Button("Try again") { Task { await model.load() } }
                     }
                 }
@@ -46,7 +46,7 @@ struct OwnerStatsScreen: View {
         VStack(alignment: .leading, spacing: 10) {
             if !model.env.isEmpty {
                 Text(model.env)
-                    .font(.caption.weight(.medium))
+                    .zoomFont(.caption.weight(.medium))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
                     .background(isProduction ? Color.red.opacity(0.15) : Color.orange.opacity(0.2), in: .rect(cornerRadius: 4))

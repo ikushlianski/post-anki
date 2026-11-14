@@ -79,12 +79,12 @@ struct ReviewSubjectsScreen<Session: View>: View {
     private var allRow: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("All subjects").font(.headline)
+                Text("All subjects").zoomFont(.headline)
                 Text(ReviewSubjectSummary.text(due: model.totalDue, new: model.totalNew))
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
                 Text(model.overallMaturity.percentSummary)
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
                 CardMaturityBar(breakdown: model.overallMaturity)
             }
@@ -144,13 +144,13 @@ private struct ReviewSubjectRowView: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(item.entry.name).font(.body).lineLimit(2)
+                Text(item.entry.name).zoomFont(.body).lineLimit(2)
                 Text("\(item.summary) · \(CountLabel.text(item.entry.count, "card"))")
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
                 if !item.maturity.isEmpty {
                     Text(item.maturity.countsSummary)
-                        .font(.caption2)
+                        .zoomFont(.caption2)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -171,9 +171,9 @@ struct LearnAheadPicker: View {
             ForEach(LearnAheadOption.allCases) { Text($0.title).tag($0) }
         } label: {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Learn ahead")
+                Text("Learn ahead").zoomFont(.body)
                 Text("Also review cards that are not due yet")
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
             }
         }

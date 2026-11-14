@@ -17,7 +17,7 @@ struct WeeklyDigestCard: View {
 
     private func card<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("This week").font(.subheadline.weight(.semibold))
+            Text("This week").zoomFont(.subheadline.weight(.semibold))
             content()
         }
         .padding(.vertical, 4)
@@ -27,7 +27,7 @@ struct WeeklyDigestCard: View {
     private var failure: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(WeeklyDigestMessages.loadFailure)
-                .font(.subheadline)
+                .zoomFont(.subheadline)
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("weekly-digest-error")
 
@@ -60,14 +60,14 @@ struct WeeklyDigestCard: View {
 
             if let line = digest.chatActivityLine {
                 Text(line)
-                    .font(.caption2)
+                    .zoomFont(.caption2)
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("weekly-digest-chat-activity")
             }
 
             if !digest.topRejectReasons.isEmpty {
                 Text(rejectSummary(digest.topRejectReasons))
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
@@ -84,14 +84,14 @@ struct WeeklyDigestCard: View {
 
     private func tile(_ title: String, _ value: Int, previous: Int?) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("\(value)").font(.headline).monospacedDigit()
-            Text(title).font(.caption2).foregroundStyle(.secondary)
+            Text("\(value)").zoomFont(.headline).monospacedDigit()
+            Text(title).zoomFont(.caption2).foregroundStyle(.secondary)
 
             if let previous, WeeklyDigestDelta.line(current: value, previous: previous) != nil {
                 let change = value - previous
 
                 Text(change == 0 ? "±0" : change > 0 ? "+\(change)" : "\(change)")
-                    .font(.caption2)
+                    .zoomFont(.caption2)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
