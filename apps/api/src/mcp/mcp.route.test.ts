@@ -123,6 +123,7 @@ describe("POST /mcp tools", () => {
       "tag_cards",
       "add_subject",
       "chat_about_card",
+      "resolve_card_proposal",
     ]);
 
     await client.close();

@@ -20,6 +20,7 @@ export const chatAboutCardInputSchema = z.object({
 
 export const chatAboutCardResultSchema = z.object({
   reply: z.string(),
+  replySeq: z.number().int().describe("Message number of this reply; pass as messageSeq to resolve_card_proposal"),
   proposals: chatQueueProposalListSchema,
   turnsLeft: z.number().int(),
   capReached: z.boolean(),
@@ -54,6 +55,7 @@ export async function chatAboutCard(
 
   return {
     reply: result.value.reply,
+    replySeq: result.value.replySeq,
     proposals,
     turnsLeft: result.value.turnsLeft,
     capReached: result.value.capReached,

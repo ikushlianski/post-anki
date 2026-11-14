@@ -36,7 +36,7 @@ describe("chatAboutCard", () => {
     const result = await chatAboutCard({ cardId: "kb_1", message: "improve", clientMessageId: "m1" }, auth);
 
     expect(sendChatQueueMessage).toHaveBeenCalledWith("kb_1", { clientMessageId: "m1", message: "improve" }, expect.anything());
-    expect(result).toMatchObject({ reply: "Try this", turnsLeft: 4, proposals: [{ front: "Q" }] });
+    expect(result).toMatchObject({ reply: "Try this", replySeq: 2, turnsLeft: 4, proposals: [{ front: "Q" }] });
   });
 
   it("should report a chat failure such as the turn cap", async () => {

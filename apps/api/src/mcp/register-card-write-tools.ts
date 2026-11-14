@@ -5,6 +5,7 @@ import { addSubject, addSubjectInputSchema, addSubjectResultSchema } from "./add
 import { chatAboutCard, chatAboutCardInputSchema, chatAboutCardResultSchema } from "./chat-about-card.tool.js";
 import { createCard, createCardInputSchema, createCardResultSchema } from "./create-card.tool.js";
 import { deleteCard, deleteCardInputSchema, deleteCardResultSchema } from "./delete-card.tool.js";
+import { resolveCardProposal, resolveCardProposalInputSchema, resolveCardProposalResultSchema } from "./resolve-card-proposal.tool.js";
 import { tagCards, tagCardsInputSchema, tagCardsResultSchema } from "./tag-cards.tool.js";
 import { withToolErrorHandling } from "./tool-error-handling.js";
 import { updateCard, updateCardInputSchema, updateCardResultSchema } from "./update-card.tool.js";
@@ -26,6 +27,8 @@ const ERROR_TEXT: Record<string, string> = {
   model_failed: "The AI model failed to reply; try again.",
   no_messages: "Card has no chat messages.",
   proposal_not_pending: "Proposal is no longer pending.",
+  generation_failed: "The AI model failed to reword the proposal; try again.",
+  budget_exceeded: "AI budget is exceeded.",
 };
 
 function errorResult(error: string, message?: string, scope = "cards:write") {
@@ -121,5 +124,18 @@ export function registerCardWriteTools(server: McpServer, auth: RequestAuthConte
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
     withToolErrorHandling("chat_about_card", async (args) => outcomeResult(await chatAboutCard(args, auth), "knowledge:write")),
+  );
+
+  server.registerTool(
+    "resolve_card_proposal",
+    {
+      title: "Resolve card proposal",
+      description:
+        "Accept (saves the proposed card), reject, or reword (AI rewrites it; uses AI budget) a pending proposal from chat_about_card, identified by cardId, messageSeq (replySeq) and proposalIndex. Needs the cards:write scope.",
+      inputSchema: resolveCardProposalInputSchema.shape,
+      outputSchema: resolveCardProposalResultSchema.shape,
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    },
+    withToolErrorHandling("resolve_card_proposal", async (args) => outcomeResult(await resolveCardProposal(args, auth))),
   );
 }
