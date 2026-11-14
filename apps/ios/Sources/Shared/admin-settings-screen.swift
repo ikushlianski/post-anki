@@ -24,6 +24,8 @@ struct AdminSettingsScreen: View {
             } else {
                 settingsSections
             }
+
+            ApiKeysSection()
         }
         #if os(macOS)
         .formStyle(.grouped)
