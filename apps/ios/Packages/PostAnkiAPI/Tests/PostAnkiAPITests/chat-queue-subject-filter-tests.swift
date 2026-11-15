@@ -4,7 +4,7 @@ import Testing
 
 @Suite("Chat queue subject filter")
 struct ChatQueueSubjectFilterTests {
-    private func item(_ id: String, subject: String?, chatAt: String = "2026-10-29T10:00:00.000Z") -> ChatQueueItem {
+    private func item(_ id: String, subject: String?, chatAt: String = freshChatAt()) -> ChatQueueItem {
         ChatQueueItem(id: id, body: id, subjectName: subject, chatAt: chatAt, turnsLeft: 8)
     }
 
@@ -98,7 +98,7 @@ struct ChatQueueSubjectStaleTests {
     }
 
     private let old = "2020-01-01T00:00:00.000Z"
-    private let fresh = "2026-10-29T10:00:00.000Z"
+    private let fresh = freshChatAt()
 
     @Test("should offer only subjects that have stale cards while the stale filter is on")
     func optionsFollowStale() async {
@@ -160,4 +160,10 @@ struct ChatQueueSubjectStaleTests {
 
         #expect(moved == ["n1"])
     }
+}
+
+private func freshChatAt() -> String {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return formatter.string(from: Date())
 }

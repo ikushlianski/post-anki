@@ -100,7 +100,7 @@ struct ChatQueueStaleFilterTests {
     @MainActor
     func composes() async {
         let items = [
-            item("new", "2026-10-28T12:00:00.000Z"),
+            item("new", ISO8601DateFormatter().string(from: Date())),
             item("old1", "2000-01-01T00:00:00.000Z"),
             item("old2", "2001-01-01T00:00:00.000Z"),
         ]

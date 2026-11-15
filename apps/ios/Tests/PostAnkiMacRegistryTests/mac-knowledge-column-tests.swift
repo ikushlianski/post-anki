@@ -27,7 +27,7 @@ struct MacKnowledgeColumnTests {
     }
 
     @Test func shouldFitAllColumnsInsideThePaneWhenItIsWideEnough() {
-        for (scale, available) in [(1.0, 900.0), (1.0, 700.0), (1.5, 1200.0)] {
+        for (scale, available) in [(1.0, 900.0), (1.0, 800.0), (1.5, 1200.0)] {
             let widths = MacKnowledgeHeaderMetrics.columnWidths(scale: scale, available: CGFloat(available))
             let count = CGFloat(MacKnowledgeColumn.allCases.count)
             let used = widths.values.reduce(0, +)

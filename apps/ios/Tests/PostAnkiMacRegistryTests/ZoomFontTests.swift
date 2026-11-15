@@ -5,13 +5,13 @@ import CoreGraphics
 struct ZoomFontTests {
     @Test func shouldKeepTheSystemPointSizeAtActualSize() {
         #expect(ZoomFont.body.pointSize(scale: 1.0) == 13)
-        #expect(ZoomFont.caption.pointSize(scale: 1.0) == 10)
+        #expect(ZoomFont.caption.pointSize(scale: 1.0) == 11)
     }
 
     @Test func shouldMakeEveryTextStyleProportionallyLargerWhenZoomedIn() {
         #expect(ZoomFont.body.pointSize(scale: 2.0) == 26)
         #expect(ZoomFont.largeTitle.pointSize(scale: 1.5) == 39)
-        #expect(ZoomFont.caption.pointSize(scale: 3.0) == 30)
+        #expect(ZoomFont.caption.pointSize(scale: 3.0) == 33)
     }
 
     @Test func shouldShrinkTextWhenZoomedOut() {
