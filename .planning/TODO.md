@@ -72,7 +72,7 @@ updated: 2026-09-04
 - Out of scope: Cards already approved in triage stay untouched.
 
 ### Coding tasks
-- [ ] Import the Anki English deck file as-is, keeping front, back and examples, with no AI rewrite.
+- [x] Import the Anki English deck file as-is, keeping front, back and examples, with no AI rewrite.
 
 ### Notes
 - The English deck is the exception to rewriting: its cards are already shaped, so they import verbatim.
