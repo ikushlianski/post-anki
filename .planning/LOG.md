@@ -1676,3 +1676,27 @@ directly. See the handoff report delivered to the user for the full scenario-lev
 - 2026-11-14: Each subject gets an optional chat instruction that opens every chat; sub-subjects inherit it.
 - 2026-11-14: Data migration writes a tailored chat instruction for every existing subject and sub-subject.
 - 2026-11-14: Data migration adds a B2B sales sub-subject under Sales, with its own chat instruction.
+
+## knowledge-retention
+
+- 2026-11-16: Flag cards as difficult from a week of review stats, using the Again and Hard thresholds below.
+- 2026-11-16: Retire a card's reworded versions after two Good or Easy answers in a row 7+ days apart.
+- 2026-11-16: Compare rewording quality of Gemma 4 31B, GPT-4o-mini and DeepSeek V4 Pro on 5 difficult Business cards.
+- 2026-11-16: Add 2-3 reworded versions to each difficult card, approved in triage, rotating with the original question.
+- 2026-11-16: Let a subject be exam with a deadline or long-term, deriving interval cap and new-card pace.
+- 2026-11-16: Show retention intent, deadline, retention and new-card settings plus a short stats view on iOS.
+- 2026-11-16: Pause new cards automatically when daily reviews pile up past a limit, with a visible notice.
+- 2026-11-16: Show a subject forecast: reviews per day expected and when new material finishes before the deadline.
+- 2026-11-16: Write a plan for the study intent: exam with deadline versus long-term, derived limits and forecast.
+
+## duplicate-detection-and-variations
+
+- 2026-11-16: List near-duplicate Business and Sales cards for the user to merge or keep.
+- 2026-11-16: Practice rounds do not skew which wording the next real review shows.
+- 2026-11-16: iPhone and Mac list every similar card of a flagged duplicate, not only the main one.
+- 2026-11-16: Cards created by hand are also checked for near-duplicates, like imported ones.
+- 2026-11-16: Tapping a similar card opens a swipe-down preview offering Reject duplicate or Accept.
+- 2026-11-16: Jev judges each similar pair and flags a card that adds nothing substantial as a duplicate.
+- 2026-11-16: One review session can show several variations of the same underlying card, scheduled as one card.
+- 2026-11-16: Triage still shows a flagged duplicate, marked as such, with its similar cards listed.
+- 2026-11-16: Every newly ingested card is checked for near-duplicates in batches, including automated ingestion.
