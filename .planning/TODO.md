@@ -1143,6 +1143,9 @@ updated: 2026-09-04
 - Out of scope: Replacing the typed-answer LLM-graded mode; it stays as a separate mode
 
 ### Coding tasks
+- [ ] Every review card shows the subject it belongs to, so the learner knows the context before answering.
+- [ ] The Today button groups today's cards by subject, shows the current subject, and announces the next subject with how many cards remain.
+- [ ] A Shuffle option for today's review mixes new and due cards in random order, so a session is not always new cards first.
 - [ ] [blocked: user] Raise the session token cap so planned Anki-parity items can be built.
 
 ### Notes
