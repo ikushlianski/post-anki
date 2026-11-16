@@ -23,6 +23,7 @@
     "db:seed:subjects": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-subjects.ts",
     "db:stage-anki-import": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/stage-anki-import.ts",
     "import:anki-verbatim": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/import-anki-verbatim.ts",
+    "reword:difficult-cards": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/reword-difficult-cards.ts",
     "list:near-duplicates": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/list-near-duplicate-cards.ts",
     "db:seed:business-sub-subjects": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-business-sub-subjects.ts",
     "db:seed:knowledge-browser-demo": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-knowledge-browser-demo.ts",

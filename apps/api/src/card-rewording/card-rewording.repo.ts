@@ -26,6 +26,19 @@ export async function insertRewordedDrafts(db: DbExecutor, rows: readonly NewRew
   return inserted.length;
 }
 
+export async function recordRewordingFailure(db: DbExecutor, knowledgeBitId: string, modelId: string): Promise<void> {
+  await db.insert(knowledgeBitRewordedDrafts).values({
+    id: newId("kbrd"),
+    knowledgeBitId,
+    prompt: "",
+    answer: "",
+    angle: "cause",
+    modelId,
+    decision: "failed",
+    decidedAt: new Date(),
+  });
+}
+
 export async function listPendingRewordedDrafts(db: DbExecutor, limit: number): Promise<RewordedDraft[]> {
   const rows = await db
     .select({

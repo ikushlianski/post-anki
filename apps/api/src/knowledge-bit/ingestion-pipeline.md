@@ -23,6 +23,7 @@ The orchestrator runs a fixed, ordered list of passes. Each pass calls an indepe
 | `detect` | `detect-knowledge-bits.orchestrator.ts` |
 | `wh_question` | `knowledge-bit-question-generation.orchestrator.ts` |
 | `fill_blank` | `knowledge-bit-fill-blank-generation.orchestrator.ts` |
+| `reworded_versions` | `card-rewording/card-rewording.orchestrator.ts` (after `card_dedup`; up to 10 difficult cards per run) |
 
 Passes run in sequence. A pass failure is caught, logged, and recorded as `"failed"` in the run summary — it does not stop the remaining passes.
 
