@@ -1,0 +1,1 @@
+No ticket was given. Propose exactly three gaps in this project (missing behaviour, test, or doc) that a goal run could take on. Each gap is one open claim; back each with fact claims that cite real files read.
