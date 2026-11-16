@@ -45,4 +45,14 @@ describe('web auth middleware', () => {
 
     expect(await call('/login')).toBe('passed')
   })
+
+  it('should answer the uptime check on the public domain with 200 without a session lookup', async () => {
+    vi.mocked(checkWebSession).mockClear()
+
+    const response = (await call('/_healthz')) as Response
+
+    expect(response.status).toBe(200)
+    expect(checkWebSession).not.toHaveBeenCalled()
+    expect(next).not.toHaveBeenCalled()
+  })
 })

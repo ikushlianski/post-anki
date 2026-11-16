@@ -3,6 +3,8 @@ import { createMiddleware } from '@tanstack/react-start'
 import { decideWebAccess, isPublicWebPath } from './web-auth.access'
 import { checkWebSession } from './web-auth.api'
 
+const HEALTH_PATH = '/_healthz'
+
 function jsonResponse(status: number, error: string): Response {
   return new Response(JSON.stringify({ error }), {
     status,
@@ -17,6 +19,13 @@ function redirectTo(location: string): Response {
 export const webAuthMiddleware = createMiddleware().server(async ({ next, request }) => {
   const { pathname } = new URL(request.url)
   const cookie = request.headers.get('cookie') ?? ''
+
+  if (pathname === HEALTH_PATH && (request.method === 'GET' || request.method === 'HEAD')) {
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+  }
 
   if (pathname === '/login' && request.method === 'GET') {
     const signedIn = await checkWebSession(cookie).then(
