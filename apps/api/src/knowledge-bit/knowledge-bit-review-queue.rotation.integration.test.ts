@@ -32,6 +32,7 @@ await migratePool.end();
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY ??= "unused-in-integration-test";
 const { getKnowledgeBitReviewQueue } = await import("./knowledge-bit-review-queue.repo.js");
+const { recordKnowledgeBitReview } = await import("./knowledge-bit-review.orchestrator.js");
 const { pickAlternateVariant } = await import("./knowledge-bit-review-alt-variant.repo.js");
 const { getDb } = await import("../db/client.js");
 
@@ -88,6 +89,40 @@ async function recordShown(bitId: string, variantId: string, secondsAgo: number)
     `INSERT INTO knowledge_bit_reviews (id, knowledge_bit_id, variant_id, grade, was_new, reviewed_at) VALUES ($1, $2, $3, 'good', false, $4)`,
     [`kbreview_${randomUUID()}`, bitId, variantId, new Date(NOW.getTime() - secondsAgo * 1000)],
   );
+}
+
+const DAY_MS = 86_400_000;
+
+async function recordHistory(
+  bitId: string,
+  variantId: string,
+  daysAgo: number,
+  grade: string,
+  prevIntervalDays: number,
+): Promise<void> {
+  await client.query(
+    `INSERT INTO knowledge_bit_reviews (id, knowledge_bit_id, variant_id, grade, was_new, reviewed_at, prev_schedule) VALUES ($1, $2, $3, $4, false, $5, $6)`,
+    [
+      `kbreview_${randomUUID()}`,
+      bitId,
+      variantId,
+      grade,
+      new Date(NOW.getTime() - daysAgo * DAY_MS),
+      JSON.stringify({ intervalDays: prevIntervalDays }),
+    ],
+  );
+}
+
+async function seedDifficultCard(): Promise<{ bitId: string; plainId: string; rewordedId: string }> {
+  const { bitId, variantIds } = await seedPiece(["basic", "reworded"]);
+  const plainId = variantIds[0] as string;
+
+  await recordHistory(bitId, plainId, 12, "again", 0);
+  await recordHistory(bitId, plainId, 10, "again", 1);
+  await recordHistory(bitId, plainId, 8, "good", 1);
+  await recordHistory(bitId, plainId, 6, "good", 2);
+
+  return { bitId, plainId, rewordedId: variantIds[1] as string };
 }
 
 async function recordRehearsal(variantId: string, secondsAgo: number): Promise<void> {
@@ -168,5 +203,71 @@ describe("review queue variation rotation (real Postgres)", () => {
     const alternate = await pickAlternateVariant(bitId, variantIds[0] as string, NOW, getDb());
 
     expect(alternate?.variantId).toBe(variantIds[1]);
+  });
+
+  it("should rotate in the approved reworded version while the card is difficult", async () => {
+    const { bitId, plainId, rewordedId } = await seedDifficultCard();
+
+    await recordShown(bitId, plainId, 30);
+
+    expect(await nextVariantId(bitId)).toBe(rewordedId);
+
+    await recordShown(bitId, rewordedId, 10);
+
+    expect(await nextVariantId(bitId)).toBe(plainId);
+
+    const alternate = await pickAlternateVariant(bitId, plainId, NOW, getDb());
+
+    expect(alternate?.variantId).toBe(rewordedId);
+  });
+
+  it("should never show a reworded version for a card that is not difficult", async () => {
+    const { bitId, variantIds } = await seedPiece(["basic", "reworded"]);
+
+    await recordHistory(bitId, variantIds[0] as string, 12, "good", 0);
+    await recordHistory(bitId, variantIds[0] as string, 6, "good", 3);
+
+    expect(await nextVariantId(bitId)).toBe(variantIds[0]);
+
+    const alternate = await pickAlternateVariant(bitId, variantIds[0] as string, NOW, getDb());
+
+    expect(alternate).toBeNull();
+  });
+
+  it("should stop showing the reworded version once the card is retired", async () => {
+    const { bitId, plainId, rewordedId } = await seedDifficultCard();
+
+    await recordHistory(bitId, plainId, 4, "good", 8);
+    await recordHistory(bitId, plainId, 1, "easy", 12);
+
+    expect(await nextVariantId(bitId)).toBe(plainId);
+    expect(await nextVariantId(bitId)).not.toBe(rewordedId);
+    expect(await pickAlternateVariant(bitId, plainId, NOW, getDb())).toBeNull();
+  });
+
+  it("should count a reworded version as the same card in the queue instead of a new one", async () => {
+    const { bitId } = await seedDifficultCard();
+    const queue = await getKnowledgeBitReviewQueue(10, { knowledgeBitId: bitId }, CLOCK);
+
+    expect(queue.cards).toHaveLength(1);
+    expect(queue.cards[0]?.cardKey).toBe("");
+  });
+
+  it("should update the card's shared schedule when a reworded version is graded", async () => {
+    const { bitId, rewordedId } = await seedDifficultCard();
+    const outcome = await recordKnowledgeBitReview({ variantId: rewordedId, grade: "good" }, NOW);
+    const schedule = await client.query(
+      `SELECT card_key, review_count FROM knowledge_bit_schedules WHERE knowledge_bit_id = $1`,
+      [bitId],
+    );
+    const review = await client.query(
+      `SELECT card_key FROM knowledge_bit_reviews WHERE variant_id = $1`,
+      [rewordedId],
+    );
+
+    expect(outcome.ok).toBe(true);
+    expect(schedule.rows).toHaveLength(1);
+    expect(schedule.rows[0]).toMatchObject({ card_key: "", review_count: 2 });
+    expect(review.rows[0]?.card_key).toBe("");
   });
 });

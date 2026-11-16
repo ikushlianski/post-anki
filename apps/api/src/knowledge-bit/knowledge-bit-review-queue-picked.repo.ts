@@ -13,6 +13,7 @@ import { ANKI_VARIANT_KIND_PREFERENCE, ankiVariantKindRank } from "./knowledge-b
 import { cardSubjectIdSql } from "./knowledge-bit-card-subject.js";
 import { bitApproved } from "./knowledge-bit-approval.repo.js";
 import { variantCardKeySql } from "./knowledge-bit-card-key.js";
+import { cardIsDifficultSql } from "./knowledge-bit-card-difficulty.repo.js";
 import { inReviewRotation } from "./knowledge-bit-schedule.repo.js";
 import type { KnowledgeBitReviewCardsFilter } from "./knowledge-bit-review-queue.repo.js";
 
@@ -53,12 +54,19 @@ export function scopeCondition(
   return undefined;
 }
 
+export const rewordedOnlyWhenDifficult = (now: Date) =>
+  or(
+    ne(knowledgeBitQuestionVariants.kind, "reworded"),
+    cardIsDifficultSql(knowledgeBits.id, sql`''`, now),
+  );
+
 export const eligibility = (scope: SQL | undefined, now: Date) =>
   and(
     scope,
     inReviewRotation(now),
     or(isNull(knowledgeBits.topicId), ne(topics.learningStatus, "skipping")),
     isNull(knowledgeBitQuestionVariants.supersededAt),
+    rewordedOnlyWhenDifficult(now),
     bitApproved,
   );
 

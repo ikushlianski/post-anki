@@ -14,6 +14,7 @@ import { cardSubjectIdSql } from "./knowledge-bit-card-subject.js";
 import { toCard, type StepsFor } from "./knowledge-bit-review-queue-cards.repo.js";
 import type { KnowledgeBitReviewCardRow } from "./knowledge-bit-review-queue.repo.js";
 import {
+  rewordedOnlyWhenDifficult,
   variantKindRankSql,
   variantLastShownAtSql,
 } from "./knowledge-bit-review-queue-picked.repo.js";
@@ -100,6 +101,7 @@ export async function listAlternates(
         ),
         isNull(knowledgeBitQuestionVariants.supersededAt),
         sql`${variantCardKeySql} = ''`,
+        rewordedOnlyWhenDifficult(now),
       ),
     )
     .orderBy(

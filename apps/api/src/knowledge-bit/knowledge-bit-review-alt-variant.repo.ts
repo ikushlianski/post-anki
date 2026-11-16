@@ -10,7 +10,11 @@ import {
 } from "../db/schema.js";
 import { variantCardKeySql } from "./knowledge-bit-card-key.js";
 import { cardSubjectIdSql } from "./knowledge-bit-card-subject.js";
-import { variantKindRankSql, variantLastShownAtSql } from "./knowledge-bit-review-queue-picked.repo.js";
+import {
+  rewordedOnlyWhenDifficult,
+  variantKindRankSql,
+  variantLastShownAtSql,
+} from "./knowledge-bit-review-queue-picked.repo.js";
 import { defaultStepsFor, toCard, type StepsFor } from "./knowledge-bit-review-queue-cards.repo.js";
 import type { KnowledgeBitReviewCardRow } from "./knowledge-bit-review-queue.repo.js";
 
@@ -65,6 +69,7 @@ export async function pickAlternateVariant(
         eq(knowledgeBitQuestionVariants.knowledgeBitId, knowledgeBitId),
         isNull(knowledgeBitQuestionVariants.supersededAt),
         sql`${variantCardKeySql} = ''`,
+        rewordedOnlyWhenDifficult(now),
       ),
     )
     .orderBy(
