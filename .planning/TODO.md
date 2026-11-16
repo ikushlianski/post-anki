@@ -120,6 +120,7 @@ updated: 2026-09-04
 - Out of scope: Deleting cards without the user's decision
 
 ### Coding tasks
+- [ ] List near-duplicate Business and Sales cards for the user to merge or keep.
 - [x] Practice rounds do not skew which wording the next real review shows.
 - [x] iPhone and Mac list every similar card of a flagged duplicate, not only the main one.
 - [x] Cards created by hand are also checked for near-duplicates, like imported ones.
@@ -650,6 +651,10 @@ updated: 2026-09-04
 - A simple Anki-inspired retention system with few settings for exam prep and long-term learning
 
 ### Coding tasks
+- [ ] Flag cards as difficult from a week of review stats, using the Again and Hard thresholds below.
+- [ ] Retire a card's reworded versions after two Good or Easy answers in a row 7+ days apart.
+- [ ] Compare rewording quality of Gemma 4 31B, GPT-4o-mini and DeepSeek V4 Pro on 5 difficult Business cards.
+- [ ] Add 2-3 reworded versions to each difficult card, approved in triage, rotating with the original question.
 - [x] Let a subject be exam with a deadline or long-term, deriving interval cap and new-card pace.
 - [x] Show retention intent, deadline, retention and new-card settings plus a short stats view on iOS.
 - [x] Pause new cards automatically when daily reviews pile up past a limit, with a visible notice.
