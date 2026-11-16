@@ -124,4 +124,5 @@ export * from "./chat-usage";
 export * from "./text-limits";
 export * from "./meeting-phrase";
 export * from "./target-phrases";
+export * from "./reworded-draft";
 export * from "./knowledge-source-highlights";

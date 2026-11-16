@@ -17,6 +17,7 @@ export const knowledgeBitQuestionVariantKindSchema = z.enum([
   "list_step",
   "list_next",
   "list_overview",
+  "reworded",
 ]);
 
 export type KnowledgeBitQuestionVariantKind = z.infer<typeof knowledgeBitQuestionVariantKindSchema>;

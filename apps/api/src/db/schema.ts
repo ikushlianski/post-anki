@@ -1401,6 +1401,25 @@ export const knowledgeBitQuestionVariants = pgTable(
   ],
 );
 
+export const knowledgeBitRewordedDrafts = pgTable(
+  "knowledge_bit_reworded_drafts",
+  {
+    id: text("id").primaryKey(),
+    knowledgeBitId: text("knowledge_bit_id")
+      .notNull()
+      .references(() => knowledgeBits.id, { onDelete: "cascade" }),
+    prompt: text("prompt").notNull(),
+    answer: text("answer").notNull(),
+    angle: text("angle").notNull(),
+    modelId: text("model_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    decision: text("decision"),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    variantId: text("variant_id").references(() => knowledgeBitQuestionVariants.id, { onDelete: "set null" }),
+  },
+  (table) => [index("knowledge_bit_reworded_drafts_bit_idx").on(table.knowledgeBitId)],
+);
+
 // One row per learner attempt at a knowledge-bit question variant — never updated, only inserted,
 // so spaced-repetition re-answering is a new row rather than overwriting the last verdict. Plain
 // text variantId, no FK, matching this schema's dominant cross-table convention (gaps.topicId,

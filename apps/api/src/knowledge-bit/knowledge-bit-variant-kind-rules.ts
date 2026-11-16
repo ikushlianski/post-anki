@@ -8,6 +8,7 @@ export const ANKI_VARIANT_KIND_PREFERENCE = [
   "list_overview",
   "list_step",
   "list_next",
+  "reworded",
 ] as const satisfies readonly KnowledgeBitQuestionVariantKind[];
 
 export const TYPED_VARIANT_KINDS = ["wh_question", "fill_in_the_blank"] as const satisfies readonly KnowledgeBitQuestionVariantKind[];

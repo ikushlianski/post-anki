@@ -15,6 +15,7 @@ export const KNOWLEDGE_BIT_VARIANT_KIND_LABELS = {
   list_step: "List step",
   list_next: "Next step",
   list_overview: "List overview",
+  reworded: "Reworded",
 } as const satisfies Record<z.infer<typeof knowledgeBitQuestionVariantKindSchema>, string>;
 
 export const knowledgeBitDetailPhrasingSchema = z.object({
