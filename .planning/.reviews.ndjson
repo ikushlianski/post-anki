@@ -863,3 +863,9 @@
 {"ts":"2026-11-11T23:15:09Z","direction":"code-rendering(apple)","verdict":"pass"}
 {"ts":"2026-11-11T23:21:00Z","direction":"knowledge-created-column+mac-detail-font-size","verdict":"pass","note":"verified in dev build screenshot"}
 {"ts":"2026-11-11T23:23:14Z","direction":"final-cross-cutting","verdict":"pass"}
+{"at":"2026-11-16","item":"near-duplicate report","verdict":"PASS","reviewer":"personal-reviewer sonnet"}
+{"at":"2026-11-16","item":"difficulty rule","verdict":"PASS","reviewer":"personal-reviewer sonnet"}
+{"at":"2026-11-16","item":"reworded review filter","verdict":"PASS","reviewer":"personal-reviewer sonnet"}
+{"at":"2026-11-16","item":"reworded draft approval","verdict":"PASS","reviewer":"personal-reviewer sonnet"}
+{"at":"2026-11-16","item":"reworded generation","verdict":"PASS after fix","reviewer":"personal-reviewer sonnet"}
+{"at":"2026-11-16","item":"rewording model trial","verdict":"PASS","reviewer":"personal-reviewer sonnet"}
