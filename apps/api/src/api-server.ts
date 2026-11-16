@@ -74,6 +74,7 @@ import {
 } from "./card-triage/card-triage-session.controller.js";
 import { handleGetCardQualityByModel } from "./card-quality/card-quality.controller.js";
 import { handleListRecentTriageDecisions, handlePatchTriageDecision } from "./card-triage/card-triage-history.controller.js";
+import { handleDecideRewordedDraft, handleListRewordedDrafts } from "./card-rewording/card-rewording.controller.js";
 import { handleListCardStyleNotes, handleUpdateCardStyleNote } from "./card-triage/card-style-note.controller.js";
 import { handleListKnowledgeBitOverview } from "./knowledge-bit/knowledge-bit-overview.controller.js";
 import { handleExportKnowledgeBits } from "./knowledge-bit/knowledge-bit-export.controller.js";
@@ -837,6 +838,10 @@ async function route(
       return handleListCardStyleNotes(res, url.search);
     case "updateCardStyleNote":
       return handleUpdateCardStyleNote(req, res, id);
+    case "listRewordedDrafts":
+      return handleListRewordedDrafts(res);
+    case "decideRewordedDraft":
+      return handleDecideRewordedDraft(req, res, id);
     case "restoreRejectedOnlyKnowledgeBit":
       return handleRestoreRejectedOnly(res, id);
     case "restoreRejectedKnowledgeBit":

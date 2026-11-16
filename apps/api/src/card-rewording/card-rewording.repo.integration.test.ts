@@ -2,11 +2,17 @@ import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
 import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 import * as schema from "../db/schema.js";
-import { bitIdsWithAnyDraft, insertRewordedDrafts, listPendingRewordedDrafts } from "./card-rewording.repo.js";
+import { cardKeySql } from "../knowledge-bit/knowledge-bit-card-key.js";
+import {
+  bitIdsWithAnyDraft,
+  decideRewordedDraft,
+  insertRewordedDrafts,
+  listPendingRewordedDrafts,
+} from "./card-rewording.repo.js";
 
 const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
@@ -129,5 +135,105 @@ describe("card rewording drafts repo (real Postgres)", () => {
     await db.delete(schema.knowledgeBits).where(eq(schema.knowledgeBits.id, bitId));
 
     expect((await bitIdsWithAnyDraft(db, [bitId])).size).toBe(0);
+  });
+});
+
+async function seedDraft(approvalState = "approved"): Promise<{ bitId: string; draftId: string }> {
+  const bitId = await seedBit(approvalState);
+
+  await db.insert(schema.knowledgeBitSchedules).values({ knowledgeBitId: bitId, cardKey: "" });
+  await insertRewordedDrafts(db, [draft(bitId, `reworded ${bitId}`)]);
+
+  const [row] = await db
+    .select({ id: schema.knowledgeBitRewordedDrafts.id })
+    .from(schema.knowledgeBitRewordedDrafts)
+    .where(eq(schema.knowledgeBitRewordedDrafts.knowledgeBitId, bitId));
+
+  return { bitId, draftId: row?.id ?? "" };
+}
+
+const rewordedVariants = (bitId: string) =>
+  db
+    .select({
+      id: schema.knowledgeBitQuestionVariants.id,
+      order: schema.knowledgeBitQuestionVariants.order,
+      prompt: schema.knowledgeBitQuestionVariants.prompt,
+      answer: schema.knowledgeBitQuestionVariants.answer,
+      supersededAt: schema.knowledgeBitQuestionVariants.supersededAt,
+      scheduleKey: sql<string>`${cardKeySql(schema.knowledgeBitQuestionVariants.kind, schema.knowledgeBitQuestionVariants.order)}`,
+    })
+    .from(schema.knowledgeBitQuestionVariants)
+    .where(
+      and(
+        eq(schema.knowledgeBitQuestionVariants.knowledgeBitId, bitId),
+        eq(schema.knowledgeBitQuestionVariants.kind, "reworded"),
+      ),
+    );
+
+describe("deciding a reworded draft (real Postgres)", () => {
+  it("should add an active reworded version on the card's existing schedule when approved", async () => {
+    const { bitId, draftId } = await seedDraft();
+
+    const result = await decideRewordedDraft(db, draftId, "approved");
+    const variants = await rewordedVariants(bitId);
+    const schedules = await db
+      .select()
+      .from(schema.knowledgeBitSchedules)
+      .where(eq(schema.knowledgeBitSchedules.knowledgeBitId, bitId));
+
+    expect(result.status).toBe("ok");
+    expect(variants).toHaveLength(1);
+    expect(variants[0]).toMatchObject({ prompt: `reworded ${bitId}`, answer: "the answer", supersededAt: null, scheduleKey: "" });
+    expect(schedules.map((row) => row.cardKey)).toEqual([""]);
+    expect((await listPendingRewordedDrafts(db, 500)).map((row) => row.id)).not.toContain(draftId);
+  });
+
+  it("should give each later approved version of the same card the next free slot", async () => {
+    const bitId = await seedBit("approved");
+
+    await insertRewordedDrafts(db, [draft(bitId, "first"), draft(bitId, "second")]);
+
+    const drafts = await db
+      .select()
+      .from(schema.knowledgeBitRewordedDrafts)
+      .where(eq(schema.knowledgeBitRewordedDrafts.knowledgeBitId, bitId));
+
+    for (const row of drafts) {
+      await decideRewordedDraft(db, row.id, "approved");
+    }
+
+    expect((await rewordedVariants(bitId)).map((row) => row.order).sort()).toEqual([0, 1]);
+  });
+
+  it("should create nothing when rejected and keep the draft from coming back", async () => {
+    const { bitId, draftId } = await seedDraft();
+
+    const result = await decideRewordedDraft(db, draftId, "rejected");
+
+    expect(result).toEqual({ status: "ok", variantId: null });
+    expect(await rewordedVariants(bitId)).toHaveLength(0);
+    expect((await listPendingRewordedDrafts(db, 500)).map((row) => row.id)).not.toContain(draftId);
+    expect((await bitIdsWithAnyDraft(db, [bitId])).has(bitId)).toBe(true);
+  });
+
+  it("should refuse a second decision on the same draft", async () => {
+    const { bitId, draftId } = await seedDraft();
+
+    await decideRewordedDraft(db, draftId, "approved");
+
+    expect(await decideRewordedDraft(db, draftId, "rejected")).toEqual({ status: "conflict" });
+    expect(await decideRewordedDraft(db, draftId, "approved")).toEqual({ status: "conflict" });
+    expect(await rewordedVariants(bitId)).toHaveLength(1);
+  });
+
+  it("should refuse to decide a draft whose card is no longer approved", async () => {
+    const { bitId, draftId } = await seedDraft("rejected");
+
+    expect(await decideRewordedDraft(db, draftId, "approved")).toEqual({ status: "conflict" });
+    expect(await rewordedVariants(bitId)).toHaveLength(0);
+  });
+
+  it("should report an unknown draft as not found", async () => {
+    expect(await decideRewordedDraft(db, "kbrd_missing", "approved")).toEqual({ status: "not_found" });
   });
 });

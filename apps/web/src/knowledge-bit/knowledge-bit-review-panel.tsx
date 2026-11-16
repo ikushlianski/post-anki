@@ -28,6 +28,7 @@ import { useReviewDecisions } from "./use-review-decisions";
 import { useReviewBitEdits } from "./use-review-bit-edits";
 import { useTriageExtras } from "./use-triage-extras";
 import { useResolvingSuggestions } from "../domain-map/use-resolving-suggestions";
+import { RewordedDraftsSection } from "../card-triage/reworded-drafts-section";
 import { TriageSessionSection } from "../card-triage/triage-session-section";
 import { useCardDwell } from "../card-triage/use-card-dwell";
 import { useTriageSession } from "../card-triage/use-triage-session";
@@ -308,6 +309,7 @@ export function KnowledgeBitReviewPanel({
       >
         {session}
       </KnowledgeBitReviewLanding>
+      <RewordedDraftsSection />
       <KnowledgeBitReviewAnnouncer announcement={announcement} />
     </div>
   );

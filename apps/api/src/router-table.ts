@@ -1052,4 +1052,11 @@ export const ROUTES: RouteDef[] = [
     name: "updateCardStyleNote",
     param: "id",
   },
+  { method: "GET", pattern: "/reworded-drafts", name: "listRewordedDrafts" },
+  {
+    method: "POST",
+    pattern: /^\/reworded-drafts\/([^/]+)\/decision$/,
+    name: "decideRewordedDraft",
+    param: "id",
+  },
 ];

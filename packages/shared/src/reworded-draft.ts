@@ -16,6 +16,8 @@ export const rewordedDraftSchema = z.object({
 
 export type RewordedDraft = z.infer<typeof rewordedDraftSchema>;
 
+export const rewordedDraftListResponse = z.object({ drafts: z.array(rewordedDraftSchema) });
+
 export const decideRewordedDraftInputSchema = z.object({
   decision: z.enum(["approved", "rejected"]),
 });

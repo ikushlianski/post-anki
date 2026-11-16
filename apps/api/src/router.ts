@@ -72,6 +72,8 @@ export type RouteName =
   | "putTriageDecision"
   | "deleteTriageDecision"
   | "listCardStyleNotes"
+  | "listRewordedDrafts"
+  | "decideRewordedDraft"
   | "updateCardStyleNote"
   | "gradeKnowledgeBit"
   | "setKnowledgeBitFeedbackReason"

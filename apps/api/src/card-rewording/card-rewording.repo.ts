@@ -1,7 +1,8 @@
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { RewordedDraft, RewordedDraftAngle } from "@post-anki/shared";
-import type { DbExecutor } from "../db/client.js";
+import type { Db, DbExecutor } from "../db/client.js";
 import { knowledgeBitQuestionVariants, knowledgeBitRewordedDrafts, knowledgeBits } from "../db/schema.js";
+import { cardTextKey } from "../knowledge-bit/knowledge-bit-card-text-key.js";
 import { newId } from "../shared/id.js";
 
 export interface NewRewordedDraft {
@@ -68,4 +69,71 @@ export async function bitIdsWithAnyDraft(db: DbExecutor, bitIds: readonly string
     .where(inArray(knowledgeBitRewordedDrafts.knowledgeBitId, [...bitIds]));
 
   return new Set(rows.map((row) => row.knowledgeBitId));
+}
+
+export type DecideRewordedDraftResult =
+  | { status: "ok"; variantId: string | null }
+  | { status: "not_found" }
+  | { status: "conflict" };
+
+export async function decideRewordedDraft(
+  db: Db,
+  id: string,
+  decision: "approved" | "rejected",
+): Promise<DecideRewordedDraftResult> {
+  return db.transaction(async (tx) => {
+    const [draft] = await tx
+      .select()
+      .from(knowledgeBitRewordedDrafts)
+      .where(eq(knowledgeBitRewordedDrafts.id, id))
+      .for("update");
+
+    if (!draft) {
+      return { status: "not_found" };
+    }
+
+    const [bit] = await tx
+      .select({ approvalState: knowledgeBits.approvalState })
+      .from(knowledgeBits)
+      .where(eq(knowledgeBits.id, draft.knowledgeBitId))
+      .for("update");
+
+    if (draft.decision !== null || bit?.approvalState !== "approved") {
+      return { status: "conflict" };
+    }
+
+    let variantId: string | null = null;
+
+    if (decision === "approved") {
+      variantId = newId("kbqv");
+
+      const [{ nextOrder = 0 } = {}] = await tx
+        .select({ nextOrder: sql<number>`coalesce(max(${knowledgeBitQuestionVariants.order}), -1) + 1` })
+        .from(knowledgeBitQuestionVariants)
+        .where(
+          and(
+            eq(knowledgeBitQuestionVariants.knowledgeBitId, draft.knowledgeBitId),
+            eq(knowledgeBitQuestionVariants.kind, "reworded"),
+            isNull(knowledgeBitQuestionVariants.supersededAt),
+          ),
+        );
+
+      await tx.insert(knowledgeBitQuestionVariants).values({
+        id: variantId,
+        knowledgeBitId: draft.knowledgeBitId,
+        kind: "reworded",
+        order: Number(nextOrder),
+        prompt: draft.prompt,
+        answer: draft.answer,
+        cardKey: cardTextKey(draft.prompt, draft.answer),
+      });
+    }
+
+    await tx
+      .update(knowledgeBitRewordedDrafts)
+      .set({ decision, decidedAt: new Date(), variantId })
+      .where(eq(knowledgeBitRewordedDrafts.id, id));
+
+    return { status: "ok", variantId };
+  });
 }
