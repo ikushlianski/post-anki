@@ -1,0 +1,45 @@
+[
+  {
+    "id": "q1",
+    "text": "Which transport does post-anki use to send a todo to the Me agent?",
+    "default": "HTTP POST with a JSON body to a URL set in ME_AGENT_TODO_URL. When the URL is unset, the feature reports 'not configured'.",
+    "reason": "The Me agent exposes no network write interface and is out of scope, so post-anki has to stay agnostic to the endpoint.",
+    "categories": [
+      "outside-provider",
+      "shared-data"
+    ],
+    "tick": 4
+  },
+  {
+    "id": "q2",
+    "text": "How does post-anki authenticate to the Me agent?",
+    "default": "A bearer token read from ME_AGENT_TODO_TOKEN, sent only when it is set.",
+    "reason": "This is the simplest scheme that a networked MCP gateway or an HTTP endpoint could accept.",
+    "categories": [
+      "outside-provider",
+      "privacy"
+    ],
+    "tick": 4
+  },
+  {
+    "id": "q3",
+    "text": "What does the todo payload contain?",
+    "default": "The title plus the card's front text and a link to the card. Answers and review history are not sent.",
+    "reason": "This is the minimum context the todo needs while limiting the user content that leaves post-anki.",
+    "categories": [
+      "privacy",
+      "shared-data"
+    ],
+    "tick": 4
+  },
+  {
+    "id": "q4",
+    "text": "Where does the button live?",
+    "default": "Only on the web app review card.",
+    "reason": "Review is the main surface. iPhone, extension and chat can follow once the transport exists.",
+    "categories": [
+      "scope-change"
+    ],
+    "tick": 4
+  }
+]

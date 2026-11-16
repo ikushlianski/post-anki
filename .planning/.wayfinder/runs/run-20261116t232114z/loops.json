@@ -1,0 +1,6 @@
+{
+  "questions": {
+    "which transport or api would the me agent expose for receiving a todo from a cloud run service networked mcp http endpoint or other the code and docs i read do not say the me agent is out of scope for changes": 1
+  },
+  "fixes": {}
+}

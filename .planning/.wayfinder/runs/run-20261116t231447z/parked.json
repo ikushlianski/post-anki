@@ -1,0 +1,44 @@
+[
+  {
+    "text": "Should the shuffle order be stable within a session, for example seeded per day, or re-randomised on every queue fetch?",
+    "reasonCode": "tree-cap",
+    "fromNode": null,
+    "tick": 2
+  },
+  {
+    "text": "chapter: Shuffle toggle in the admin clients",
+    "reasonCode": "chapter-cap",
+    "fromNode": null,
+    "tick": 5
+  },
+  {
+    "text": "Which clients does Shuffle cover: web, mobile or both? Mobile requires reading the Expo v57 docs first.",
+    "reasonCode": "assumption",
+    "fromNode": "n3",
+    "tick": 5
+  },
+  {
+    "text": "Should the shuffle respect subject grouping, the daily new-card cap and the review cap? Those caps are applied before the final ordering.",
+    "reasonCode": "assumption",
+    "fromNode": "n4",
+    "tick": 5
+  },
+  {
+    "text": "Where does Shuffle live: a per-session toggle on the Today screen, a new global admin setting, or a replacement for mixNewWithDue? Nothing I read decides this. It determines whether the work touches the Today screen UI, the admin-settings schema, DB column and API, or the existing mix behaviour.",
+    "reasonCode": "assumption",
+    "fromNode": "n5",
+    "tick": 5
+  },
+  {
+    "text": "If Shuffle is added alongside mixNewWithDue, which takes precedence when both apply, and does shuffle apply to scoped queues as well as the unscoped Today queue?",
+    "reasonCode": "assumption",
+    "fromNode": "n6",
+    "tick": 5
+  },
+  {
+    "text": "Should \"random order\" be a full random permutation of the combined new and due cards, or should it only randomise how new and due are interleaved? The existing interleave is deterministic alternation, and no code or doc settles this. A full permutation would drop the alternating pattern and could put many new cards in a row. Randomised interleaving would keep each pool's internal order, for example due cards most overdue first.",
+    "reasonCode": "assumption",
+    "fromNode": "n7",
+    "tick": 5
+  }
+]

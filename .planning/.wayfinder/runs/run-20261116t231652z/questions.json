@@ -1,0 +1,12 @@
+[
+  {
+    "id": "q1",
+    "text": "Should web or Expo get subject grouping too?",
+    "default": "No; keep the work to the iOS and Mac Today review and the API pack it reads offline.",
+    "reason": "Neither web nor Expo has a Today review button, and adding one would widen the scope.",
+    "categories": [
+      "scope-change"
+    ],
+    "tick": 5
+  }
+]

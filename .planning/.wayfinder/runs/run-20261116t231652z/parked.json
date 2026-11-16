@@ -1,0 +1,56 @@
+[
+  {
+    "text": "Offline pack path: when ReviewPackSync is offline, load() calls loadFromPack() before the API. DueReviewModel+OfflinePack.swift has no subject references, and the pack repo only selects subjectId and cardSubjectId. It is unconfirmed that pack cards carry subjectPath or are grouped, so Today may show no label or announcement offline.",
+    "reasonCode": "no-quote",
+    "fromNode": "n2",
+    "tick": 4
+  },
+  {
+    "text": "Whether Mac views (MacDueReviewView) and the Expo mobile app display currentSubjectPath and groupAnnouncement was not verified. The Mac view uses the shared model; the Expo app was not found to have a review screen.",
+    "reasonCode": "no-quote",
+    "fromNode": "n2",
+    "tick": 4
+  },
+  {
+    "text": "Product decision: extend only the missing surfaces (Mac, web, Expo, offline) or also change the existing iOS behaviour. The code supports the first as the default (iOS online already meets the ticket), but the stakeholder has not confirmed it.",
+    "reasonCode": "no-quote",
+    "fromNode": "n2",
+    "tick": 4
+  },
+  {
+    "text": "Does 'how many cards remain' mean cards left in the next subject's group, cards left overall, or both? The iOS announcement currently gives both.",
+    "reasonCode": "assumption",
+    "fromNode": "n3",
+    "tick": 5
+  },
+  {
+    "text": "The grouping order is the order subjects first appear in the queue. Should it stay that way, or be ordered some other way (for example alphabetical or by due count), and how should it interact with the planned Shuffle option?",
+    "reasonCode": "assumption",
+    "fromNode": "n4",
+    "tick": 5
+  },
+  {
+    "text": "Most likely 'the Today button' is the iOS DueTodayRow ('Due today' → DueReviewScreen), possibly also the Mac Today home. No control is literally a 'Today button', so the target surface needs confirming.",
+    "reasonCode": "assumption",
+    "fromNode": "n5",
+    "tick": 5
+  },
+  {
+    "text": "Grouping, the current-subject label and the announcement already exist in the API and the iOS DueReviewModel. Should the work only verify that DueTodayRow's path (DueReviewScreen with nil scope) shows them, or add them to a surface that lacks them (Mac, web, Expo)? I did not trace DueReviewScreen to the grouped model.",
+    "reasonCode": "assumption",
+    "fromNode": "n6",
+    "tick": 5
+  },
+  {
+    "text": "Should 'how many cards remain' be the next subject's group count, the overall remaining count, or both? The existing iOS announcement gives both.",
+    "reasonCode": "assumption",
+    "fromNode": "n7",
+    "tick": 5
+  },
+  {
+    "text": "Counts differ from the ticket: the announcement gives the count left in the group plus the overall total, and the window is limited to ReviewCardWindow.target cards. Groups beyond the loaded window could be undercounted in 'cards left here'. Not verified.",
+    "reasonCode": "assumption",
+    "fromNode": "n8",
+    "tick": 5
+  }
+]

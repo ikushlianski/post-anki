@@ -1,0 +1,1 @@
+A button in Post Anki that sends a todo to the user's Me agent (already a blocked backlog item: the Me agent vault MCP is stdio/local only, post-anki runs on Cloud Run).

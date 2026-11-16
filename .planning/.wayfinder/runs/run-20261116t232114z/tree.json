@@ -1,0 +1,59 @@
+{
+  "nodes": [
+    {
+      "id": "n1",
+      "parent": null,
+      "depth": 1,
+      "question": "Which transport or API would the Me agent expose for receiving a todo from a Cloud Run service (networked MCP, HTTP endpoint, or other)? The code and docs I read do not say. The Me agent is out of scope for changes.",
+      "quote": "the Me agent vault MCP is stdio/local only, post-anki runs on Cloud Run",
+      "status": "done",
+      "answer": "The backlog item is blocked: the vault MCP is stdio-only while post-anki runs on Cloud Run, so there is no prod path without a networked transport. Round 3 (2026-10-02) re-verified that the Me agent vault MCP is stdio plus local SQLite/notes with no network path. The integration scope covers post-anki's side only. Changes to the-me-agent are out of scope. The networked MCP transport noted in TODO.md is post-anki's own inbound MCP server. It is not a path to the Me agent. The Me agent's `me mcp serve` is a vault MCP server with read-only tools over its notes folder, and post-anki already consumes it. Read-only tools cannot receive a todo. The Me agent has a separate Chrome-extension capture server. It uses a Notion REST write client keyed off ME_NOTION_INTEGRATION_TOKEN. The spec does not say whether that server accepts todos over HTTP or is reachable from Cloud Run.",
+      "source": ".planning/TODO.md",
+      "spendUsd": 0.0420665,
+      "budgetUsd": 0,
+      "blocking": true
+    },
+    {
+      "id": "n2",
+      "parent": null,
+      "depth": 1,
+      "question": "What is the todo payload (title, notes, linked card/subject), and where should the button live (web, iPhone, extension, or chat)? None of this is specified.",
+      "quote": "A button in Post Anki that sends a todo",
+      "status": "parked",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": false,
+      "reason": "assumed"
+    },
+    {
+      "id": "n3",
+      "parent": null,
+      "depth": 1,
+      "question": "How would post-anki authenticate to the Me agent, and is sending user content to that outside system acceptable (privacy, data shared between apps)? This needs a stakeholder decision.",
+      "quote": "sends a todo to the user's Me agent",
+      "status": "parked",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": false,
+      "reason": "assumed"
+    },
+    {
+      "id": "n4",
+      "parent": "n1",
+      "depth": 2,
+      "question": "The Me agent exposes no documented network-reachable write interface for receiving a todo. It is unknown whether it would offer a networked MCP with a write tool, an HTTP endpoint (such as the capture server or inbox), or something else. The Me agent repo is outside this codebase, so this needs a stakeholder answer.",
+      "quote": "sends a todo to the user's Me agent",
+      "status": "parked",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": false,
+      "reason": "assumed"
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+A Shuffle option for today's review mixes new and due cards in random order.

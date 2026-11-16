@@ -1,0 +1,32 @@
+[
+  {
+    "id": "q1",
+    "text": "Where does Shuffle live: a per-session Today toggle, a new global admin setting, or a replacement for mixNewWithDue?",
+    "default": "A new global admin setting, shuffleReview, default false, kept alongside mixNewWithDue.",
+    "reason": "This follows the existing mixNewWithDue setting and does not change current behaviour until it is turned on.",
+    "categories": [
+      "scope-change"
+    ],
+    "tick": 5
+  },
+  {
+    "id": "q2",
+    "text": "Does shuffle apply to scoped queues as well as the Today queue?",
+    "default": "Only the unscoped Today queue.",
+    "reason": "The ticket names today's review only.",
+    "categories": [
+      "scope-change"
+    ],
+    "tick": 5
+  },
+  {
+    "id": "q3",
+    "text": "Which clients get the toggle?",
+    "default": "Web and iOS admin settings, which already expose mixNewWithDue; the Expo mobile app is not touched.",
+    "reason": "These are the existing admin-settings surfaces.",
+    "categories": [
+      "scope-change"
+    ],
+    "tick": 5
+  }
+]

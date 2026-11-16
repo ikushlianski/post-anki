@@ -1,0 +1,7 @@
+{
+  "questions": {
+    "is shuffle a per session user toggle on the today screen a new global admin setting or a replacement for the existing mixnewwithdue setting the ticket does not say where the option lives": 1,
+    "does random order mean a full random permutation of the combined new and due cards or randomness only in how new and due are interleaved the current interleave is deterministic alternation": 1
+  },
+  "fixes": {}
+}

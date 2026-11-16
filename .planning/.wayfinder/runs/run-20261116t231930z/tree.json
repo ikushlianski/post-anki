@@ -1,0 +1,59 @@
+{
+  "nodes": [
+    {
+      "id": "n1",
+      "parent": null,
+      "depth": 1,
+      "question": "Which surfaces does 'every review card' cover: iOS and Mac (apparently done), web, the Expo mobile app, the offline pack, and the Telegram bot? The code suggests iOS and Mac already show it, so the remaining gap may be web, Expo or the offline pack. I did not verify web or the offline pack.",
+      "quote": "Every review card shows the subject it belongs to.",
+      "status": "done",
+      "answer": "The review queue controller returns cards grouped by subject, each with a subjectPath label (null when the card has no subject). Any client of that queue endpoint can show the subject without an API change. The API type GroupedReviewCardRow adds subjectPath: string | null, set from a subjectId-to-label map. The iOS and Mac review card body renders model.currentSubjectPath above the question, with accessibility identifier 'review-card-subject'. iOS and Mac are covered. The web review shared schema (packages/shared/src/knowledge-bit-review.ts) mentions subject only as a subjectId scope (lines 23 and 61). It has no subjectPath field, so the web Anki review card has no subject label in its data type. The web Anki review screen uses the subject only as an id, for hinting (useSubjectHinting), the subject chat panel (resolveCardSubjectId) and the done-screen forecast. I found no subject label rendered on the web review card, so web is a gap. A grep for subjectPath across apps/web/src found no match. Only subjectName usages for dashboards, analytics and chat-queue turned up. The Telegram bot quiz view has no mention of subject, and a grep for subjectPath or subjectId in apps/bot/src/quiz found no match. The bot quiz cards show no subject today. The offline pack (buildReviewPack) does not yet group by subject or attach subjectPath. That work is planned in a sibling chapter and is still unchecked. The Expo mobile Today screen shows a single probe-push question and no subject on the card. Only a 'Practice a subject →' link mentions subjects. Any Expo code for this ticket must follow rule r1 and read the versioned Expo docs first.",
+      "source": "apps/api/src/knowledge-bit/knowledge-bit-review.controller.ts:42",
+      "spendUsd": 0.1233647,
+      "budgetUsd": 0,
+      "blocking": true
+    },
+    {
+      "id": "n2",
+      "parent": null,
+      "depth": 1,
+      "question": "Should the label be the full path (for example 'Business › Sales') as on iOS, or only the leaf subject name? And what should show for a card with no subject (null)?",
+      "quote": "the subject it belongs to",
+      "status": "parked",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": false,
+      "reason": "assumed"
+    },
+    {
+      "id": "n3",
+      "parent": null,
+      "depth": 1,
+      "question": "Is the subject shown before the answer is revealed, and does it stay visible after the reveal? The ticket's goal text says the learner should know the context before answering. iOS shows it above the question.",
+      "quote": "Every review card shows the subject",
+      "status": "parked",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": false,
+      "reason": "assumed"
+    },
+    {
+      "id": "n4",
+      "parent": "n1",
+      "depth": 2,
+      "question": "Which surfaces does 'every review card' cover beyond iOS and Mac (done): web Anki review, offline pack, Expo mobile and the Telegram bot quiz? Web, offline pack, Expo and the bot all lack a subject label in code. Is the offline pack's card renderer a real separate surface? I did not read it.",
+      "quote": "Every review card shows the subject it belongs to.",
+      "status": "parked",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": false,
+      "reason": "assumed"
+    }
+  ]
+}

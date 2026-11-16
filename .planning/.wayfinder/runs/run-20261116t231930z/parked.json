@@ -1,0 +1,20 @@
+[
+  {
+    "text": "Should the label be the full path (for example 'Business › Sales') as on iOS, or only the leaf subject name? And what should show for a card with no subject (null)?",
+    "reasonCode": "assumption",
+    "fromNode": "n2",
+    "tick": 4
+  },
+  {
+    "text": "Is the subject shown before the answer is revealed, and does it stay visible after the reveal? The ticket's goal text says the learner should know the context before answering. iOS shows it above the question.",
+    "reasonCode": "assumption",
+    "fromNode": "n3",
+    "tick": 4
+  },
+  {
+    "text": "Which surfaces does 'every review card' cover beyond iOS and Mac (done): web Anki review, offline pack, Expo mobile and the Telegram bot quiz? Web, offline pack, Expo and the bot all lack a subject label in code. Is the offline pack's card renderer a real separate surface? I did not read it.",
+    "reasonCode": "assumption",
+    "fromNode": "n4",
+    "tick": 4
+  }
+]

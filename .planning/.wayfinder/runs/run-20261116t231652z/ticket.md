@@ -1,0 +1,1 @@
+The Today button groups today's cards by subject, shows the current subject, and announces the next subject with how many cards remain.

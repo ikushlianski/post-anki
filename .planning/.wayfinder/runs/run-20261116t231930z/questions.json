@@ -1,0 +1,12 @@
+[
+  {
+    "id": "q1",
+    "text": "Which surfaces does 'every review card' cover beyond iOS and Mac, which already show the subject?",
+    "default": "Only the web Anki review card for now. Leave the Expo app, the Telegram bot quiz and the offline pack until the user decides.",
+    "reason": "Web gets subjectPath from the queue API it already uses. The offline pack waits on the sibling grouping chapter, and adding Expo or the bot widens scope.",
+    "categories": [
+      "scope-change"
+    ],
+    "tick": 4
+  }
+]

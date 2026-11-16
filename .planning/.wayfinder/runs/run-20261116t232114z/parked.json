@@ -1,0 +1,26 @@
+[
+  {
+    "text": "chapter: Send to Me agent button",
+    "reasonCode": "chapter-cap",
+    "fromNode": null,
+    "tick": 4
+  },
+  {
+    "text": "What is the todo payload (title, notes, linked card/subject), and where should the button live (web, iPhone, extension, or chat)? None of this is specified.",
+    "reasonCode": "assumption",
+    "fromNode": "n2",
+    "tick": 4
+  },
+  {
+    "text": "How would post-anki authenticate to the Me agent, and is sending user content to that outside system acceptable (privacy, data shared between apps)? This needs a stakeholder decision.",
+    "reasonCode": "assumption",
+    "fromNode": "n3",
+    "tick": 4
+  },
+  {
+    "text": "The Me agent exposes no documented network-reachable write interface for receiving a todo. It is unknown whether it would offer a networked MCP with a write tool, an HTTP endpoint (such as the capture server or inbox), or something else. The Me agent repo is outside this codebase, so this needs a stakeholder answer.",
+    "reasonCode": "assumption",
+    "fromNode": "n4",
+    "tick": 4
+  }
+]
