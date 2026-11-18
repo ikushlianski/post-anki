@@ -1,5 +1,7 @@
+import { getDb } from "../db/client.js";
 import { insertKeyedKnowledgeSources } from "../knowledge-source/knowledge-source-keyed-insert.repo.js";
 import { kickSourcesAfterAdd } from "../knowledge-source/knowledge-source-kick.js";
+import type { KnowledgeProvenance } from "./knowledge-provenance.js";
 
 export interface KeyedNote {
   key: string;
@@ -12,7 +14,11 @@ export interface FileKeyedNotesResult {
   sourceIds: string[];
 }
 
-export async function fileKeyedNotes(notes: KeyedNote[], subjectId: string): Promise<FileKeyedNotesResult> {
+export async function fileKeyedNotes(
+  notes: KeyedNote[],
+  subjectId: string,
+  provenance: KnowledgeProvenance = {},
+): Promise<FileKeyedNotesResult> {
   const byKey = new Map<string, { importKey: string; rawText: string }>();
 
   for (const note of notes) {
@@ -21,7 +27,10 @@ export async function fileKeyedNotes(notes: KeyedNote[], subjectId: string): Pro
     }
   }
 
-  const inserted = await insertKeyedKnowledgeSources([...byKey.values()], subjectId);
+  const inserted = await insertKeyedKnowledgeSources([...byKey.values()], subjectId, getDb(), {
+    kind: provenance.sourceKind,
+    origin: provenance.origin,
+  });
   const sourceIds = inserted.map((row) => row.id);
 
   if (sourceIds.length > 0) {

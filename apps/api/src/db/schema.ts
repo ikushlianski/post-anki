@@ -1222,6 +1222,8 @@ export const knowledgeSources = pgTable(
     sourceUrl: text("source_url"),
     // Author named by the page's own metadata at URL import; null when absent.
     sourceAuthor: text("source_author"),
+    // Where an AI-session or AI-explanation source came from (tool name, session title).
+    origin: text("origin"),
     // Short background-generated summary of an imported article.
     summary: text("summary"),
     // Automatic subject proposal, never an owner choice; only written while subject_id is null.

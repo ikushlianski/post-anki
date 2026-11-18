@@ -12,6 +12,7 @@ import {
   submitKnowledgeToSubjectInputSchema,
   submitKnowledgeToSubjectResultSchema,
 } from "./submit-knowledge-to-subject.tool.js";
+import { AI_SOURCE_GUIDANCE } from "./knowledge-provenance.js";
 import { withToolErrorHandling } from "./tool-error-handling.js";
 
 function errorResult(text: string) {
@@ -25,7 +26,7 @@ export function registerWriteTools(server: McpServer, auth: RequestAuthContext):
     {
       title: "Submit knowledge",
       description:
-        "File up to 100 keyed raw text notes as pending knowledge sources under the Business sub-subject mapped from the deck name. Raw text only, no cards. Needs the knowledge:write scope. Notes whose key already exists are skipped, so retrying a batch adds nothing.",
+        `File up to 100 keyed raw text notes as pending knowledge sources under the Business sub-subject mapped from the deck name. Raw text only, no cards. Needs the knowledge:write scope. Notes whose key already exists are skipped, so retrying a batch adds nothing. ${AI_SOURCE_GUIDANCE}`,
       inputSchema: submitKnowledgeInputSchema.shape,
       outputSchema: submitKnowledgeResultSchema.shape,
       annotations: {
@@ -34,8 +35,8 @@ export function registerWriteTools(server: McpServer, auth: RequestAuthContext):
         idempotentHint: true,
       },
     },
-    withToolErrorHandling("submit_knowledge", async ({ deck, notes }) => {
-      const result = await submitKnowledge({ deck, notes }, auth);
+    withToolErrorHandling("submit_knowledge", async ({ deck, notes, sourceKind, origin }) => {
+      const result = await submitKnowledge({ deck, notes, sourceKind, origin }, auth);
 
       if ("error" in result) {
         if (result.error === "missing_scope") {
@@ -65,7 +66,7 @@ export function registerWriteTools(server: McpServer, auth: RequestAuthContext):
     {
       title: "Submit knowledge to subject",
       description:
-        "File up to 100 keyed raw text notes as pending knowledge sources under a subject path (max 2 levels, e.g. \"Work/AIPeak\"), creating missing subjects. Raw text only, no cards. Notes whose key already exists are skipped, so retrying a batch adds nothing. Needs the knowledge:write scope.",
+        `File up to 100 keyed raw text notes as pending knowledge sources under a subject path (max 2 levels, e.g. "Work/AIPeak"), creating missing subjects. Raw text only, no cards. Notes whose key already exists are skipped, so retrying a batch adds nothing. Needs the knowledge:write scope. ${AI_SOURCE_GUIDANCE}`,
       inputSchema: submitKnowledgeToSubjectInputSchema.shape,
       outputSchema: submitKnowledgeToSubjectResultSchema.shape,
       annotations: {
@@ -74,8 +75,8 @@ export function registerWriteTools(server: McpServer, auth: RequestAuthContext):
         idempotentHint: true,
       },
     },
-    withToolErrorHandling("submit_knowledge_to_subject", async ({ subjectPath, notes }) => {
-      const result = await submitKnowledgeToSubject({ subjectPath, notes }, auth);
+    withToolErrorHandling("submit_knowledge_to_subject", async ({ subjectPath, notes, sourceKind, origin }) => {
+      const result = await submitKnowledgeToSubject({ subjectPath, notes, sourceKind, origin }, auth);
 
       if ("error" in result) {
         return errorResult(

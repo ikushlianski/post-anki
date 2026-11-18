@@ -14,6 +14,7 @@ export async function insertKeyedKnowledgeSources(
   items: readonly KeyedKnowledgeSourceItem[],
   subjectId: string,
   db: DbExecutor = getDb(),
+  provenance: { kind?: string; origin?: string } = {},
 ): Promise<KnowledgeSource[]> {
   if (items.length === 0) {
     return [];
@@ -21,12 +22,13 @@ export async function insertKeyedKnowledgeSources(
 
   const rows = items.map((item) => ({
     id: newId("ks"),
-    kind: "prose",
+    kind: provenance.kind ?? "prose",
     rawText: item.rawText,
     status: "pending",
     subjectId,
     importKey: item.importKey,
     textKey: item.textKey ?? null,
+    origin: provenance.origin ?? null,
   }));
 
   const inserted = await db

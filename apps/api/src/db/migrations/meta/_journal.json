@@ -1163,6 +1163,13 @@
       "when": 1795045554827,
       "tag": "0165_next_jack_murdock",
       "breakpoints": true
+    },
+    {
+      "idx": 166,
+      "version": "7",
+      "when": 1795045733479,
+      "tag": "0166_furry_franklin_richards",
+      "breakpoints": true
     }
   ]
 }

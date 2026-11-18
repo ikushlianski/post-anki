@@ -100,6 +100,8 @@ describe("submitKnowledge", () => {
         { importKey: "anki:bbbbbbbb", rawText: "B" },
       ],
       "sub_m",
+      undefined,
+      { kind: undefined, origin: undefined },
     );
     expect(result).toEqual({
       subjectId: "sub_m",
@@ -110,6 +112,28 @@ describe("submitKnowledge", () => {
     });
     expect(kickSourcesAfterAdd).toHaveBeenCalledTimes(1);
     expect(kickSourcesAfterAdd).toHaveBeenCalledWith(["ks_1"]);
+  });
+
+  it("should store an AI session as its own source kind with its origin", async () => {
+    resolveOk();
+    vi.mocked(insertKeyedKnowledgeSources).mockResolvedValue([row("ks_1", "anki:aaaaaaaa")]);
+
+    await submitKnowledge(
+      {
+        deck: "Маркетинг и СММ",
+        notes: [note("anki:aaaaaaaa", "A")],
+        sourceKind: "ai-session",
+        origin: "Claude Code: funnel review",
+      },
+      { scopes: ["knowledge:write"] },
+    );
+
+    expect(insertKeyedKnowledgeSources).toHaveBeenCalledWith(
+      [{ importKey: "anki:aaaaaaaa", rawText: "A" }],
+      "sub_m",
+      undefined,
+      { kind: "ai-session", origin: "Claude Code: funnel review" },
+    );
   });
 
   it("should not kick when every note was already present", async () => {

@@ -3,11 +3,13 @@ import type { RequestAuthContext } from "../auth/request-auth-context.js";
 import { hasScope } from "../api-token/api-token.scopes.js";
 import { ensureSubjectPath, parseSubjectPath } from "../subject/subject-path.js";
 import { fileKeyedNotes } from "./file-keyed-notes.js";
+import { knowledgeProvenanceShape } from "./knowledge-provenance.js";
 import { knowledgeNotesSchema } from "./submit-knowledge.tool.js";
 
 export const submitKnowledgeToSubjectInputSchema = z.object({
   subjectPath: z.string().trim().min(1).max(130),
   notes: knowledgeNotesSchema,
+  ...knowledgeProvenanceShape,
 });
 
 export const submitKnowledgeToSubjectResultSchema = z.object({
@@ -43,7 +45,10 @@ export async function submitKnowledgeToSubject(
   }
 
   const subject = await ensureSubjectPath(parsed.segments);
-  const filed = await fileKeyedNotes(input.notes, subject.subjectId);
+  const filed = await fileKeyedNotes(input.notes, subject.subjectId, {
+    sourceKind: input.sourceKind,
+    origin: input.origin,
+  });
 
   return { ...subject, ...filed };
 }

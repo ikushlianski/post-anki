@@ -4,6 +4,7 @@ import { hasScope } from "../api-token/api-token.scopes.js";
 import { MAX_SOURCES_PER_BATCH_ADD } from "../knowledge-source/knowledge-source.repo.js";
 import { resolveDeckSubjectId } from "./business-deck-mapping.js";
 import { fileKeyedNotes } from "./file-keyed-notes.js";
+import { knowledgeProvenanceShape } from "./knowledge-provenance.js";
 
 export const knowledgeNotesSchema = z
   .array(
@@ -18,6 +19,7 @@ export const knowledgeNotesSchema = z
 export const submitKnowledgeInputSchema = z.object({
   deck: z.string().trim().min(1),
   notes: knowledgeNotesSchema,
+  ...knowledgeProvenanceShape,
 });
 
 export const submitKnowledgeResultSchema = z.object({
@@ -53,7 +55,10 @@ export async function submitKnowledge(
       : { error: "subject_missing", subjectName: resolved.subjectName ?? "" };
   }
 
-  const filed = await fileKeyedNotes(input.notes, resolved.subjectId);
+  const filed = await fileKeyedNotes(input.notes, resolved.subjectId, {
+    sourceKind: input.sourceKind,
+    origin: input.origin,
+  });
 
   return {
     subjectId: resolved.subjectId,

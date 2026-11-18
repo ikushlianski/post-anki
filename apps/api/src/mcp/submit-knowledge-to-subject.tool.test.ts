@@ -72,6 +72,8 @@ describe("submitKnowledgeToSubject", () => {
         { importKey: "work:bbbbbbbb", rawText: "B" },
       ],
       "sub_a",
+      undefined,
+      { kind: undefined, origin: undefined },
     );
     expect(result).toEqual({
       subjectId: "sub_a",
@@ -105,7 +107,32 @@ describe("submitKnowledgeToSubject", () => {
       { scopes: ["*"] },
     );
 
-    expect(insertKeyedKnowledgeSources).toHaveBeenCalledWith([{ importKey: "work:aaaaaaaa", rawText: "first" }], "sub_a");
+    expect(insertKeyedKnowledgeSources).toHaveBeenCalledWith([{ importKey: "work:aaaaaaaa", rawText: "first" }], "sub_a", undefined, {
+      kind: undefined,
+      origin: undefined,
+    });
     expect(result).toMatchObject({ created: 1, alreadyPresent: 1 });
+  });
+
+  it("should store an AI explanation as its own source kind with its origin", async () => {
+    subjectOk();
+    vi.mocked(insertKeyedKnowledgeSources).mockResolvedValue([row("ks_1", "work:aaaaaaaa")]);
+
+    await submitKnowledgeToSubject(
+      {
+        subjectPath: "Work/AIPeak",
+        notes: [note("work:aaaaaaaa", "lesson")],
+        sourceKind: "ai-explanation",
+        origin: "ChatGPT: CAP theorem",
+      },
+      { scopes: ["*"] },
+    );
+
+    expect(insertKeyedKnowledgeSources).toHaveBeenCalledWith(
+      [{ importKey: "work:aaaaaaaa", rawText: "lesson" }],
+      "sub_a",
+      undefined,
+      { kind: "ai-explanation", origin: "ChatGPT: CAP theorem" },
+    );
   });
 });

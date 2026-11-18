@@ -9,6 +9,7 @@ export type McpSourceRow = {
   rawText: string | null;
   summary: string | null;
   sourceUrl: string | null;
+  origin?: string | null;
   subjectId: string | null;
   status: string;
   createdAt: Date;
@@ -40,6 +41,7 @@ const sourceColumns = {
   rawText: knowledgeSources.rawText,
   summary: knowledgeSources.summary,
   sourceUrl: knowledgeSources.sourceUrl,
+  origin: knowledgeSources.origin,
   subjectId: knowledgeSources.subjectId,
   status: knowledgeSources.status,
   createdAt: knowledgeSources.createdAt,
