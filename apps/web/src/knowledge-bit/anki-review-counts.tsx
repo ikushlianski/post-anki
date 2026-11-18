@@ -1,5 +1,7 @@
 import type { ReviewCounts } from '@post-anki/shared'
 
+import { AnkiReviewCountsBand } from './anki-review-counts-band'
+
 const ENTRIES: { key: keyof ReviewCounts; label: string }[] = [
   { key: 'new', label: 'New' },
   { key: 'learning', label: 'Learning' },
@@ -18,6 +20,7 @@ export function AnkiReviewCounts({ counts }: { counts: ReviewCounts }) {
             </strong>
           </span>
         ))}
+        <AnkiReviewCountsBand counts={counts} />
       </div>
       <p data-testid="anki-review-counts-legend" className="text-xs text-neutral-500">
         New: never studied. Learning: still being learned today. Due: scheduled for today or earlier.
