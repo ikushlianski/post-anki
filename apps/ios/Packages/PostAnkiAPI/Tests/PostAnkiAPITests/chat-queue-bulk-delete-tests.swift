@@ -6,9 +6,9 @@ import Testing
 struct ChatQueueBulkDeleteTests {
     private final class Log { var deleted: [String] = [] }
 
-    private func loaded(count: Int, failing: Set<String> = []) async -> (ChatQueueModel, Log) {
+    private func loaded(count: Int, failing: Set<String> = [], review: Set<String> = []) async -> (ChatQueueModel, Log) {
         let log = Log()
-        var server = (1...count).map { ChatQueueItem(id: "\($0)", body: "\($0)", chatAt: "2020-01-01T12:00:00.000Z", turnsLeft: 8) }
+        var server = (1...count).map { ChatQueueItem(id: "\($0)", body: "\($0)", chatAt: "2020-01-01T12:00:00.000Z", turnsLeft: 8, reviewChat: review.contains("\($0)")) }
         let model = ChatQueueModel(actions: ChatQueueActions(
             list: { ChatQueueList(items: server, count: server.count) },
             returnToInbox: { _ in },
@@ -66,5 +66,52 @@ struct ChatQueueBulkDeleteTests {
 
         #expect(model.picked == ["2"])
         #expect(model.bulkNotice == "1 card could not be deleted")
+    }
+
+    @Test("deleting a mixed selection counts only non-review chats and tells how many review chats were skipped")
+    func mixedSelectionSkipsReview() async {
+        let (model, log) = await loaded(count: 4, review: ["2", "3"])
+
+        model.picked = ["1", "2", "3"]
+
+        #expect(model.deletableIds == ["1"])
+
+        _ = await model.requestBulk(.delete)
+
+        #expect(model.isConfirmingBulk)
+        #expect(log.deleted.isEmpty)
+
+        let deleted = await model.runBulk(.delete)
+
+        #expect(deleted == 1)
+        #expect(log.deleted == ["1"])
+        #expect(model.picked == ["2", "3"])
+        #expect(model.bulkNotice == "2 review chats skipped: use Move to Inbox to clear them")
+    }
+
+    @Test("deleting only review chats asks nothing and reports they were skipped")
+    func onlyReviewSkipped() async {
+        let (model, log) = await loaded(count: 2, review: ["1"])
+
+        model.picked = ["1"]
+
+        let deleted = await model.requestBulk(.delete)
+
+        #expect(deleted == 0)
+        #expect(!model.isConfirmingBulk)
+        #expect(log.deleted.isEmpty)
+        #expect(model.bulkNotice == "1 review chat skipped: use Move to Inbox to clear them")
+    }
+
+    @Test("moving a mixed selection to inbox includes review chats")
+    func moveIncludesReview() async {
+        let (model, _) = await loaded(count: 2, review: ["2"])
+
+        model.picked = ["1", "2"]
+
+        let moved = await model.runBulk(.moveToInbox)
+
+        #expect(moved == 2)
+        #expect(model.items.isEmpty)
     }
 }

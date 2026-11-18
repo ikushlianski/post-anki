@@ -71,19 +71,10 @@ struct ChatQueueScreen: View {
             }
         } else {
             List(selection: $model.picked) {
-                if let summary = ChatQueueSummary.label(model.items) {
-                    Text(summary)
-                        .zoomFont(.caption)
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("chat-queue-summary")
-                }
-
-                if let wait = ChatQueueWaiting.oldestWaitLabel(model.items) {
-                    Text(wait)
-                        .zoomFont(.caption)
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("chat-queue-oldest-wait")
-                }
+                ChatQueueHeader(
+                    summary: ChatQueueSummary.label(model.items),
+                    wait: ChatQueueWaiting.oldestWaitLabel(model.items)
+                )
 
                 if !model.subjectNames.isEmpty {
                     Picker("Subject", selection: $model.subject) {
@@ -153,6 +144,7 @@ struct ChatQueueScreen: View {
             .accessibilityIdentifier("chat-queue-list")
             .modifier(ChatQueueBulkControls(model: model))
             #if os(macOS)
+            .onExitCommand { model.clearPicked() }
             .navigationDestination(item: $openItem) { thread(for: $0) }
             #endif
             .confirmationDialog(
@@ -175,9 +167,15 @@ extension ChatQueueScreen {
     @ViewBuilder
     fileprivate func row(for item: ChatQueueItem) -> some View {
         #if os(macOS)
-        ChatQueueRow(item: item)
-            .contentShape(Rectangle())
-            .onTapGesture(count: 2) { openItem = item }
+        HStack(alignment: .center, spacing: 12) {
+            ChatQueueRowCheckbox(model: model, item: item)
+
+            ChatQueueRow(item: item)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture(count: 2) { openItem = item }
+        }
+        .padding(.vertical, 6)
         #else
         NavigationLink {
             thread(for: item)
@@ -221,52 +219,6 @@ extension ChatQueueScreen {
             }
             .accessibilityIdentifier("chat-queue-snooze-\(item.id)")
         }
-    }
-}
-
-private struct ChatQueueRow: View {
-    let item: ChatQueueItem
-
-    var body: some View {
-        ZoomVStack(alignment: .leading, spacing: 4) {
-            Text(verbatim: item.body)
-                .zoomFont(.body)
-                .lineLimit(3)
-
-            ZoomHStack(spacing: 8) {
-                if let subject = item.subjectName {
-                    Text(verbatim: subject)
-                        .zoomFont(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Text(turnsText)
-                    .zoomFont(.caption)
-                    .foregroundStyle(.secondary)
-
-                Text(ChatQueueWaiting.label(chatAt: item.chatAt))
-                    .zoomFont(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            if item.reviewChat {
-                Text("From review")
-                    .zoomFont(.caption)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("chat-queue-review-label")
-            }
-
-            if item.isSnoozed(), let until = item.snoozedUntil {
-                Text("Snoozed until \(until.formatted(date: .abbreviated, time: .omitted))")
-                    .zoomFont(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    private var turnsText: String {
-        item.turnsLeft <= 0 ? "Limit reached" : "\(item.turnsLeft) left"
     }
 }
 

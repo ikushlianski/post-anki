@@ -53,6 +53,7 @@ public final class ChatQueueModel {
     }
     public var isMovingAll = false
     public var picked: Set<String> = []
+    public var pickAnchor: String?
     public var isBulkRunning = false
     public var bulkNotice: String?
     public var isConfirmingBulk = false

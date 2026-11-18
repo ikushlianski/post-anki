@@ -33,8 +33,9 @@ struct ChatQueueBulkControls: ViewModifier {
 
     private var confirmTitle: String {
         let count = model.pickedIds.count
+        let deleting = model.deletableIds.count
 
-        if model.confirmingAction == .delete { return "Delete \(count) \(count == 1 ? "chat" : "chats")?" }
+        if model.confirmingAction == .delete { return "Delete \(deleting) \(deleting == 1 ? "chat" : "chats")?" }
 
         return "Move \(count) cards to Inbox?"
     }
@@ -62,6 +63,7 @@ struct ChatQueueBulkControls: ViewModifier {
         }
         #else
         ToolbarItemGroup(placement: .primaryAction) {
+            ChatQueueSelectAllToggle(model: model)
             snoozeMenu
             moveButton
             deleteButton
@@ -152,23 +154,19 @@ struct ChatQueueBulkMenu: View {
     let item: ChatQueueItem
 
     var body: some View {
-        if !item.reviewChat {
-            Button("Move to Inbox", systemImage: "tray.and.arrow.down") {
-                Task { await ChatQueueBulkAnnouncer.request(model, on: item.id) }
-            }
-            .disabled(model.isBulkRunning)
-            .accessibilityIdentifier("chat-queue-bulk-menu-\(item.id)")
+        Button("Move to Inbox", systemImage: "tray.and.arrow.down") {
+            Task { await ChatQueueBulkAnnouncer.request(model, on: item.id) }
         }
+        .disabled(model.isBulkRunning)
+        .accessibilityIdentifier("chat-queue-bulk-menu-\(item.id)")
 
-        if !item.reviewChat {
-            Button("Delete…", systemImage: "trash", role: .destructive) {
-                Task { await ChatQueueBulkAnnouncer.requestDelete(model, on: item.id) }
-            }
-            .disabled(model.isBulkRunning)
-            .accessibilityIdentifier("chat-queue-bulk-delete-menu-\(item.id)")
+        Button("Delete…", systemImage: "trash", role: .destructive) {
+            Task { await ChatQueueBulkAnnouncer.requestDelete(model, on: item.id) }
         }
+        .disabled(model.isBulkRunning)
+        .accessibilityIdentifier("chat-queue-bulk-delete-menu-\(item.id)")
 
-        if model.picked.count > 1, model.picked.contains(item.id), !item.reviewChat {
+        if model.picked.count > 1, model.picked.contains(item.id) {
             Menu("Snooze selected", systemImage: "moon.zzz") {
                 ForEach(ChatQueueSnoozeOptions.days, id: \.self) { days in
                     Button(ChatQueueSnoozeOptions.label(days: days)) {

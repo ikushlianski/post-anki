@@ -25,10 +25,28 @@ public enum ChatQueueBulkAction: Sendable, Equatable {
 
 extension ChatQueueModel {
     public var pickedIds: [String] {
-        movableVisibleItems.map(\.id).filter { picked.contains($0) }
+        sortedItems.map(\.id).filter { picked.contains($0) }
     }
 
     public var hasPicked: Bool { !pickedIds.isEmpty }
+
+    public var deletableIds: [String] {
+        sortedItems.filter { !$0.reviewChat && picked.contains($0.id) }.map(\.id)
+    }
+
+    public var skippedForDeleteCount: Int { pickedIds.count - deletableIds.count }
+
+    func targetIds(for action: ChatQueueBulkAction) -> [String] {
+        action == .delete ? deletableIds : pickedIds
+    }
+
+    func skipNotice(for action: ChatQueueBulkAction) -> String? {
+        guard action == .delete, skippedForDeleteCount > 0 else { return nil }
+
+        let count = skippedForDeleteCount
+
+        return "\(count) review \(count == 1 ? "chat" : "chats") skipped: use Move to Inbox to clear them"
+    }
 
     func pruneBulkSelection() {
         let live = Set(items.map(\.id))
@@ -39,7 +57,15 @@ extension ChatQueueModel {
     public func requestBulk(_ action: ChatQueueBulkAction) async -> Int {
         guard !isBulkRunning else { return 0 }
 
-        let needsConfirm = action.alwaysConfirms || ChatQueueBulkRunner.needsConfirm(count: pickedIds.count)
+        let targets = targetIds(for: action)
+
+        if targets.isEmpty {
+            bulkNotice = skipNotice(for: action)
+
+            return 0
+        }
+
+        let needsConfirm = action.alwaysConfirms || ChatQueueBulkRunner.needsConfirm(count: targets.count)
 
         if action.needsConfirmation, needsConfirm {
             confirmingAction = action
@@ -63,16 +89,21 @@ extension ChatQueueModel {
     }
 
     public func pickAllVisible() {
-        picked = Set(movableVisibleItems.map(\.id))
+        picked = Set(sortedItems.map(\.id))
     }
 
     @discardableResult
     public func runBulk(_ action: ChatQueueBulkAction) async -> Int {
         guard !isBulkRunning else { return 0 }
 
-        let ids = pickedIds
+        let ids = targetIds(for: action)
+        let skipped = skipNotice(for: action)
 
-        guard !ids.isEmpty else { return 0 }
+        guard !ids.isEmpty else {
+            bulkNotice = skipped
+
+            return 0
+        }
 
         isConfirmingBulk = false
         isBulkRunning = true
@@ -83,8 +114,13 @@ extension ChatQueueModel {
             await perform(action, on: id)
         }
 
-        picked = Set(result.failed)
-        bulkNotice = ChatQueueBulkRunner.notice(failed: result.failed.count, verb: action.failureVerb)
+        let skippedIds = Set(pickedIds).subtracting(ids)
+
+        picked = Set(result.failed).union(skippedIds)
+        bulkNotice = [ChatQueueBulkRunner.notice(failed: result.failed.count, verb: action.failureVerb), skipped]
+            .compactMap { $0 }
+            .joined(separator: "; ")
+            .nilIfEmpty
 
         if case .snooze = action, !result.succeeded.isEmpty { await load() }
 
@@ -143,4 +179,8 @@ extension ChatQueueModel {
 
         return true
     }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

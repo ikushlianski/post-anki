@@ -946,6 +946,10 @@ updated: 2026-09-04
 - Out of scope: Replacing the Expo mobile app or the web app before PowerSync is proven
 
 ### Coding tasks
+- [ ] In the Mac Chat queue a single click highlights a chat, a double click opens it, and each row has a Continue button on its right that opens the chat too.
+- [ ] In a Mac chat the learner can select text in the assistant's answer and choose Make cards from the right-click menu, which proposes cards in the chat. Approved cards go straight into the matching subject's deck, skipping triage.
+- [ ] Messages inside a chat in the Mac app are drawn as Telegram-style bubbles: the learner's messages right-aligned in an accent colour, the assistant's left-aligned in a neutral colour, with rounded corners and a small gap between them.
+- [x] Each chat row in the Mac Chat queue shows a checkbox so one chat can be selected with a single click, and Cmd-click and Shift-click range selection still work alongside it.
 - [x] The Mac app's chat list lets the learner select several chats at once and apply a bulk action to them, such as deleting all the selected chats. Bulk delete asks for confirmation first, since it cannot be undone.
 - [ ] [blocked: user] Provision the iPhone share extension App IDs and App Group.
 - [ ] [blocked: user] Register Apple App ID and App Group for the Mac share extension.
