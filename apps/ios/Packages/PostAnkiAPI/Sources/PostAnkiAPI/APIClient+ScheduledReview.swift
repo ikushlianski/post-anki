@@ -1,7 +1,7 @@
 import Foundation
 
 extension APIClient {
-    public static func reviewCards(limit: Int = 20, tz: String, subjectId: String? = nil, tagId: String? = nil, topicId: String? = nil, knowledgeBitId: String? = nil, aheadDays: Int = 0, excludeNew: Bool = false) async throws -> ReviewCardsResponse {
+    public static func reviewCards(limit: Int = 20, tz: String, subjectId: String? = nil, tagId: String? = nil, topicId: String? = nil, knowledgeBitId: String? = nil, aheadDays: Int = 0, excludeNew: Bool = false, shuffleSeed: String? = nil) async throws -> ReviewCardsResponse {
         var query = [
             URLQueryItem(name: "limit", value: String(limit)),
             URLQueryItem(name: "tz", value: tz)
@@ -14,6 +14,8 @@ extension APIClient {
         if aheadDays > 0 { query.append(URLQueryItem(name: "aheadDays", value: String(aheadDays))) }
 
         if excludeNew { query.append(URLQueryItem(name: "newCards", value: "exclude")) }
+
+        if let shuffleSeed { query.append(URLQueryItem(name: "shuffleSeed", value: shuffleSeed)) }
 
         return try await request(encodedPath("/knowledge-bits/review-cards", query: query))
     }

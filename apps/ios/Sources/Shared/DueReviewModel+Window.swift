@@ -33,7 +33,8 @@ extension DueReviewModel {
             topicId: scope?.topicId,
             knowledgeBitId: scope?.knowledgeBitId,
             aheadDays: aheadDays,
-            excludeNew: repeatOnly
+            excludeNew: repeatOnly,
+            shuffleSeed: shuffleSeed
         ), !Task.isCancelled, generation == windowGeneration else { return }
 
         let pendingBits = await gradeQueue.pendingKnowledgeBitIds()

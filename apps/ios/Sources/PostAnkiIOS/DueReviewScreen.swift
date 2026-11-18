@@ -75,6 +75,10 @@ struct DueReviewScreen: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     DueReviewRepeatOnlyToggle(model: model)
                 }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    DueReviewShuffleToggle(model: model)
+                }
             }
 
             if model.state == .card, !model.isGrading, let card = model.current {

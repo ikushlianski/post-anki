@@ -48,7 +48,8 @@ extension DueReviewModel {
                 topicId: scope?.topicId,
                 knowledgeBitId: scope?.knowledgeBitId,
                 aheadDays: aheadDays,
-                excludeNew: repeatOnly
+                excludeNew: repeatOnly,
+                shuffleSeed: shuffleSeed
             )
             let cards = await visibleCards(response.cards)
             let counts = response.counts

@@ -9,6 +9,7 @@ struct RecordedRequest {
     let method: String
     let path: String
     let body: [String: Any]?
+    var query: String?
 }
 
 final class RecordingStub: URLProtocol, @unchecked Sendable {
@@ -35,7 +36,7 @@ final class RecordingStub: URLProtocol, @unchecked Sendable {
         let object = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
         let path = request.url?.path(percentEncoded: true) ?? ""
         let current = Self.lock.withLock { () -> (status: Int, body: Data) in
-            Self.recorded = RecordedRequest(method: request.httpMethod ?? "", path: path, body: object)
+            Self.recorded = RecordedRequest(method: request.httpMethod ?? "", path: path, body: object, query: request.url?.query)
             return Self.reply
         }
         let response = HTTPURLResponse(url: request.url!, statusCode: current.status, httpVersion: nil, headerFields: nil)!
