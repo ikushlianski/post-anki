@@ -52,7 +52,7 @@ extension APIClient {
         id: String,
         clientMessageId: String,
         message: String,
-        modelId: String? = ChatModelStore.selectedId()
+        modelId: String? = ChatModelSelection.selectedId()
     ) async throws -> ChatQueueReply {
         try await request(
             "/knowledge-bits/\(encodedSegment(id))/chat-messages",

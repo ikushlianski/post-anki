@@ -139,10 +139,12 @@ public struct ChatQueueMessage: Decodable, Sendable, Identifiable, Hashable {
     public let text: String
     public let createdAt: String
     public let proposals: [ChatQueueProposal]
+    public let modelId: String?
 
     public var id: Int { seq }
 
-    public init(seq: Int, role: ChatQueueRole, text: String, createdAt: String, proposals: [ChatQueueProposal] = []) {
+    public init(seq: Int, role: ChatQueueRole, text: String, createdAt: String, proposals: [ChatQueueProposal] = [], modelId: String? = nil) {
+        self.modelId = modelId
         self.seq = seq
         self.role = role
         self.text = text
@@ -151,7 +153,7 @@ public struct ChatQueueMessage: Decodable, Sendable, Identifiable, Hashable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case seq, role, text, createdAt, proposals
+        case seq, role, text, createdAt, proposals, modelId
     }
 
     public init(from decoder: Decoder) throws {
@@ -161,6 +163,7 @@ public struct ChatQueueMessage: Decodable, Sendable, Identifiable, Hashable {
         role = (try? container.decode(ChatQueueRole.self, forKey: .role)) ?? .assistant
         text = try container.decode(String.self, forKey: .text)
         createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt) ?? ""
+        modelId = try? container.decodeIfPresent(String.self, forKey: .modelId)
         proposals = ChatQueueProposalDecoding.lossyList(from: container, key: CodingKeys.proposals)
     }
 }
@@ -185,8 +188,10 @@ public struct ChatQueueReply: Decodable, Sendable, Hashable {
     public let proposals: [ChatQueueProposal]
     public let turnsLeft: Int
     public let capReached: Bool
+    public let modelId: String?
 
-    public init(reply: String, replySeq: Int, proposals: [ChatQueueProposal] = [], turnsLeft: Int, capReached: Bool) {
+    public init(reply: String, replySeq: Int, proposals: [ChatQueueProposal] = [], turnsLeft: Int, capReached: Bool, modelId: String? = nil) {
+        self.modelId = modelId
         self.reply = reply
         self.replySeq = replySeq
         self.proposals = proposals
@@ -197,7 +202,7 @@ public struct ChatQueueReply: Decodable, Sendable, Hashable {
 
 extension ChatQueueReply {
     private enum CodingKeys: String, CodingKey {
-        case reply, replySeq, proposals, turnsLeft, capReached
+        case reply, replySeq, proposals, turnsLeft, capReached, modelId
     }
 
     public init(from decoder: Decoder) throws {
@@ -208,6 +213,7 @@ extension ChatQueueReply {
         proposals = ChatQueueProposalDecoding.lossyList(from: container, key: CodingKeys.proposals)
         turnsLeft = try container.decode(Int.self, forKey: .turnsLeft)
         capReached = try container.decode(Bool.self, forKey: .capReached)
+        modelId = try? container.decodeIfPresent(String.self, forKey: .modelId)
     }
 }
 

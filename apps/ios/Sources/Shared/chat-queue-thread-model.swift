@@ -7,6 +7,7 @@ struct ChatQueueLine: Identifiable, Equatable {
     let text: String
     var seq: Int?
     var proposals: [ChatQueueProposal] = []
+    var modelId: String?
 }
 
 struct ChatQueueProposalKey: Hashable {
@@ -104,7 +105,7 @@ final class ChatQueueThreadModel {
 
     func apply(_ thread: ChatQueueThread) {
         lines = thread.messages.map {
-            ChatQueueLine(id: "m\($0.seq)", isUser: $0.role == .user, text: $0.text, seq: $0.seq, proposals: $0.proposals)
+            ChatQueueLine(id: "m\($0.seq)", isUser: $0.role == .user, text: $0.text, seq: $0.seq, proposals: $0.proposals, modelId: $0.modelId)
         }
         turnsLeft = thread.turnsLeft
         capReached = thread.capReached
@@ -213,7 +214,8 @@ final class ChatQueueThreadModel {
                 isUser: false,
                 text: result.reply,
                 seq: result.replySeq,
-                proposals: result.proposals
+                proposals: result.proposals,
+                modelId: result.modelId
             ))
             turnsLeft = result.turnsLeft
             capReached = result.capReached
@@ -233,8 +235,17 @@ final class ChatQueueThreadModel {
 
             handle(failure)
 
+            if failure == .invalidModel { await recoverFromStaleModel() }
+
             return failure
         }
+    }
+
+    private func recoverFromStaleModel() async {
+        ChatModelCatalog.shared.reset()
+        await ChatModelCatalog.shared.refresh()
+        errorMessage = nil
+        noticeMessage = ChatQueueFailure.invalidModel.message
     }
 
     private func sendIdempotently(_ text: String, clientId: String) async throws -> ChatQueueReply {

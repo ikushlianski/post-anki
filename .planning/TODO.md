@@ -946,8 +946,9 @@ updated: 2026-09-04
 - Out of scope: Replacing the Expo mobile app or the web app before PowerSync is proven
 
 ### Coding tasks
+- [ ] When the server rejects a chosen AI model in the Ask or Topic chat, the app resets to the default model and tells the learner, as the queue chat already does; a failed model-list fetch keeps the saved choice instead of wiping it.
 - [ ] A database test proves that a chat exchange ending in a fixed AI-failure reply does not use up one of the learner's turns, while normal and unanswered messages still do.
-- [ ] In any chat the learner can switch the AI model at any point in the conversation from a model picker, and the next reply uses the chosen model.
+- [x] In any chat the learner can switch the AI model at any point in the conversation from a model picker, and the next reply uses the chosen model.
 - [x] A chat in the queue never ends up empty and silent when the AI fails to answer: an empty model reply is retried once without web tools, a failed first reply keeps its prompt so it can be retried, and the learner sees a plain reason instead of a blank chat.
 - [x] In the Mac Chat queue a single click highlights a chat, a double click opens it, and each row has a Continue button on its right that opens the chat too.
 - [x] In a Mac chat the learner can select text in the assistant's answer and choose Make cards from the right-click menu, which proposes cards in the chat. Approved cards go straight into the matching subject's deck, skipping triage.

@@ -30,6 +30,8 @@ struct ChatQueueThreadScreen: View {
                             Task { await model.makeCards(from: selection) }
                         }).id(line.id)
 
+                        if !line.isUser { ChatQueueAnsweredBy(modelId: line.modelId) }
+
                         if !line.isUser { ChatQueueProposalRows(model: model, line: line) }
 
                         if !line.isUser, line.id == model.lines.last?.id { retryRow }
@@ -111,7 +113,6 @@ struct ChatQueueThreadScreen: View {
         .onChange(of: model.composerFocusRequests) { composerFocused = true }
         .onChange(of: model.item.body) { onCardUpdated() }
         .toolbar {
-            ToolbarItem(placement: .automatic) { ChatModelPicker().disabled(model.isSending) }
             ToolbarItem(placement: .primaryAction) {
                 Button("Delete last exchange", systemImage: "trash") { confirmsDelete = true }
                     .disabled(!model.canDeleteLast)

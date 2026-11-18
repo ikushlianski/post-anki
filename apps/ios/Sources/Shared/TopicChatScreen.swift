@@ -52,7 +52,7 @@ struct TopicChatScreen: View {
         .navigationTitle(topic.title)
         .inlineNavigationTitle()
         .toolbar {
-            ToolbarItem(placement: .primaryAction) { ChatModelPicker().disabled(chat.isSending) }
+            ToolbarItem(placement: .primaryAction) { ChatModelPickerMenu().disabled(chat.isSending) }
         }
     }
 }

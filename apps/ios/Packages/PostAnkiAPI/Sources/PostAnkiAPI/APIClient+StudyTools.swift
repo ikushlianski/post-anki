@@ -5,7 +5,7 @@ extension APIClient {
         message: String,
         transcript: [ChatTranscriptEntry],
         allowGeneralKnowledge: Bool,
-        modelId: String? = ChatModelStore.selectedId()
+        modelId: String? = ChatModelSelection.selectedId()
     ) async throws -> AskAllCardsResult {
         try await request(
             "/global-card-chat",
@@ -23,7 +23,7 @@ extension APIClient {
         topicId: String,
         message: String,
         transcript: [ChatTranscriptEntry],
-        modelId: String? = ChatModelStore.selectedId()
+        modelId: String? = ChatModelSelection.selectedId()
     ) async throws -> TopicChatResult {
         try await request(
             "/topics/\(encodedSegment(topicId))/study-chat",

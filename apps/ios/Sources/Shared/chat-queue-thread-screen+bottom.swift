@@ -25,6 +25,8 @@ extension ChatQueueThreadScreen {
                 ChatQueueMakeCardButton(model: model)
 
                 Spacer()
+
+                ChatModelPickerMenu().disabled(model.isSending)
             }
             .zoomPadding(.horizontal)
             .zoomPadding(.vertical, 4)

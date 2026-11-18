@@ -10,6 +10,7 @@ public enum ChatQueueFailure: Sendable, Equatable, Error {
     case wrongShape
     case noMessages
     case modelFailed
+    case invalidModel
     case offline
     case unauthorized
     case other
@@ -37,6 +38,7 @@ public enum ChatQueueFailure: Sendable, Equatable, Error {
         case .badStatus(_, "proposal_not_pending"): return .proposalNotPending
         case .badStatus(_, "wrong_shape"): return .wrongShape
         case .badStatus(_, "model_failed"): return .modelFailed
+        case .badStatus(400, "invalid_input"): return .invalidModel
         case .badStatus(404, "no_messages"): return .noMessages
         case .badStatus(404, _): return .notFound
         case .badStatus(429, _): return .capReached
@@ -57,6 +59,7 @@ public enum ChatQueueFailure: Sendable, Equatable, Error {
         case .wrongShape: return "This kind of card cannot be changed here. Edit it on the web."
         case .noMessages: return "There is nothing to delete."
         case .modelFailed: return "The AI could not answer. Try again, no question was used."
+        case .invalidModel: return "That model is no longer available. Switched back to the default, send again."
         case .offline: return "You are offline. Nothing was changed, try again when you are online."
         case .unauthorized: return "Your access token was rejected. Check Settings."
         case .other: return "Something went wrong. Try again."
