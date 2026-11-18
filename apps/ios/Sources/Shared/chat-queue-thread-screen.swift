@@ -26,7 +26,9 @@ struct ChatQueueThreadScreen: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 10 * CGFloat(zoomScale)) {
                     ForEach(model.lines) { line in
-                        ChatQueueMessageBubble(line: line).id(line.id)
+                        ChatQueueMessageBubble(line: line, onMakeCards: { selection in
+                            Task { await model.makeCards(from: selection) }
+                        }).id(line.id)
 
                         if !line.isUser { ChatQueueProposalRows(model: model, line: line) }
 

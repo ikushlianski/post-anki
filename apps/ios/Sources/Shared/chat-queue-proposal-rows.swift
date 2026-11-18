@@ -22,6 +22,14 @@ struct ChatQueueProposalRows: View {
                     }
                 )
             }
+
+            if model.pendingCount(line) > 1 {
+                Button("Approve all", systemImage: "checkmark.circle") { Task { await model.approveAll(seq: seq) } }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .disabled(model.isResolving || !model.decidingProposals.isEmpty)
+                    .accessibilityIdentifier("chat-queue-proposals-approve-all")
+            }
         }
     }
 }

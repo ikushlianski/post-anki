@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ChatQueueMessageBubble: View {
     let line: ChatQueueLine
+    var onMakeCards: ((String) -> Void)?
 
     @Environment(\.zoomScale) private var scale
 
@@ -10,9 +11,7 @@ struct ChatQueueMessageBubble: View {
         HStack(spacing: 0) {
             if line.isUser { Spacer(minLength: 48 * CGFloat(scale)) }
 
-            Text(verbatim: line.text)
-                .zoomFont(.body)
-                .textSelection(.enabled)
+            content
                 .foregroundStyle(line.isUser ? Color.white : Color.primary)
                 .zoomPadding(.horizontal, 12)
                 .zoomPadding(.vertical, 8)
@@ -31,6 +30,30 @@ struct ChatQueueMessageBubble: View {
             if !line.isUser { Spacer(minLength: 48 * CGFloat(scale)) }
         }
         .frame(maxWidth: .infinity, alignment: line.isUser ? .trailing : .leading)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        #if os(macOS)
+        if !line.isUser, let onMakeCards {
+            ChatQueueSelectableText(
+                text: line.text,
+                pointSize: ZoomFont.body.pointSize(scale: scale),
+                onMakeCards: onMakeCards,
+                onCopyReply: copyText.map { text in { Diagnostics.copy(text) } }
+            )
+        } else {
+            plainText
+        }
+        #else
+        plainText
+        #endif
+    }
+
+    private var plainText: some View {
+        Text(verbatim: line.text)
+            .zoomFont(.body)
+            .textSelection(.enabled)
     }
 
     private var copyText: String? {
