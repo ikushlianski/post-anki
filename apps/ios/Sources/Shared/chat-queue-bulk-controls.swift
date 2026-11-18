@@ -11,18 +11,32 @@ struct ChatQueueBulkControls: ViewModifier {
         content
             .toolbar { toolbarItems }
             .confirmationDialog(
-                "Move \(model.pickedIds.count) cards to Inbox?",
+                confirmTitle,
                 isPresented: $model.isConfirmingBulk,
                 titleVisibility: .visible
             ) {
-                Button("Move to Inbox") { Task { await ChatQueueBulkAnnouncer.run(model) } }
+                if model.confirmingAction == .delete {
+                    Button("Delete", role: .destructive) { Task { await ChatQueueBulkAnnouncer.run(model, .delete) } }
+                } else {
+                    Button("Move to Inbox") { Task { await ChatQueueBulkAnnouncer.run(model) } }
+                }
                 Button("Cancel", role: .cancel) {}
+            } message: {
+                if model.confirmingAction == .delete { Text("This cannot be undone.") }
             }
             #if os(iOS)
             .onChange(of: editMode?.wrappedValue.isEditing ?? false) { _, editing in
                 if !editing { model.clearPicked() }
             }
             #endif
+    }
+
+    private var confirmTitle: String {
+        let count = model.pickedIds.count
+
+        if model.confirmingAction == .delete { return "Delete \(count) \(count == 1 ? "chat" : "chats")?" }
+
+        return "Move \(count) cards to Inbox?"
     }
 
     @ToolbarContentBuilder
@@ -42,12 +56,15 @@ struct ChatQueueBulkControls: ViewModifier {
                 snoozeMenu
 
                 moveButton
+
+                deleteButton
             }
         }
         #else
         ToolbarItemGroup(placement: .primaryAction) {
             snoozeMenu
             moveButton
+            deleteButton
         }
         #endif
     }
@@ -64,6 +81,16 @@ struct ChatQueueBulkControls: ViewModifier {
         }
         .disabled(model.isBulkRunning || !model.hasPicked)
         .accessibilityIdentifier("chat-queue-bulk-snooze")
+    }
+
+    private var deleteButton: some View {
+        Button(role: .destructive) {
+            Task { await ChatQueueBulkAnnouncer.requestDelete(model) }
+        } label: {
+            Label("Delete", systemImage: "trash").zoomFont(.body)
+        }
+        .disabled(model.isBulkRunning || !model.hasPicked)
+        .accessibilityIdentifier("chat-queue-bulk-delete")
     }
 
     private var moveButton: some View {
@@ -100,9 +127,20 @@ enum ChatQueueBulkAnnouncer {
         if count > 0 { TriageFeedbackPlayer.announce(.snoozed(days: days)) }
     }
 
-    static func run(_ model: ChatQueueModel) async {
-        announce(await model.runBulk(.moveToInbox))
+    static func run(_ model: ChatQueueModel, _ action: ChatQueueBulkAction = .moveToInbox) async {
+        let done = await model.runBulk(action)
+
+        if action == .moveToInbox { announce(done) }
     }
+
+    static func requestDelete(_ model: ChatQueueModel, on id: String? = nil) async {
+        if let id {
+            await model.requestBulk(.delete, on: id)
+        } else {
+            await model.requestBulk(.delete)
+        }
+    }
+
 
     private static func announce(_ moved: Int) {
         if moved > 0 { TriageFeedbackPlayer.announce(.movedAllToInbox(count: moved)) }
@@ -120,6 +158,14 @@ struct ChatQueueBulkMenu: View {
             }
             .disabled(model.isBulkRunning)
             .accessibilityIdentifier("chat-queue-bulk-menu-\(item.id)")
+        }
+
+        if !item.reviewChat {
+            Button("Delete…", systemImage: "trash", role: .destructive) {
+                Task { await ChatQueueBulkAnnouncer.requestDelete(model, on: item.id) }
+            }
+            .disabled(model.isBulkRunning)
+            .accessibilityIdentifier("chat-queue-bulk-delete-menu-\(item.id)")
         }
 
         if model.picked.count > 1, model.picked.contains(item.id), !item.reviewChat {

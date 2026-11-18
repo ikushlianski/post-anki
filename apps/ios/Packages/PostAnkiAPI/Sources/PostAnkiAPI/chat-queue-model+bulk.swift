@@ -1,19 +1,23 @@
 import Foundation
 
-public enum ChatQueueBulkAction: Sendable {
+public enum ChatQueueBulkAction: Sendable, Equatable {
     case moveToInbox
+    case delete
     case snooze(days: Int)
 
     var failureVerb: String {
         switch self {
         case .moveToInbox: "moved"
         case .snooze: "snoozed"
+        case .delete: "deleted"
         }
     }
 
+    var alwaysConfirms: Bool { self == .delete }
+
     var needsConfirmation: Bool {
         switch self {
-        case .moveToInbox: true
+        case .moveToInbox, .delete: true
         case .snooze: false
         }
     }
@@ -35,7 +39,10 @@ extension ChatQueueModel {
     public func requestBulk(_ action: ChatQueueBulkAction) async -> Int {
         guard !isBulkRunning else { return 0 }
 
-        if action.needsConfirmation, ChatQueueBulkRunner.needsConfirm(count: pickedIds.count) {
+        let needsConfirm = action.alwaysConfirms || ChatQueueBulkRunner.needsConfirm(count: pickedIds.count)
+
+        if action.needsConfirmation, needsConfirm {
+            confirmingAction = action
             isConfirmingBulk = true
 
             return 0
@@ -90,12 +97,28 @@ extension ChatQueueModel {
             return await bulkReturnToInbox(id)
         case .snooze(let days):
             return await bulkSnooze(id, days: days)
+        case .delete:
+            return await bulkDelete(id)
         }
     }
 
     private func bulkReturnToInbox(_ id: String) async -> Bool {
         do {
             try await returnAction(id)
+        } catch {
+            let failure = ChatQueueFailure.failure(for: error)
+
+            guard failure == .notFound || failure == .notInChat else { return false }
+        }
+
+        resolved(id)
+
+        return true
+    }
+
+    private func bulkDelete(_ id: String) async -> Bool {
+        do {
+            try await deleteAction(id)
         } catch {
             let failure = ChatQueueFailure.failure(for: error)
 

@@ -7,6 +7,7 @@ extension ChatQueueModel {
             returnToInbox: { try await APIClient.returnFromChatQueue(id: $0) },
             snooze: { _ = try await APIClient.snoozeChatQueue(id: $0, days: $1) },
             unsnooze: { try await APIClient.unsnoozeChatQueue(id: $0) },
+            delete: { try await APIClient.cancelChatQueueThread(id: $0) },
             setCount: { counts.set($0) }
         ), orderStore: UserDefaultsChatQueueOrderStore())
     }

@@ -6,6 +6,7 @@ public struct ChatQueueActions {
     public var returnToInbox: @MainActor (String) async throws -> Void
     public var snooze: @MainActor (String, Int) async throws -> Void
     public var unsnooze: @MainActor (String) async throws -> Void
+    public var delete: @MainActor (String) async throws -> Void
     public var setCount: @MainActor (Int) -> Void
 
     public init(
@@ -13,12 +14,14 @@ public struct ChatQueueActions {
         returnToInbox: @escaping @MainActor (String) async throws -> Void,
         snooze: @escaping @MainActor (String, Int) async throws -> Void,
         unsnooze: @escaping @MainActor (String) async throws -> Void,
+        delete: @escaping @MainActor (String) async throws -> Void = { _ in throw URLError(.unsupportedURL) },
         setCount: @escaping @MainActor (Int) -> Void
     ) {
         self.list = list
         self.returnToInbox = returnToInbox
         self.snooze = snooze
         self.unsnooze = unsnooze
+        self.delete = delete
         self.setCount = setCount
     }
 }
@@ -53,6 +56,7 @@ public final class ChatQueueModel {
     public var isBulkRunning = false
     public var bulkNotice: String?
     public var isConfirmingBulk = false
+    public var confirmingAction: ChatQueueBulkAction = .moveToInbox
     private var truncationTracker = TruncationTracker()
 
     public var truncation: ListTruncation? { truncationTracker.truncation(shown: items.count) }
@@ -102,6 +106,10 @@ public final class ChatQueueModel {
 
     func returnAction(_ id: String) async throws {
         try await actions.returnToInbox(id)
+    }
+
+    func deleteAction(_ id: String) async throws {
+        try await actions.delete(id)
     }
 
     func snoozeAction(_ id: String, days: Int) async throws {

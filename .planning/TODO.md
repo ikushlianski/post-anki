@@ -946,6 +946,7 @@ updated: 2026-09-04
 - Out of scope: Replacing the Expo mobile app or the web app before PowerSync is proven
 
 ### Coding tasks
+- [x] The Mac app's chat list lets the learner select several chats at once and apply a bulk action to them, such as deleting all the selected chats. Bulk delete asks for confirmation first, since it cannot be undone.
 - [ ] [blocked: user] Provision the iPhone share extension App IDs and App Group.
 - [ ] [blocked: user] Register Apple App ID and App Group for the Mac share extension.
 
