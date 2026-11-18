@@ -172,10 +172,15 @@ extension ChatQueueScreen {
 
             ChatQueueRow(item: item)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-                .onTapGesture(count: 2) { openItem = item }
+
+            Button("Continue") { openItem = item }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .accessibilityIdentifier("chat-queue-row-continue-\(item.id)")
         }
         .padding(.vertical, 6)
+        .contentShape(Rectangle())
+        .simultaneousGesture(TapGesture(count: 2).onEnded { openItem = item })
         #else
         NavigationLink {
             thread(for: item)
