@@ -80,6 +80,7 @@ export interface KnowledgeBitReviewQueueClock {
   now: Date;
   aheadDays?: number;
   excludeNew?: boolean;
+  shuffleSeed?: string;
   pack?: { subjectIds: string[]; dueCutoff: Date };
 }
 
@@ -208,10 +209,11 @@ export async function getKnowledgeBitReviewQueue(
           db,
           stepsFor,
           dueCutoff,
+          clock.shuffleSeed,
         ),
     blockedByDailyLimit || excludeNew
       ? Promise.resolve([])
-      : listPickedNewCards(picked, freshBySubject, allowance, limit, now, db, stepsFor),
+      : listPickedNewCards(picked, freshBySubject, allowance, limit, now, db, stepsFor, clock.shuffleSeed),
     readEligibleTotals(picked, now, db),
   ]);
   const withNew = mixNewWithDue

@@ -30,11 +30,11 @@ export async function handleListKnowledgeBitReviewCards(
     return;
   }
 
-  const { limit, tz, tagId, topicId, knowledgeBitId, subjectId, aheadDays, newCards } = parsed.data;
+  const { limit, tz, tagId, topicId, knowledgeBitId, subjectId, aheadDays, newCards, shuffleSeed } = parsed.data;
   const queue = await getKnowledgeBitReviewQueue(
     limit,
     { tagId, topicId, knowledgeBitId, subjectId },
-    { tz, now: new Date(), aheadDays, excludeNew: newCards === "exclude" },
+    { tz, now: new Date(), aheadDays, excludeNew: newCards === "exclude", shuffleSeed },
   );
 
   const labels = await loadSubjectPathLabels();

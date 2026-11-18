@@ -124,6 +124,17 @@ describe("handleListKnowledgeBitReviewCards repeat-only", () => {
     expect(getKnowledgeBitReviewQueue.mock.calls[0]![2]).toMatchObject({ excludeNew: true });
   });
 
+  it("should pass the shuffle seed to the queue and answer 400 for an empty one", async () => {
+    getKnowledgeBitReviewQueue.mockResolvedValue({ cards: [] });
+    const bad = fakeRes();
+
+    await handleListKnowledgeBitReviewCards(fakeRes(), "shuffleSeed=abc");
+    await handleListKnowledgeBitReviewCards(bad, "shuffleSeed=");
+
+    expect(getKnowledgeBitReviewQueue.mock.calls[0]![2]).toMatchObject({ shuffleSeed: "abc" });
+    expect(sent(bad).status).toBe(400);
+  });
+
   it("should answer 400 for an unknown newCards value", async () => {
     const res = fakeRes();
 

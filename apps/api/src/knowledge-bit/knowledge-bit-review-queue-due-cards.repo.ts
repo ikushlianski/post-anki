@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray, isNull, lte, not, sql } from "drizzle-orm";
 import type { DbExecutor } from "../db/client.js";
+import { inIdOrder, pickShuffledVariantIds } from "./knowledge-bit-review-queue-shuffled.js";
 import { phaseRank } from "./knowledge-bit-review-queue-learning.repo.js";
 import type { Picked } from "./knowledge-bit-review-queue-picked.repo.js";
 import {
@@ -50,6 +51,7 @@ export async function listCappedDueCards(
   db: DbExecutor,
   stepsFor: StepsFor = defaultStepsFor,
   dueCutoff: Date = now,
+  shuffleSeed?: string,
 ): Promise<KnowledgeBitReviewCardRow[]> {
   if (limit <= 0) {
     return [];
@@ -62,7 +64,9 @@ export async function listCappedDueCards(
     .where(and(eq(picked.pickRank, 1), lte(picked.dueAt, dueCutoff), inArray(picked.phase, STEP_PHASES)))
     .orderBy(...order)
     .limit(limit);
-  const reviewPromises = dueReviews
+  const reviewPromises = shuffleSeed
+    ? [listShuffledReviews(picked, dueReviews, remainingFor, limit, now, dueCutoff, db, shuffleSeed)]
+    : dueReviews
     .filter((entry) => entry.due > 0)
     .map(async ({ subjectId }) => {
       const take = Math.min(limit, remainingFor(subjectId));
@@ -101,13 +105,54 @@ export async function listCappedDueCards(
       const left = rank(a);
       const right = rank(b);
 
-      return (
-        left.notYetDue - right.notYetDue ||
-        left.step - right.step ||
-        left.due - right.due ||
-        a.variantId.localeCompare(b.variantId)
-      );
+      const head = left.notYetDue - right.notYetDue || left.step - right.step;
+
+      if (head || (shuffleSeed && left.step === 1)) {
+        return head;
+      }
+
+      return left.due - right.due || a.variantId.localeCompare(b.variantId);
     })
     .slice(0, limit)
     .map(({ dueAt: _dueAt, ...row }) => toCard(row, now, stepsFor));
+}
+
+const reviewCondition = (picked: Picked, dueCutoff: Date) =>
+  and(eq(picked.pickRank, 1), lte(picked.dueAt, dueCutoff), not(inArray(picked.phase, STEP_PHASES)));
+
+async function listShuffledReviews(
+  picked: Picked,
+  dueReviews: DueReviewsBySubject[],
+  remainingFor: (subjectId: string | null) => number,
+  limit: number,
+  now: Date,
+  dueCutoff: Date,
+  db: DbExecutor,
+  seed: string,
+) {
+  if (!dueReviews.some((entry) => entry.due > 0)) {
+    return [];
+  }
+
+  const candidates = await db
+    .select({
+      variantId: picked.variantId,
+      cardSubjectId: picked.cardSubjectId,
+      createdAt: picked.bitCreatedAt,
+      notYetDue: notYetDueRank(picked, now),
+    })
+    .from(picked)
+    .where(reviewCondition(picked, dueCutoff));
+  const ids = pickShuffledVariantIds(candidates, seed, now, limit, remainingFor);
+
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const rows = await db
+    .select(dueColumns(picked))
+    .from(picked)
+    .where(and(eq(picked.pickRank, 1), inArray(picked.variantId, ids)));
+
+  return inIdOrder(rows, ids);
 }

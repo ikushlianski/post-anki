@@ -36,6 +36,17 @@ describe("reviewCardsQuerySchema", () => {
     expect(reviewCardsQuerySchema.safeParse({ aheadDays: "1.5" }).success).toBe(false);
   });
 
+  it("should accept a shuffle seed of 1 to 64 characters and leave it optional", () => {
+    expect(reviewCardsQuerySchema.parse({}).shuffleSeed).toBeUndefined();
+    expect(reviewCardsQuerySchema.parse({ shuffleSeed: "a" }).shuffleSeed).toBe("a");
+    expect(reviewCardsQuerySchema.safeParse({ shuffleSeed: "x".repeat(64) }).success).toBe(true);
+  });
+
+  it("should reject an empty or over-long shuffle seed", () => {
+    expect(reviewCardsQuerySchema.safeParse({ shuffleSeed: "" }).success).toBe(false);
+    expect(reviewCardsQuerySchema.safeParse({ shuffleSeed: "x".repeat(65) }).success).toBe(false);
+  });
+
   it("should reject an unknown time zone", () => {
     expect(reviewCardsQuerySchema.safeParse({ tz: "Mars/Base" }).success).toBe(false);
   });

@@ -17,6 +17,7 @@ import { DEFAULT_STEP_OPTIONS } from "./knowledge-bit-learning-steps.js";
 import { isLeech } from "./knowledge-bit-grade-schedule-leech.js";
 import { previewGradeIntervals, type ScheduleOptions } from "./knowledge-bit-grade-schedule.js";
 import { rollingPhraseFront } from "./meeting-phrase-rolling-front.js";
+import { inIdOrder, pickShuffledVariantIds } from "./knowledge-bit-review-queue-shuffled.js";
 import { phaseRank } from "./knowledge-bit-review-queue-learning.repo.js";
 import {
   eligibility,
@@ -269,7 +270,12 @@ export async function listPickedNewCards(
   now: Date,
   db: DbExecutor,
   stepsFor: StepsFor = defaultStepsFor,
+  shuffleSeed?: string,
 ): Promise<KnowledgeBitReviewCardRow[]> {
+  if (shuffleSeed) {
+    return listShuffledNewCards(picked, allowance, limit, now, db, stepsFor, shuffleSeed);
+  }
+
   const batches = await Promise.all(
     freshBySubject
       .filter((entry) => entry.fresh > 0)
@@ -327,4 +333,54 @@ export async function listPickedNewCards(
     )
     .slice(0, limit)
     .map(({ bitCreatedAt: _bitCreatedAt, ...row }) => toCard(row, now, stepsFor));
+}
+
+async function listShuffledNewCards(
+  picked: Picked,
+  allowance: { remainingFor: (subjectId: string | null) => number },
+  limit: number,
+  now: Date,
+  db: DbExecutor,
+  stepsFor: StepsFor,
+  seed: string,
+): Promise<KnowledgeBitReviewCardRow[]> {
+  const candidates = await db
+    .select({ variantId: picked.variantId, cardSubjectId: picked.cardSubjectId, createdAt: picked.bitCreatedAt })
+    .from(picked)
+    .where(and(eq(picked.pickRank, 1), isNull(picked.scheduleBitId)));
+  const ids = pickShuffledVariantIds(candidates, seed, now, limit, allowance.remainingFor);
+
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const rows = await db
+    .select({
+      variantId: picked.variantId,
+      knowledgeBitId: picked.knowledgeBitId,
+      kind: picked.kind,
+      cardKey: picked.cardKey,
+      prompt: picked.prompt,
+      context: picked.context,
+      answer: picked.answer,
+      sentence: picked.sentence,
+      background: picked.background,
+      body: picked.body,
+      reviewCount: picked.reviewCount,
+      isAiGenerated: picked.isAiGenerated,
+      aiSuggestion: picked.aiSuggestion,
+      sourceLinks: picked.sourceLinks,
+      subjectId: picked.subjectId,
+      cardSubjectId: picked.cardSubjectId,
+      easeFactor: picked.easeFactor,
+      intervalDays: picked.intervalDays,
+      phase: picked.phase,
+      learningStep: picked.learningStep,
+      lapses: picked.lapses,
+      isNew: sql<boolean>`true`,
+    })
+    .from(picked)
+    .where(and(eq(picked.pickRank, 1), inArray(picked.variantId, ids)));
+
+  return inIdOrder(rows, ids).map((row) => toCard(row, now, stepsFor));
 }

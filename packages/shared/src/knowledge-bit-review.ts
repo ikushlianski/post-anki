@@ -23,6 +23,7 @@ export const reviewCardsQuerySchema = z.object({
   subjectId: optionalScopeId,
   aheadDays: z.coerce.number().int().min(0).max(30).default(0),
   newCards: z.enum(["include", "exclude"]).default("include"),
+  shuffleSeed: z.string().min(1).max(64).optional(),
 });
 
 export type ReviewCardsQuery = z.infer<typeof reviewCardsQuerySchema>;
