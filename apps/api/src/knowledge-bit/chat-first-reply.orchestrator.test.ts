@@ -5,6 +5,11 @@ const listChatQueueMessages = vi.fn();
 const sendChatQueueMessage = vi.fn();
 const clearChatFirstPromptIf = vi.fn();
 
+const saveFirstPromptFailure = vi.fn();
+
+vi.mock("./chat-first-reply-failure.js", () => ({
+  saveFirstPromptFailure: (...args: unknown[]) => saveFirstPromptFailure(...args),
+}));
 vi.mock("../shared/log.js", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() } }));
 vi.mock("./knowledge-bit-chat-queue.repo.js", () => ({
   loadChatCardContext: (...args: unknown[]) => loadChatCardContext(...args),
@@ -65,11 +70,26 @@ describe("answerFirstChatPrompt", () => {
     expect(sendChatQueueMessage).not.toHaveBeenCalled();
   });
 
-  it("should release the waiting prompt when the reply fails so the chat stops showing Thinking", async () => {
-    sendChatQueueMessage.mockResolvedValue({ ok: false, error: "budget_paused" });
+  it.each(["model_failed", "budget_paused"] as const)(
+    "should save the question with a failure reply and no model retry when the first reply ends in %s",
+    async (error) => {
+      sendChatQueueMessage.mockResolvedValue({ ok: false, error });
 
-    await expect(answerFirstChatPrompt("kb1")).resolves.toBeUndefined();
+      await expect(answerFirstChatPrompt("kb1")).resolves.toBeUndefined();
+
+      expect(saveFirstPromptFailure).toHaveBeenCalledWith("kb1", "Why?", error);
+      expect(sendChatQueueMessage).toHaveBeenCalledTimes(1);
+      expect(clearChatFirstPromptIf).not.toHaveBeenCalled();
+    },
+  );
+
+  it("should release the waiting prompt when the card left the chat", async () => {
+    sendChatQueueMessage.mockResolvedValue({ ok: false, error: "not_in_chat" });
+
+    await answerFirstChatPrompt("kb1");
+
     expect(clearChatFirstPromptIf).toHaveBeenCalledWith("kb1", "Why?");
+    expect(saveFirstPromptFailure).not.toHaveBeenCalled();
   });
 
   it("should keep the waiting prompt when the reply succeeds", async () => {

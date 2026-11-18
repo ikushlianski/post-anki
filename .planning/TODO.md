@@ -946,6 +946,9 @@ updated: 2026-09-04
 - Out of scope: Replacing the Expo mobile app or the web app before PowerSync is proven
 
 ### Coding tasks
+- [ ] A database test proves that a chat exchange ending in a fixed AI-failure reply does not use up one of the learner's turns, while normal and unanswered messages still do.
+- [ ] In any chat the learner can switch the AI model at any point in the conversation from a model picker, and the next reply uses the chosen model.
+- [x] A chat in the queue never ends up empty and silent when the AI fails to answer: an empty model reply is retried once without web tools, a failed first reply keeps its prompt so it can be retried, and the learner sees a plain reason instead of a blank chat.
 - [x] In the Mac Chat queue a single click highlights a chat, a double click opens it, and each row has a Continue button on its right that opens the chat too.
 - [x] In a Mac chat the learner can select text in the assistant's answer and choose Make cards from the right-click menu, which proposes cards in the chat. Approved cards go straight into the matching subject's deck, skipping triage.
 - [x] Messages inside a chat in the Mac app are drawn as Telegram-style bubbles: the learner's messages right-aligned in an accent colour, the assistant's left-aligned in a neutral colour, with rounded corners and a small gap between them.
@@ -1692,6 +1695,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: changing which model each call uses — only cost visibility and guardrails, not model selection policy
 
 ### Coding tasks
+- [ ] Every failed AI model call is written to the audit log with the operation, model, error reason and the card or chat it belongs to, so failures can be traced afterwards.
 - [x] Cover skipped items in the subject and source duplicate scans with tests
 - [x] Report embedding scan counts from items actually saved, not items attempted
 - [x] Keep every chat's prompt bounded by sending only recent conversation turns

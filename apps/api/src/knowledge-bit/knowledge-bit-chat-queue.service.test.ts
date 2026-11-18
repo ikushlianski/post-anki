@@ -360,12 +360,44 @@ describe("sendChatQueueMessage", () => {
     expect(generate).toHaveBeenCalledTimes(1);
   });
 
-  it("should not spend a turn when the model returns nothing", async () => {
+  it("should ask once more without tools when tool use left no answer text", async () => {
+    const webTools = { searchWeb: vi.fn(), isCitedUrl: vi.fn(), fetchPage: vi.fn() };
+
+    generate.mockResolvedValueOnce({ text: "" }).mockResolvedValueOnce({ text: "Plain answer." });
+
+    const result = await sendChatQueueMessage("kb1", input, { webTools });
+
+    expect(result).toMatchObject({ ok: true, value: { reply: "Plain answer." } });
+    expect(generate).toHaveBeenCalledTimes(2);
+    expect(generate.mock.calls[1]?.[0]).toContain("plain text");
+    expect(generate.mock.calls[1]?.[1].requestContext).toBeUndefined();
+    expect(stepLimit(generate.mock.calls[1]?.[1].stopWhen)).toBe(1);
+  });
+
+  it("should ask the learner to rephrase when the model stays silent", async () => {
     generate.mockResolvedValue({ text: "  " });
 
     const result = await sendChatQueueMessage("kb1", input);
 
+    expect(result).toMatchObject({ ok: true, value: { reply: expect.stringContaining("rephrase") } });
+    expect(generate).toHaveBeenCalledTimes(2);
+  });
+
+  it("should not spend a turn when the plain-text retry fails", async () => {
+    generate.mockResolvedValueOnce({ text: "" }).mockRejectedValue(new Error("boom"));
+
+    const result = await sendChatQueueMessage("kb1", input);
+
     expect(result).toEqual({ ok: false, error: "model_failed" });
+    expect(insertChatTurn).not.toHaveBeenCalled();
+  });
+
+  it("should pause chat when the budget runs out during the plain-text retry", async () => {
+    generate.mockResolvedValueOnce({ text: "" }).mockRejectedValueOnce(new LlmBudgetExceededError(1, 1));
+
+    const result = await sendChatQueueMessage("kb1", input);
+
+    expect(result).toEqual({ ok: false, error: "budget_paused" });
     expect(insertChatTurn).not.toHaveBeenCalled();
   });
 

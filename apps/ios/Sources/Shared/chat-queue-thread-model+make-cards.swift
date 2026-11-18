@@ -12,7 +12,7 @@ extension ChatQueueThreadModel {
         }
 
         if limitReached || budgetPaused || isResolving {
-            errorMessage = limitReached ? "Chat limit reached, cannot propose cards." : "Chat is unavailable right now, cannot propose cards."
+            errorMessage = limitReached ? "Chat limit reached, cannot propose cards." : budgetPaused ? ChatQueueFailure.budgetPaused.message : "Chat is unavailable right now, cannot propose cards."
 
             return
         }

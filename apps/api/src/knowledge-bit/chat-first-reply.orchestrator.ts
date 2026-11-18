@@ -1,4 +1,5 @@
 import { log } from "../shared/log.js";
+import { saveFirstPromptFailure } from "./chat-first-reply-failure.js";
 import { sendChatQueueMessage } from "./knowledge-bit-chat-queue.service.js";
 import { clearChatFirstPromptIf, loadChatCardContext } from "./knowledge-bit-chat-queue.repo.js";
 import { createChatQueueWebTools } from "./knowledge-bit-chat-queue-web-tools.js";
@@ -24,6 +25,13 @@ export async function answerFirstChatPrompt(bitId: string): Promise<void> {
 
   if (!result.ok) {
     log.warn({ bitId, error: result.error }, "chat_first_reply_failed");
-    await clearChatFirstPromptIf(bitId, card.chatFirstPrompt);
+
+    if (result.error === "not_in_chat") {
+      await clearChatFirstPromptIf(bitId, card.chatFirstPrompt);
+    }
+
+    if (result.error === "model_failed" || result.error === "budget_paused") {
+      await saveFirstPromptFailure(bitId, card.chatFirstPrompt, result.error);
+    }
   }
 }

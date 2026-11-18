@@ -3,6 +3,7 @@ import { CHAT_QUEUE_MAX_USER_TURNS, type ChatQueueMessage, type ChatQueueProposa
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBitChatMessages, knowledgeBits } from "../db/schema.js";
 import { newId } from "../shared/id.js";
+import { FAILURE_REPLIES } from "./chat-queue-failure-replies.js";
 
 export interface StoredChatMessage extends ChatQueueMessage {
   clientMessageId: string | null;
@@ -91,7 +92,11 @@ export function toPublicMessages(messages: StoredChatMessage[]): ChatQueueMessag
 }
 
 export function turnsUsed(messages: ChatQueueMessage[]): number {
-  return messages.filter((message) => message.role === "user").length;
+  return messages.filter((message, index) => {
+    const next = messages[index + 1];
+
+    return message.role === "user" && !(next?.role === "assistant" && FAILURE_REPLIES.includes(next.text));
+  }).length;
 }
 
 export function turnsLeftFor(messages: ChatQueueMessage[]): number {
@@ -110,7 +115,10 @@ export async function countChatQueueTurnsByBit(
     .select({ bitId: knowledgeBitChatMessages.knowledgeBitId, value: sql<number>`count(*)::int` })
     .from(knowledgeBitChatMessages)
     .where(
-      sql`${inArray(knowledgeBitChatMessages.knowledgeBitId, bitIds)} and ${knowledgeBitChatMessages.role} = 'user'`,
+      sql`${inArray(knowledgeBitChatMessages.knowledgeBitId, bitIds)} and ${knowledgeBitChatMessages.role} = 'user' and not exists (select 1 from ${knowledgeBitChatMessages} as failed where failed.knowledge_bit_id = ${knowledgeBitChatMessages.knowledgeBitId} and failed.seq = ${knowledgeBitChatMessages.seq} + 1 and failed.role = 'assistant' and failed.text in (${sql.join(
+        FAILURE_REPLIES.map((reply) => sql`${reply}`),
+        sql`, `,
+      )}))`,
     )
     .groupBy(knowledgeBitChatMessages.knowledgeBitId);
 

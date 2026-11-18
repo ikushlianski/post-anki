@@ -44,6 +44,8 @@ export const CHAT_QUEUE_REPLY_OP = "knowledge_bit_chat_queue_reply";
 export const CHAT_QUEUE_HOURLY_CAP = 30;
 const HOUR_MS = 60 * 60 * 1000;
 const PROPOSAL_ONLY_REPLY = "I put together a card proposal for you below.";
+const REPHRASE_REPLY = "I could not put together an answer for that. Could you rephrase it or add a bit more detail?";
+const PLAIN_TEXT_NUDGE = "\n\nAnswer the learner in plain text now. Do not use tools.";
 
 export interface SendChatQueueMessageOptions {
   webTools?: KnowledgeBitChatToolsDeps;
@@ -300,6 +302,29 @@ async function generateReply(
       inputTokens: result.totalUsage?.inputTokens ?? result.usage?.inputTokens ?? null,
       outputTokens: result.totalUsage?.outputTokens ?? result.usage?.outputTokens ?? null,
     };
+
+    if (!reply && !sink.list().length) {
+      const plain = await generateWithRetry(
+        CHAT_QUEUE_REPLY_OP,
+        null,
+        AGENT_KEYS.knowledgeBitChatQueue,
+        () =>
+          agent.generate(prompt + PLAIN_TEXT_NUDGE, {
+            modelSettings: { maxOutputTokens: CHAT_QUEUE_REPLY_MAX_TOKENS },
+            tracingOptions: buildChatQueueTracingOptions(traceMetadata),
+            ...buildChatQueueRunOptions({
+              fallback: false,
+              lightModel: options.lightModel,
+              modelId: input.modelId,
+              allowUpdate: false,
+              subjectInstructions,
+            }),
+          }),
+        { knowledgeBitId: bitId },
+      );
+
+      reply = plain.text?.trim() ?? "";
+    }
   } catch (err) {
     if (err instanceof LlmBudgetExceededError || err instanceof LlmBudgetCheckUnavailableError) {
       setOutcome("spend_guard");
@@ -320,7 +345,7 @@ async function generateReply(
   }
 
   if (!reply) {
-    return { ok: false, error: "model_failed" };
+    reply = REPHRASE_REPLY;
   }
 
   const persisted = await persistTurn(bitId, input, reply, usage, proposals, options.firstPrompt === true);
