@@ -136,21 +136,15 @@ private struct MacDueReviewCardView: View {
                     showsProgress: true,
                     answerInput: { EmptyView() },
                     revealedFooter: {
-                        MacKnownCardButton(model: model)
-
                         Text("Press 1 Again, 2 Hard, 3 Good, 4 Easy, or Space for Good. C chats about the card. S suspends the card. K marks it as already known")
                             .zoomFont(.footnote)
                             .foregroundStyle(.secondary)
                     },
                     unrevealed: {
                         ZoomVStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 12) {
-                                Button("Show answer") { model.reveal() }
-                                    .buttonStyle(.borderedProminent)
-                                    .help("Show the answer (Space or Return)")
-
-                                MacKnownCardButton(model: model)
-                            }
+                            Button("Show answer") { model.reveal() }
+                                .buttonStyle(.borderedProminent)
+                                .help("Show the answer (Space or Return)")
 
                             Text("Press Space or Return to show the answer. C chats about the card. S suspends the card. K marks it as already known")
                                 .zoomFont(.footnote)
@@ -160,6 +154,7 @@ private struct MacDueReviewCardView: View {
                 )
             }
         }
+        .dueReviewKnownSide(model: model)
         .focusable()
         .focusEffectDisabled()
         .focused($isCardFocused)
@@ -195,22 +190,5 @@ private struct MacDueReviewCardView: View {
         .onChange(of: model.chatCard == nil) { _, closed in
             if closed { isCardFocused = true }
         }
-    }
-}
-
-private struct MacKnownCardButton: View {
-    let model: DueReviewModel
-
-    var body: some View {
-        Button {
-            Task { await model.markCurrentKnown() }
-        } label: {
-            Label("I already know it", systemImage: "checkmark.seal.fill")
-        }
-        .buttonStyle(.bordered)
-        .tint(.green)
-        .disabled(model.isGrading || model.current?.isRehearsal == true)
-        .help("Hide this card for 6 to 12 months (K)")
-        .accessibilityIdentifier("due-review-known")
     }
 }

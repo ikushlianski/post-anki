@@ -141,6 +141,7 @@ private struct DueReviewCardView: View {
             }
             .refreshable { await model.load() }
         }
+        .dueReviewKnownSide(model: model)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             DueReviewBottomBar(model: model)
         }

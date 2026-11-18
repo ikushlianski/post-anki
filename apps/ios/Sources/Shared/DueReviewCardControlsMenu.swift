@@ -11,9 +11,6 @@ struct DueReviewCardControlsMenu: View {
             Button("Bury until tomorrow", systemImage: "moon.zzz") {
                 Task { await model.buryCurrent() }
             }
-            Button("I already know this", systemImage: "checkmark.seal") {
-                Task { await model.markCurrentKnown() }
-            }
             Button("Suspend this card", systemImage: "pause.circle") {
                 Task { await model.suspendCurrent(offersUndo: true) }
             }

@@ -40,19 +40,6 @@ struct DueReviewBottomBar: View {
 
     private var suspendRow: some View {
         HStack {
-            Button {
-                Task { await model.markCurrentKnown() }
-            } label: {
-                Label("I already know it", systemImage: "checkmark.seal.fill")
-                    .zoomFont(.subheadline.weight(.semibold))
-                    .frame(minHeight: 32)
-            }
-            .buttonStyle(.bordered)
-            .tint(.green)
-            .disabled(model.isGrading || model.current?.isRehearsal == true)
-            .accessibilityIdentifier("due-review-known")
-            .accessibilityHint("Hides this card for 6 to 12 months")
-
             Spacer()
 
             Button {
