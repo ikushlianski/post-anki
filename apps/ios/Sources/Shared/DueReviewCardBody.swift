@@ -86,6 +86,8 @@ struct DueReviewCardBody<AnswerInput: View, RevealedFooter: View, Unrevealed: Vi
 
                 CopyAllButton(parts: CardCopyText.reviewParts(card))
 
+                CopyCardIdButton(id: card.variantId)
+
                 if showsGradeButtons, card.isRehearsal {
                     DueReviewRehearsalButtons(isDisabled: model.isGrading) { grade in
                         Task { await model.grade(grade) }

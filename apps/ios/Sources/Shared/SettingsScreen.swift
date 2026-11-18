@@ -270,6 +270,8 @@ struct SettingsScreen: View {
                 }
             }
 
+            DebuggingSettingsSection()
+
             if showsAdminLink {
                 Section {
                     NavigationLink("Admin settings") { AdminSettingsScreen() }

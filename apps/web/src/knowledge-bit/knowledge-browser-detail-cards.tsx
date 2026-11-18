@@ -1,6 +1,7 @@
 import { KNOWLEDGE_BIT_VARIANT_KIND_LABELS } from '@post-anki/shared'
 import type { KnowledgeBitDetailCard } from '@post-anki/shared'
 
+import { CopyCardIdButton } from '../debugging/copy-card-id-button'
 import { formatAddedAt } from './knowledge-browser-columns'
 import { BROWSER_STATE_LABELS } from './knowledge-browser-filters'
 
@@ -45,6 +46,7 @@ export function KnowledgeBrowserDetailCards({ cards }: { cards: KnowledgeBitDeta
               {KNOWLEDGE_BIT_VARIANT_KIND_LABELS[card.kind]} {card.order + 1}
             </p>
             <p>{cardStatusText(card)}</p>
+            <CopyCardIdButton id={card.variantId} />
           </li>
         ))}
       </ul>

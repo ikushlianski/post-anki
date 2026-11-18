@@ -2,6 +2,7 @@ import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 
 import { AccountSection } from '../account/account-section'
 import { getAccount, updateAccount } from '../account/account.api'
+import { DebuggingSection } from '../debugging/debugging-section'
 import { getGamificationProfile } from '../gamification/gamification.api'
 import { ProfileView } from '../gamification/profile-view'
 import { ProgressPanel } from '../motivation/progress-panel'
@@ -57,6 +58,8 @@ function ProfilePage() {
           Couldn't load your profile right now.
         </p>
       )}
+
+      <DebuggingSection />
 
       <Link
         to="/admin-settings"

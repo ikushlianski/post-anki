@@ -244,6 +244,7 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
                 <AnkiReviewCardActions
                   revealed={state.revealed && !editing}
                   leech={current.leech}
+                  cardId={current.variantId}
                   disabled={actions.busy || editing}
                   onEdit={() => dispatch({ type: 'editStarted', now: Date.now() })}
                   onBury={() => void actions.control('bury')}

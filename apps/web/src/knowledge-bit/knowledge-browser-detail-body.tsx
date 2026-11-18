@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 
 import { CardText } from '../code-block/card-text'
 import { hasFencedCode } from '../code-block/split-fenced-code'
+import { CopyCardIdButton } from '../debugging/copy-card-id-button'
 import { CardContextLine } from './card-context-line'
 import { KnowledgeBrowserDetailCards } from './knowledge-browser-detail-cards'
 import { formatAddedAt } from './knowledge-browser-columns'
@@ -153,6 +154,7 @@ export function KnowledgeBrowserDetailBody({ detail }: { detail: KnowledgeBitDet
           <MetaRow label="Date added">{formatAddedAt(detail.addedAt)}</MetaRow>
           <MetaRow label="Review">{reviewText(detail.review)}</MetaRow>
         </dl>
+        <CopyCardIdButton id={detail.knowledgeBitId} />
       </Section>
     </div>
   )
