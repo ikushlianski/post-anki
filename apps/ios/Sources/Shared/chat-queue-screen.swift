@@ -47,6 +47,14 @@ struct ChatQueueScreen: View {
             #endif
     }
 
+    private var listSelection: Binding<Set<String>> {
+        #if os(macOS)
+        Binding(get: { model.picked }, set: { _ in })
+        #else
+        $model.picked
+        #endif
+    }
+
     @ViewBuilder
     private var content: some View {
         if search.isActive {
@@ -70,7 +78,7 @@ struct ChatQueueScreen: View {
                 if model.errorMessage != nil { Button("Try again") { Task { await model.load() } } }
             }
         } else {
-            List(selection: $model.picked) {
+            List(selection: listSelection) {
                 ChatQueueHeader(
                     summary: ChatQueueSummary.label(model.items),
                     wait: ChatQueueWaiting.oldestWaitLabel(model.items)
@@ -172,6 +180,7 @@ extension ChatQueueScreen {
 
             ChatQueueRow(item: item)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .modifier(ChatQueueRowClick(model: model, item: item) { openItem = item })
 
             Button("Continue") { openItem = item }
                 .buttonStyle(.borderedProminent)
@@ -179,8 +188,6 @@ extension ChatQueueScreen {
                 .accessibilityIdentifier("chat-queue-row-continue-\(item.id)")
         }
         .padding(.vertical, 6)
-        .contentShape(Rectangle())
-        .simultaneousGesture(TapGesture(count: 2).onEnded { openItem = item })
         #else
         NavigationLink {
             thread(for: item)

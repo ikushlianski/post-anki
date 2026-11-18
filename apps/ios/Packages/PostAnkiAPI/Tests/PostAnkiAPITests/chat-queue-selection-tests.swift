@@ -32,6 +32,34 @@ struct ChatQueueSelectionTests {
         #expect(model.picked == ["2"])
     }
 
+    @Test("a plain click highlights only the clicked chat and drops earlier ones")
+    func pickOnlyReplaces() async {
+        let model = await loaded()
+        let order = model.sortedItems.map(\.id)
+
+        model.togglePicked(order[0])
+        model.togglePicked(order[1])
+        model.pickOnly(order[2])
+
+        #expect(model.picked == [order[2]])
+    }
+
+    @Test("click, cmd-click and shift-click combine: plain click anchors, cmd adds one, shift extends from the last click")
+    func clickModifierSequence() async {
+        let model = await loaded()
+        let order = model.sortedItems.map(\.id)
+
+        model.pickOnly(order[0])
+        model.togglePicked(order[2])
+        model.pickRange(to: order[3])
+
+        #expect(model.picked == Set(order[0...0] + order[2...3]))
+
+        model.togglePicked(order[2])
+
+        #expect(model.picked == Set(order[0...0] + order[3...3]))
+    }
+
     @Test("review chats can be ticked like any other chat")
     func reviewSelectable() async {
         let model = await loaded()

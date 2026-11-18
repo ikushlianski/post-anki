@@ -17,6 +17,13 @@ extension ChatQueueModel {
         pickAnchor = id
     }
 
+    public func pickOnly(_ id: String) {
+        guard sortedItems.contains(where: { $0.id == id }) else { return }
+
+        picked = [id]
+        pickAnchor = id
+    }
+
     public func pickRange(to id: String) {
         let ids = sortedItems.map(\.id)
 
