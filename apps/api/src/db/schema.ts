@@ -2426,6 +2426,24 @@ export const subjectSuggestionRuns = pgTable("subject_suggestion_runs", {
   poolSize: integer("pool_size").notNull(),
 });
 
+export const cardSubjectSuggestions = pgTable(
+  "card_subject_suggestions",
+  {
+    id: text("id").primaryKey(),
+    knowledgeBitId: text("knowledge_bit_id").notNull(),
+    knowledgeSourceId: text("knowledge_source_id").notNull(),
+    suggestedSubjectId: text("suggested_subject_id"),
+    confidence: text("confidence"),
+    status: text("status").notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("card_subject_suggestions_bit_unique").on(table.knowledgeBitId),
+    index("card_subject_suggestions_status_idx").on(table.status, table.createdAt),
+  ],
+);
+
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),

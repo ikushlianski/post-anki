@@ -9,6 +9,7 @@ import { tagKnowledgeBits } from "./knowledge-bit-tagging.orchestrator.js";
 import { runCardDedupScan } from "../card-dedup/card-dedup.orchestrator.js";
 import { runCardRewordingScan } from "../card-rewording/card-rewording.orchestrator.js";
 import { getDb } from "../db/client.js";
+import { runCardSubjectSuggestionScan } from "../card-subject-suggestion/card-subject-suggestion.orchestrator.js";
 import { runSubjectAssignmentScan } from "../subject-assignment/subject-assignment.orchestrator.js";
 import { runSubjectSuggestionScan } from "../subject-suggestion/subject-suggestion.orchestrator.js";
 
@@ -28,6 +29,7 @@ export const KNOWLEDGE_BIT_PIPELINE_PASSES: readonly KnowledgeBitPipelinePass[] 
   { name: "card_dedup", run: runCardDedupScan },
   { name: "reworded_versions", run: () => runCardRewordingScan(getDb()) },
   { name: "subject_assignment", run: runSubjectAssignmentScan },
+  { name: "card_subject_suggestions", run: runCardSubjectSuggestionScan },
   { name: "subject_suggestions", run: () => runSubjectSuggestionScan({ ignoreDailyCap: false }) },
 ];
 

@@ -349,6 +349,11 @@ import {
   handleTriggerSubjectDuplicateScan,
 } from "./subject-duplicate/subject-duplicate.controller.js";
 import {
+  handleListCardSubjectSuggestions,
+  handleResolveCardSubjectSuggestion,
+  handleTriggerCardSubjectSuggestionScan,
+} from "./card-subject-suggestion/card-subject-suggestion.controller.js";
+import {
   handleListSubjectSuggestions,
   handleResolveSubjectSuggestion,
   handleTriggerSubjectSuggestionScan,
@@ -1256,6 +1261,12 @@ async function route(
       return handleListSubjectDuplicateSuggestions(res, url.searchParams.get("status"));
     case "resolveSubjectDuplicateSuggestion":
       return handleResolveSubjectDuplicateSuggestion(req, res, id);
+    case "triggerCardSubjectSuggestionScan":
+      return handleTriggerCardSubjectSuggestionScan(res);
+    case "listCardSubjectSuggestions":
+      return handleListCardSubjectSuggestions(res, url.searchParams.get("status"));
+    case "resolveCardSubjectSuggestion":
+      return handleResolveCardSubjectSuggestion(req, res, id);
     case "triggerSubjectSuggestionScan":
       return handleTriggerSubjectSuggestionScan(res);
     case "listSubjectSuggestions":
