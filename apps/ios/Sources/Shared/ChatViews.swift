@@ -6,13 +6,16 @@ struct ChatMessageRow: View {
     let assistantLabel: String
 
     var body: some View {
-        ZoomVStack(alignment: .leading, spacing: 2) {
+        ZoomVStack(alignment: entry.role == "user" ? .trailing : .leading, spacing: 2) {
             Text(entry.role == "user" ? "You" : assistantLabel)
                 .zoomFont(.caption2)
                 .foregroundStyle(.secondary)
-            Text(entry.text)
-                .textSelection(.enabled)
+                .zoomPadding(.horizontal, 4)
+            ChatBubble(text: entry.text, isUser: entry.role == "user")
         }
+        .frame(maxWidth: .infinity, alignment: entry.role == "user" ? .trailing : .leading)
+        .zoomPadding(.vertical, 4)
+        .listRowSeparator(.hidden)
     }
 }
 
