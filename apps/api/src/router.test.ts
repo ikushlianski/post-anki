@@ -78,6 +78,7 @@ describe("resolveRoute", () => {
         "updateAdminSettings",
       );
       expect(resolveRoute("GET", "/admin/chat-usage")?.name).toBe("getChatUsage");
+      expect(resolveRoute("GET", "/chat/models")?.name).toBe("listChatModels");
     });
 
     it("matches the entity-agnostic nudge-response route, so a nudged curriculum can be answered", () => {

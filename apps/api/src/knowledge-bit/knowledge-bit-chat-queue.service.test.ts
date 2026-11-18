@@ -461,6 +461,39 @@ describe("sendChatQueueMessage", () => {
     expect(lockChatState).toHaveBeenCalledTimes(1);
     expect(generate.mock.calls[0]?.[1]).not.toHaveProperty("tools");
   });
+  describe("per-message model choice", () => {
+    const premium = "openrouter/openai/gpt-5-mini" as const;
+
+    it("should run the reply on the chosen model and store that id on the assistant message", async () => {
+      await sendChatQueueMessage("kb1", { ...input, modelId: premium });
+
+      expect(generate.mock.calls[0]?.[1].requestContext.get("chatModelId")).toBe(premium);
+      expect(insertChatTurn).toHaveBeenCalledWith("kb1", expect.objectContaining({ modelId: premium }), expect.anything());
+    });
+
+    it("should drop the choice on the cheap retry and record the cheap model that really answered", async () => {
+      generate.mockRejectedValueOnce(new Error("primary died")).mockResolvedValueOnce({ text: "Fallback reply." });
+
+      await sendChatQueueMessage("kb1", { ...input, modelId: premium });
+
+      expect(generate.mock.calls[0]?.[1].requestContext.get("chatModelId")).toBe(premium);
+      expect(generate.mock.calls[1]?.[1].requestContext.get("chatModelId")).toBeUndefined();
+      expect(insertChatTurn).toHaveBeenCalledWith(
+        "kb1",
+        expect.objectContaining({ modelId: "openrouter/deepseek/deepseek-v4-flash" }),
+        expect.anything(),
+      );
+    });
+
+    it("should still pause chat when the daily budget is spent even though a premium model was chosen", async () => {
+      assertBudget.mockRejectedValue(new LlmBudgetExceededError(1, 1));
+
+      const result = await sendChatQueueMessage("kb1", { ...input, modelId: premium });
+
+      expect(result).toEqual({ ok: false, error: "budget_paused" });
+      expect(generate).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe("getChatQueueThread", () => {

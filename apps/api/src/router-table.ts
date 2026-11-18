@@ -409,6 +409,7 @@ export const ROUTES: RouteDef[] = [
   { method: "PATCH", pattern: "/account", name: "updateAccount" },
   { method: "GET", pattern: "/admin/observability", name: "getAdminObservability" },
   { method: "GET", pattern: "/admin/chat-usage", name: "getChatUsage" },
+  { method: "GET", pattern: "/chat/models", name: "listChatModels" },
   {
     method: "POST",
     pattern: /^\/probe-session-questions\/([^/]+)\/feedback$/,

@@ -203,6 +203,7 @@ import {
   handleRestoreRejectedKnowledgeBit,
   handleSetKnowledgeBitFeedbackReason,
 } from "./knowledge-bit/knowledge-bit-feedback.controller.js";
+import { handleListChatModels } from "./chat-model/chat-model.controller.js";
 import { handleGetChatUsage } from "./chat-usage/chat-usage.controller.js";
 import { handleGetAdminObservability } from "./admin-observability/admin-observability.controller.js";
 import {
@@ -1027,6 +1028,8 @@ async function route(
       return handleGetAdminObservability(res);
     case "getChatUsage":
       return handleGetChatUsage(res);
+    case "listChatModels":
+      return handleListChatModels(res);
     case "submitProbeQuestionFeedback":
       return handleSubmitProbeQuestionFeedback(req, res, id);
     case "submitSocraticTurnFeedback":

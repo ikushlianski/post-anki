@@ -157,6 +157,7 @@ export type RouteName =
   | "updateAccount"
   | "getAdminObservability"
   | "getChatUsage"
+  | "listChatModels"
   | "submitProbeQuestionFeedback"
   | "submitSocraticTurnFeedback"
   | "captureProbeQuestionOpenQuestion"

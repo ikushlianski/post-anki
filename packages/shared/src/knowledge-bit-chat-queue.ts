@@ -131,6 +131,7 @@ export const chatQueueMessageSchema = z.object({
   text: z.string(),
   createdAt: z.string(),
   proposals: chatQueueProposalListSchema.optional(),
+  modelId: z.string().optional(),
 });
 
 export type ChatQueueMessage = z.infer<typeof chatQueueMessageSchema>;

@@ -46,7 +46,10 @@ import {
   recordLlmSpend,
   resetLlmSpendForTests,
   secondsUntilUtcMidnight,
+  usdPerMillionTokensFor,
+  estimateCostUsd,
 } from "./spend-guard.js";
+import { KNOWLEDGE_ITEM_MODEL_IDS } from "@post-anki/shared";
 import { resolveAgentModel } from "../mastra/model.js";
 
 function setEnv(mode: string, budget: number) {
@@ -190,5 +193,20 @@ describe("LLM_MODE=cheap model selection", () => {
 describe("secondsUntilUtcMidnight", () => {
   it("should tell clients how long until the daily budget resets", () => {
     expect(secondsUntilUtcMidnight(new Date("2026-10-23T23:00:00Z"))).toBe(3600);
+  });
+});
+
+describe("spend rates for chat-selectable models", () => {
+  it("should price every allow-listed model with its own rate instead of the default", () => {
+    const unpriced = KNOWLEDGE_ITEM_MODEL_IDS.filter((id) => usdPerMillionTokensFor(id) === null);
+
+    expect(unpriced).toEqual([]);
+  });
+
+  it("should average input and output prices so a premium choice costs more than the cheap default", () => {
+    expect(usdPerMillionTokensFor("openrouter/openai/gpt-5-mini")).toBeCloseTo(1.125);
+    expect(estimateCostUsd("openrouter/openai/gpt-5-mini", 1_000_000)).toBeGreaterThan(
+      estimateCostUsd("openrouter/anthropic/claude-haiku-5.5", 1_000_000),
+    );
   });
 });

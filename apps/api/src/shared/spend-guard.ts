@@ -1,3 +1,4 @@
+import { KNOWLEDGE_ITEM_MODEL_OPTIONS } from "@post-anki/shared";
 import { loadEnv, type Env } from "./env.js";
 import { addDailySpendUsd, readDailySpendUsd } from "./llm-daily-spend.repo.js";
 
@@ -21,8 +22,10 @@ export class LlmBudgetExceededError extends Error {
 
 // Blended USD per 1M tokens (input and output averaged); estimates, not billing.
 const USD_PER_MILLION_TOKENS: Record<string, number> = {
+  ...Object.fromEntries(
+    KNOWLEDGE_ITEM_MODEL_OPTIONS.map((option) => [option.id, (option.inputPerMillion + option.outputPerMillion) / 2]),
+  ),
   "openrouter/deepseek/deepseek-v4-flash": 0.3,
-  "openrouter/openai/gpt-4o-mini": 0.4,
   "openrouter/deepseek/deepseek-v4-pro": 2,
   "openai/text-embedding-3-small": 0.02,
 };
@@ -75,6 +78,10 @@ function guardActive(): { budget: number } | null {
   }
 
   return { budget: env.LLM_DAILY_BUDGET_USD };
+}
+
+export function usdPerMillionTokensFor(modelId: string): number | null {
+  return USD_PER_MILLION_TOKENS[modelId] ?? null;
 }
 
 export function estimateCostUsd(modelId: string, tokens: number | null | undefined): number {

@@ -159,3 +159,19 @@ describe("token ceiling on a real agent run", () => {
     expect(calls).toBe(2);
   });
 });
+
+describe("buildChatQueueRunOptions model override", () => {
+  const modelId = "openrouter/openai/gpt-5-mini";
+
+  it("should pass the learner's chosen model to the run on the primary attempt", () => {
+    const options = buildChatQueueRunOptions({ fallback: false, modelId, allowUpdate: false });
+
+    expect(options.requestContext?.get("chatModelId")).toBe(modelId);
+  });
+
+  it("should ignore the chosen model on the cheap fallback retry", () => {
+    const options = buildChatQueueRunOptions({ fallback: true, modelId, allowUpdate: false });
+
+    expect(options.requestContext?.get("chatModelId")).toBeUndefined();
+  });
+});

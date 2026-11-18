@@ -29,6 +29,7 @@ export interface KnowledgeItemModelOption {
   outputPerMillion: number;
   expiresOn: string | null;
   note: string;
+  chatPickable?: true;
 }
 
 export const KNOWLEDGE_ITEM_MODELS: Record<KnowledgeItemModelId, KnowledgeItemModelOption> = {
@@ -38,6 +39,7 @@ export const KNOWLEDGE_ITEM_MODELS: Record<KnowledgeItemModelId, KnowledgeItemMo
     inputPerMillion: 0.1,
     outputPerMillion: 0.5,
     expiresOn: null,
+    chatPickable: true,
     note: "Best Russian coverage among cheap models, clean English. New model, behavior may change.",
   },
   "openrouter/anthropic/claude-haiku-5.5": {
@@ -46,6 +48,7 @@ export const KNOWLEDGE_ITEM_MODELS: Record<KnowledgeItemModelId, KnowledgeItemMo
     inputPerMillion: 0.1,
     outputPerMillion: 0.5,
     expiresOn: null,
+    chatPickable: true,
     note: "Most precise wording, reliable schema. Fewer Russian items.",
   },
   "openrouter/google/gemma-4-31b-it": {
@@ -86,6 +89,7 @@ export const KNOWLEDGE_ITEM_MODELS: Record<KnowledgeItemModelId, KnowledgeItemMo
     inputPerMillion: 0.25,
     outputPerMillion: 2.0,
     expiresOn: null,
+    chatPickable: true,
     note: "Maximum coverage in both languages, about 8x the cost of Luna per text.",
   },
   "openrouter/google/gemini-3.1-flash-lite": {
@@ -94,6 +98,7 @@ export const KNOWLEDGE_ITEM_MODELS: Record<KnowledgeItemModelId, KnowledgeItemMo
     inputPerMillion: 0.25,
     outputPerMillion: 1.5,
     expiresOn: null,
+    chatPickable: true,
     note: "Reliable English. Weak Russian coverage.",
   },
   "openrouter/openai/gpt-4o-mini": {

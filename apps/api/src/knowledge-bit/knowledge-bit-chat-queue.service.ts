@@ -10,6 +10,7 @@ import { getDb } from "../db/client.js";
 import { countRecentLlmCallEventsByOp } from "../llm-call-events/llm-call-events.repo.js";
 import { AGENT_KEYS, getMastra, startTracingSpan } from "../mastra/mastra.js";
 import type { KnowledgeBitChatToolsDeps } from "../mastra/knowledge-bit-chat-tools.js";
+import { CHAT_QUEUE_LIGHT_MODEL_ID, CHAT_QUEUE_MODEL_ID, tierToModelId } from "../mastra/model-tier.js";
 import { generateWithRetry, isRateLimitError } from "../mastra/generate-with-retry.js";
 import { log } from "../shared/log.js";
 import {
@@ -121,6 +122,14 @@ async function budgetGate(): Promise<ChatQueueFailure | null> {
   return used + inFlight.size >= CHAT_QUEUE_HOURLY_CAP ? "budget_paused" : null;
 }
 
+function answeringModelId(input: SendChatQueueMessageInput, options: SendChatQueueMessageOptions, usedFallback: boolean): string {
+  if (usedFallback) {
+    return tierToModelId("cheap");
+  }
+
+  return input.modelId ?? (options.lightModel ? CHAT_QUEUE_LIGHT_MODEL_ID : CHAT_QUEUE_MODEL_ID);
+}
+
 async function persistTurn(
   bitId: string,
   input: SendChatQueueMessageInput,
@@ -128,6 +137,7 @@ async function persistTurn(
   usage: { inputTokens: number | null; outputTokens: number | null },
   proposals: ChatQueueProposal[],
   firstPrompt: boolean,
+  modelId: string | null,
 ): Promise<{ error: ChatQueueFailure } | { replySeq: number }> {
   try {
     return await getDb().transaction(async (tx) => {
@@ -149,7 +159,7 @@ async function persistTurn(
           clientMessageId: input.clientMessageId,
           userText: input.message,
           assistantText: reply,
-          modelId: null,
+          modelId,
           ...usage,
           proposals,
         },
@@ -260,6 +270,7 @@ async function generateReply(
   let reply: string;
   let sink: ChatQueueProposalSink = createChatQueueProposalSink();
   let usage: { inputTokens: number | null; outputTokens: number | null };
+  let usedFallback = false;
 
   try {
     const earlier = messages.flatMap((entry) => entry.proposals ?? []);
@@ -293,6 +304,8 @@ async function generateReply(
       }
 
       log.warn({ err, bitId }, "chat_queue_primary_model_failed");
+
+      usedFallback = true;
 
       return run(true);
     });
@@ -348,7 +361,15 @@ async function generateReply(
     reply = REPHRASE_REPLY;
   }
 
-  const persisted = await persistTurn(bitId, input, reply, usage, proposals, options.firstPrompt === true);
+  const persisted = await persistTurn(
+    bitId,
+    input,
+    reply,
+    usage,
+    proposals,
+    options.firstPrompt === true,
+    answeringModelId(input, options, usedFallback),
+  );
 
   if ("error" in persisted) {
     const replay = replayOf(await listChatQueueMessages(bitId), input.clientMessageId);

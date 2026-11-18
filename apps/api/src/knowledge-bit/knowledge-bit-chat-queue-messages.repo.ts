@@ -78,16 +78,18 @@ export async function listChatQueueMessages(
     createdAt: row.createdAt.toISOString(),
     clientMessageId: row.clientMessageId,
     ...(row.proposals?.length ? { proposals: row.proposals } : {}),
+    ...(row.modelId ? { modelId: row.modelId } : {}),
   }));
 }
 
 export function toPublicMessages(messages: StoredChatMessage[]): ChatQueueMessage[] {
-  return messages.map(({ seq, role, text, createdAt, proposals }) => ({
+  return messages.map(({ seq, role, text, createdAt, proposals, modelId }) => ({
     seq,
     role,
     text,
     createdAt,
     ...(proposals?.length ? { proposals } : {}),
+    ...(modelId ? { modelId } : {}),
   }));
 }
 
