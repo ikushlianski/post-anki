@@ -7,10 +7,14 @@ struct ReviewCardUserNote: View {
     @State private var draft: String?
     @State private var isSaving = false
     @State private var failed = false
+    private let onSaved: (String?) -> Void
 
-    init(bitId: String, note: String?) {
+    init(bitId: String, note: String?, startsEditing: Bool = false, onSaved: @escaping (String?) -> Void = { _ in }) {
         self.bitId = bitId
-        _saved = State(initialValue: (note ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : note)
+        self.onSaved = onSaved
+        let existing = (note ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : note
+        _saved = State(initialValue: existing)
+        _draft = State(initialValue: startsEditing ? (existing ?? "") : nil)
     }
 
     var body: some View {
@@ -71,6 +75,7 @@ struct ReviewCardUserNote: View {
         do {
             saved = try await APIClient.setKnowledgeBitUserNote(bitId: bitId, note: text)
             draft = nil
+            onSaved(saved)
         } catch {
             failed = true
         }

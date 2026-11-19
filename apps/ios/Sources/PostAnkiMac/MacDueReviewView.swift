@@ -52,6 +52,7 @@ struct MacDueReviewView: View {
         }
         .dueReviewChatSheet(model: model)
         .dueReviewMoveSheet(model: model)
+        .dueReviewCardToolSheets(model: model)
         .task { await model.loadIfNeeded() }
     }
 
@@ -94,17 +95,10 @@ struct MacDueReviewView: View {
 
         if model.state == .card, !model.isGrading, let card = model.current {
             ToolbarItem {
-                Button {
+                DueReviewCardControlsMenu(model: model) {
                     Task { editRoute = await model.editRoute(for: card) }
-                } label: {
-                    Label("Edit", systemImage: "pencil")
                 }
-                .help("Edit this card")
-            }
-
-            ToolbarItem {
-                DueReviewCardControlsMenu(model: model)
-                    .help("Chat, move, bury or suspend this card")
+                .help("Edit, copy, share, chat, move, bury or suspend this card")
             }
         }
 
@@ -134,6 +128,7 @@ private struct MacDueReviewCardView: View {
                     model: model,
                     card: card,
                     showsKeyHints: true,
+                    showsKnown: true,
                     showsProgress: true,
                     answerInput: { EmptyView() },
                     revealedFooter: {
@@ -155,7 +150,6 @@ private struct MacDueReviewCardView: View {
                 )
             }
         }
-        .dueReviewKnownSide(model: model)
         .focusable()
         .focusEffectDisabled()
         .focused($isCardFocused)

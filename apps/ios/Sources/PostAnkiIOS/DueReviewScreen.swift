@@ -83,15 +83,9 @@ struct DueReviewScreen: View {
 
             if model.state == .card, !model.isGrading, let card = model.current {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
+                    DueReviewCardControlsMenu(model: model) {
                         Task { editRoute = await model.editRoute(for: card) }
-                    } label: {
-                        Label("Edit", systemImage: "pencil")
                     }
-                }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    DueReviewCardControlsMenu(model: model)
                 }
             }
 
@@ -111,6 +105,7 @@ struct DueReviewScreen: View {
         }
         .dueReviewChatSheet(model: model)
         .dueReviewMoveSheet(model: model)
+        .dueReviewCardToolSheets(model: model)
         .navigationTitle(model.aheadLabel ?? title)
         .navigationBarTitleDisplayMode(.inline)
         .task { await model.loadIfNeeded() }
@@ -133,7 +128,7 @@ private struct DueReviewCardView: View {
                         model: model,
                         card: card,
                         showsGradeButtons: false,
-                        showsReviewedCount: false,
+                        showsReviewedCount: true,
                         answerInput: { EmptyView() },
                         revealedFooter: { EmptyView() },
                         unrevealed: { EmptyView() }
@@ -142,7 +137,9 @@ private struct DueReviewCardView: View {
             }
             .refreshable { await model.load() }
         }
-        .dueReviewKnownSide(model: model)
+        .overlay(alignment: .bottom) {
+            DueReviewUndoBanners(model: model)
+        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             DueReviewBottomBar(model: model)
         }

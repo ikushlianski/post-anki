@@ -1,67 +1,34 @@
 import SwiftUI
 
 struct DueReviewBottomBar: View {
+    @AppStorage(AnswerButtonSizeStore.key) private var sizeRaw = AnswerButtonSize.defaultSize.rawValue
+
     let model: DueReviewModel
 
+    private var barHeight: CGFloat {
+        max((AnswerButtonSize(rawValue: sizeRaw) ?? .defaultSize).height, AnswerButtonLayout.minHeight)
+            + DueReviewGradeBar.verticalPadding * 2
+            + 1
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-            if model.suspendedUndo != nil {
-                DueReviewSuspendedBanner(model: model)
-            }
-
-            if model.knownUndo != nil {
-                DueReviewKnownBanner(model: model)
-            }
-
-            if model.current != nil {
-                suspendRow
-            }
-
-            if model.reviewedCount > 0 {
-                Text("\(model.reviewedCount) reviewed this session")
-                    .zoomFont(.footnote)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-                    .background(.bar)
-            }
-
+        Group {
             if model.isRevealed {
                 DueReviewGradeBar(tiles: gradeTiles)
             } else {
-                MainActionControls(
-                    tiles: [MainActionTile(title: "Show Answer", style: .prominent) { model.reveal() }],
-                    extendsIntoBottomSafeArea: false
+                DueReviewGradeBar(
+                    tiles: [MainActionTile(title: "Show Answer", style: .prominent) { model.reveal() }]
                 )
             }
         }
-    }
-
-    private var suspendRow: some View {
-        HStack {
-            Spacer()
-
-            Button {
-                Task { await model.suspendCurrent(offersUndo: true) }
-            } label: {
-                Label("Suspend", systemImage: "pause.circle")
-                    .zoomFont(.footnote)
-            }
-            .buttonStyle(.borderless)
-            .disabled(model.isGrading)
-            .accessibilityIdentifier("due-review-suspend")
-            .accessibilityHint("Stops this card from coming up until you unsuspend it")
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(.bar)
+        .frame(height: barHeight)
+        .transaction { $0.animation = nil }
     }
 
     private var gradeTiles: [MainActionTile] {
         let rehearsal = model.current?.isRehearsal == true
 
-        return DueReviewGradeOptions.options(rehearsal: rehearsal).map { option in
+        var tiles = DueReviewGradeOptions.options(rehearsal: rehearsal).map { option in
             MainActionTile(
                 title: option.title,
                 isDisabled: model.isGrading,
@@ -71,69 +38,21 @@ struct DueReviewBottomBar: View {
                 Task { await model.grade(option.grade) }
             }
         }
-    }
-}
 
-private struct DueReviewSuspendedBanner: View {
-    let model: DueReviewModel
-
-    var body: some View {
-        HStack {
-            Text("Suspended")
-                .zoomFont(.footnote)
-
-            Text("·")
-                .foregroundStyle(.secondary)
-
-            Button("Undo") {
-                Task { await model.undoSuspend() }
+        if !rehearsal {
+            let known = MainActionTile(
+                title: "Known",
+                isDisabled: model.isGrading,
+                tint: .teal,
+                systemImage: "checkmark.seal.fill",
+                identifier: "due-review-known"
+            ) {
+                Task { await model.markCurrentKnown() }
             }
-            .zoomFont(.footnote.weight(.semibold))
-            .buttonStyle(.borderless)
-            .disabled(model.isGrading)
-            .accessibilityIdentifier("due-review-suspend-undo")
+
+            tiles.insert(known, at: max(tiles.count - 1, 0))
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(.bar)
-        .task(id: model.suspendedUndo?.variantId) {
-            try? await Task.sleep(for: .seconds(5))
 
-            guard !Task.isCancelled else { return }
-
-            model.suspendedUndo = nil
-        }
-    }
-}
-
-private struct DueReviewKnownBanner: View {
-    let model: DueReviewModel
-
-    var body: some View {
-        HStack {
-            Text("Marked as known")
-                .zoomFont(.footnote)
-
-            Text("·")
-                .foregroundStyle(.secondary)
-
-            Button("Undo") {
-                Task { await model.undoKnown() }
-            }
-            .zoomFont(.footnote.weight(.semibold))
-            .buttonStyle(.borderless)
-            .disabled(model.isGrading)
-            .accessibilityIdentifier("due-review-known-undo")
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(.bar)
-        .task(id: model.knownUndo?.reviewId) {
-            try? await Task.sleep(for: .seconds(5))
-
-            guard !Task.isCancelled else { return }
-
-            model.knownUndo = nil
-        }
+        return tiles
     }
 }

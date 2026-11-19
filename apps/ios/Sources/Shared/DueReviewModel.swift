@@ -25,6 +25,9 @@ final class DueReviewModel {
     var previousSubjectPath: String?
     var chatCard: ReviewCard?
     var movePickerCard: ReviewCard?
+    var makeCardCard: ReviewCard?
+    var noteCard: ReviewCard?
+    var savedNotes: [String: String] = [:]
     var moveError: String?
     var isRevealed = false
     var isGrading = false

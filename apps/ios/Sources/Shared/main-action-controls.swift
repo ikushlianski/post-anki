@@ -13,6 +13,7 @@ struct MainActionTile {
     var isDisabled = false
     var tint: Color?
     var caption: String?
+    var systemImage: String?
     var shortcut: KeyboardShortcut?
     var identifier: String?
     let action: () -> Void

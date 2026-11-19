@@ -8,6 +8,7 @@ struct DueReviewCardBody<AnswerInput: View, RevealedFooter: View, Unrevealed: Vi
     var showsGradeButtons = true
     var showsReviewedCount = true
     var showsKeyHints = false
+    var showsKnown = false
     var showsProgress = false
     @ViewBuilder let answerInput: () -> AnswerInput
     @ViewBuilder let revealedFooter: () -> RevealedFooter
@@ -84,24 +85,20 @@ struct DueReviewCardBody<AnswerInput: View, RevealedFooter: View, Unrevealed: Vi
                         .textSelection(.enabled)
                 }
 
-                ReviewCardUserNote(bitId: card.knowledgeBitId, note: card.userNote)
-                    .id(card.knowledgeBitId)
-
-                ReviewMakeCardButton(bitId: card.knowledgeBitId, question: card.face.front, answer: answerText, canReachServer: model.canReachServer)
-                    .id(card.knowledgeBitId)
-
-                CopyAllButton(parts: CardCopyText.reviewParts(card))
-
-                ShareCardButton(card: card)
-
-                CopyCardIdButton(id: card.variantId)
+                if let note = (model.savedNotes[card.knowledgeBitId] ?? card.userNote)?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty {
+                    Text(note)
+                        .zoomFont(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .accessibilityIdentifier("review-card-note")
+                }
 
                 if showsGradeButtons, card.isRehearsal {
                     DueReviewRehearsalButtons(isDisabled: model.isGrading) { grade in
                         Task { await model.grade(grade) }
                     }
                 } else if showsGradeButtons {
-                    DueReviewGradeButtons(preview: card.intervalPreview, isDisabled: model.isGrading, showsKeyHints: showsKeyHints) { grade in
+                    DueReviewGradeButtons(preview: card.intervalPreview, isDisabled: model.isGrading, showsKeyHints: showsKeyHints, onKnown: showsKnown ? { Task { await model.markCurrentKnown() } } : nil) { grade in
                         Task { await model.grade(grade) }
                     }
                 }
