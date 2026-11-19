@@ -10,6 +10,7 @@ import { SubjectChatPanel } from '../subject-chat/subject-chat-panel'
 import { useCardSelection } from '../subject-chat/use-card-selection'
 import { useSubjectHinting } from '../subject-study-options/use-subject-hinting'
 import { AnkiReviewCard } from './anki-review-card'
+import { useStaleRevealGuard } from './use-stale-reveal-guard'
 import { AnkiReviewCardActionsWithMove } from './anki-review-card-actions-with-move'
 import { AnkiReviewCardEditPanel } from './anki-review-card-edit-panel'
 import { AnkiReviewGradeError } from './anki-review-grade-error'
@@ -75,6 +76,7 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
     refill: () => queryClient.invalidateQueries({ queryKey: reviewQueueQueryKey(scope) }),
   })
   const current = actions.refilling ? null : card
+  useStaleRevealGuard(state, current, dispatch)
   const hintingEnabled = useSubjectHinting(resolveCardSubjectId(current))
   const editing = state.editingSince !== null
   const [chatCardId, setChatCardId] = useState<string | null>(null)
@@ -243,7 +245,7 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
                 <AnkiReviewCardActionsWithMove
                   card={current}
                   revealed={state.revealed && !editing}
-                  advance={actions.advance}
+                  advanceWith={actions.advanceWith}
                   disabled={actions.busy || editing}
                   onEdit={() => dispatch({ type: 'editStarted', now: Date.now() })}
                   onBury={() => void actions.control('bury')}

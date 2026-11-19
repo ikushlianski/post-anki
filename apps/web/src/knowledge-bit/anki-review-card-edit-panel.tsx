@@ -31,9 +31,9 @@ export function AnkiReviewCardEditPanel({
 
   return (
     <AnkiReviewCardEditor
-      context={card.context ?? ''}
-      prompt={card.prompt}
-      answer={card.answer}
+      context={actions.editDraft ? (actions.editDraft.context ?? '') : (card.context ?? '')}
+      prompt={actions.editDraft?.prompt ?? card.prompt}
+      answer={actions.editDraft?.answer ?? card.answer}
       error={actions.editError}
       disabled={actions.busy}
       onSave={(prompt, answer, context) => void actions.saveEdit(prompt, answer, context)}

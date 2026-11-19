@@ -53,6 +53,8 @@ extension DueReviewModel {
         notice = nil
         suspendedUndo = nil
 
+        let advanced = advanceFirst(past: card, buriedVariantIds: card.isIndependentCard ? [] : nil)
+
         do {
             _ = try await APIClient.setSchedule(
                 id: card.knowledgeBitId,
@@ -61,8 +63,10 @@ extension DueReviewModel {
                 variantId: card.variantId
             )
 
-            removeFromQueue(afterGrading: card, buriedVariantIds: card.isIndependentCard ? [] : nil)
-            await showNext()
+            if advanced == nil {
+                removeFromQueue(afterGrading: card, buriedVariantIds: card.isIndependentCard ? [] : nil)
+                await showNext()
+            }
 
             if offersUndo {
                 suspendedUndo = card
@@ -70,15 +74,19 @@ extension DueReviewModel {
                 notice = done
             }
         } catch is CancellationError {
-            return
+            if let advanced { rollBack(advanced) }
         } catch let error as URLError where error.code == .cancelled {
-            return
+            if let advanced { rollBack(advanced) }
         } catch {
             if KnowledgeManageError.isGone(error) {
                 skippedVariantIds.insert(card.variantId)
-                await showNext()
+
+                if advanced == nil { await showNext() }
+
                 notice = "That card is no longer available"
             } else {
+                if let advanced { rollBack(advanced) }
+
                 notice = KnowledgeManageError.message(for: error, action: "update this card")
             }
         }

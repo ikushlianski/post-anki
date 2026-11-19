@@ -37,31 +37,52 @@ extension DueReviewModel {
         suspendedUndo = nil
         knownUndo = nil
 
+        let advanced = advanceFirst(past: card, buriedVariantIds: [])
+
+        if advanced != nil { movePickerCard = nil }
+
         do {
             let result = try await APIClient.moveKnowledgeBits(ids: [card.knowledgeBitId], subjectId: subjectId)
 
             guard result.moved.contains(card.knowledgeBitId) else {
-                moveError = Self.moveSkipMessage(result.skipped.first?.reason)
+                failMove(card, advanced, message: Self.moveSkipMessage(result.skipped.first?.reason))
 
                 return false
             }
 
             recents.record(subjectId)
             movePickerCard = nil
-            removeFromQueue(afterGrading: card, buriedVariantIds: [])
-            await showNext()
+
+            if advanced == nil {
+                removeFromQueue(afterGrading: card, buriedVariantIds: [])
+                await showNext()
+            }
+
             notice = "Moved to \(label)"
 
             return true
         } catch is CancellationError {
+            failMove(card, advanced, message: nil)
+
             return false
         } catch let error as URLError where error.code == .cancelled {
+            failMove(card, advanced, message: nil)
+
             return false
         } catch {
-            moveError = KnowledgeManageError.message(for: error, action: "move this card")
+            failMove(card, advanced, message: KnowledgeManageError.message(for: error, action: "move this card"))
 
             return false
         }
+    }
+
+    private func failMove(_ card: ReviewCard, _ advanced: AdvanceSnapshot?, message: String?) {
+        if let advanced {
+            rollBack(advanced)
+            movePickerCard = card
+        }
+
+        if let message { moveError = message }
     }
 
     static func moveSkipMessage(_ reason: String?) -> String {

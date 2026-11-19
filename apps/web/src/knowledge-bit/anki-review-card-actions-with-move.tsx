@@ -9,7 +9,7 @@ export function AnkiReviewCardActionsWithMove({
   card,
   revealed,
   disabled,
-  advance,
+  advanceWith,
   onEdit,
   onBury,
   onSuspend,
@@ -18,14 +18,14 @@ export function AnkiReviewCardActionsWithMove({
   card: ReviewCard
   revealed: boolean
   disabled: boolean
-  advance: (notice: string) => Promise<void>
+  advanceWith: (notice: string, save: () => Promise<boolean>) => Promise<boolean>
   onEdit: () => void
   onBury: () => void
   onSuspend: () => void
   onChat: () => void
 }) {
   const online = useOnlineStatus()
-  const move = useReviewMoveControl({ current: card, online, advance })
+  const move = useReviewMoveControl({ current: card, online, advanceWith })
 
   return (
     <AnkiReviewCardActions

@@ -8,7 +8,7 @@ import { useReviewCardMove } from './use-review-card-move'
 export function useReviewMoveControl(input: {
   current: ReviewCard | null
   online: boolean
-  advance: (notice: string) => Promise<void>
+  advanceWith: (notice: string, save: () => Promise<boolean>) => Promise<boolean>
 }): { onMove: () => void; picker: ReactNode } {
   const { current } = input
   const [openCardId, setOpenCardId] = useState<string | null>(null)

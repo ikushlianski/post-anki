@@ -17,10 +17,10 @@ const FAILED_MESSAGE = "Couldn't move the card. Try again."
 interface Input {
   current: ReviewCard | null
   online: boolean
-  advance: (notice: string) => Promise<void>
+  advanceWith: (notice: string, save: () => Promise<boolean>) => Promise<boolean>
 }
 
-export function useReviewCardMove({ current, online, advance }: Input) {
+export function useReviewCardMove({ current, online, advanceWith }: Input) {
   const [moving, setMoving] = useState(false)
   const [moveError, setMoveError] = useState<string | null>(null)
   const inFlight = useRef(false)
@@ -41,23 +41,30 @@ export function useReviewCardMove({ current, online, advance }: Input) {
     setMoveError(null)
 
     try {
-      const outcome = await moveKnowledgeBitToSubjectForReview({
-        data: { bitId: current.knowledgeBitId, subjectId },
+      return await advanceWith(`Moved to ${label}`, async () => {
+        try {
+          const outcome = await moveKnowledgeBitToSubjectForReview({
+            data: { bitId: current.knowledgeBitId, subjectId },
+          })
+
+          if (!outcome.moved.includes(current.knowledgeBitId)) {
+            const reason = outcome.skipped[0]?.reason ?? ''
+
+            setMoveError(SKIP_MESSAGES[reason] ?? FAILED_MESSAGE)
+
+            return false
+          }
+
+          recordRecentMoveTarget(subjectId)
+          notifyPendingReviewChanged()
+
+          return true
+        } catch {
+          setMoveError(FAILED_MESSAGE)
+
+          return false
+        }
       })
-
-      if (!outcome.moved.includes(current.knowledgeBitId)) {
-        const reason = outcome.skipped[0]?.reason ?? ''
-
-        setMoveError(SKIP_MESSAGES[reason] ?? FAILED_MESSAGE)
-
-        return false
-      }
-
-      recordRecentMoveTarget(subjectId)
-      notifyPendingReviewChanged()
-      await advance(`Moved to ${label}`)
-
-      return true
     } catch {
       setMoveError(FAILED_MESSAGE)
 

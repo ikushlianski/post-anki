@@ -33,29 +33,62 @@ extension DueReviewModel {
         suspendedUndo = nil
         knownUndo = nil
 
+        let advanced = advanceFirst(past: card, buriedVariantIds: card.isIndependentCard ? [] : nil)
+
+        if advanced != nil { await countKnownLocally(card) }
+
         do {
             let result = try await APIClient.recordKnownReview(variantId: card.variantId)
 
-            await reviewPack.noteGraded(variantId: card.variantId, bitId: card.knowledgeBitId)
-            settledVariantIds.insert(card.variantId)
-            reviewedCount += 1
-            countGraded(card)
-            removeFromQueue(afterGrading: card, buriedVariantIds: card.isIndependentCard ? [] : nil)
-            await showNext()
+            if advanced == nil {
+                await countKnownLocally(card)
+                removeFromQueue(afterGrading: card, buriedVariantIds: card.isIndependentCard ? [] : nil)
+                await showNext()
+            }
+
             knownUndo = KnownUndo(card: card, reviewId: result.reviewId)
         } catch is CancellationError {
-            return
+            await revertKnownCount(card, rollingBack: advanced)
         } catch let error as URLError where error.code == .cancelled {
-            return
+            await revertKnownCount(card, rollingBack: advanced)
         } catch {
             if KnowledgeManageError.isGone(error) {
                 skippedVariantIds.insert(card.variantId)
-                await showNext()
+
+                if advanced == nil { await showNext() }
+
                 notice = "That card is no longer available"
             } else {
+                await revertKnownCount(card, rollingBack: advanced)
                 notice = KnowledgeManageError.message(for: error, action: "mark this card as known")
             }
         }
+    }
+
+    private func countKnownLocally(_ card: ReviewCard) async {
+        await reviewPack.noteGraded(variantId: card.variantId, bitId: card.knowledgeBitId)
+        settledVariantIds.insert(card.variantId)
+        reviewedCount += 1
+        countGraded(card)
+    }
+
+    private func uncountKnown(_ card: ReviewCard) async {
+        await reviewPack.unmarkGraded(variantId: card.variantId)
+        settledVariantIds.remove(card.variantId)
+        reviewedCount = max(0, reviewedCount - 1)
+
+        if card.phase == "new" {
+            gradedNewCount = max(0, gradedNewCount - 1)
+        } else {
+            gradedOtherCount = max(0, gradedOtherCount - 1)
+        }
+    }
+
+    private func revertKnownCount(_ card: ReviewCard, rollingBack advanced: AdvanceSnapshot?) async {
+        guard let advanced else { return }
+
+        await uncountKnown(card)
+        rollBack(advanced)
     }
 
     func undoKnown() async {
@@ -70,16 +103,7 @@ extension DueReviewModel {
         do {
             _ = try await APIClient.undoReview(reviewId: known.reviewId)
 
-            await reviewPack.unmarkGraded(variantId: known.card.variantId)
-            settledVariantIds.remove(known.card.variantId)
-            reviewedCount = max(0, reviewedCount - 1)
-
-            if known.card.phase == "new" {
-                gradedNewCount = max(0, gradedNewCount - 1)
-            } else {
-                gradedOtherCount = max(0, gradedOtherCount - 1)
-            }
-
+            await uncountKnown(known.card)
             queue.removeAll { $0.variantId == known.card.variantId }
 
             if let shown = current, shown.variantId != known.card.variantId {

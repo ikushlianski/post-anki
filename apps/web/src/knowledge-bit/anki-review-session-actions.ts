@@ -2,21 +2,18 @@ import { useRef, useState, type Dispatch } from 'react'
 import type { ReviewCard, ReviewGrade } from '@post-anki/shared'
 
 import type { AnkiReviewSessionAction, AnkiReviewSessionState } from './anki-review-session'
-import { editReviewCard, updateCardSchedule } from './anki-review.api'
+import { updateCardSchedule, type SubmitReviewOutcome } from './anki-review.api'
 import { submitGradeOrQueue, undoGrade } from '../review-offline/submit-grade-or-queue'
 import { confirmedGradeAction, isBatchExhausted, optimisticGradeAction } from './anki-review-optimistic-grade'
 import { incrementDailyReviewCount } from './daily-review-storage'
 import { notifyPendingReviewChanged } from './knowledge-bit-review-events'
 import { browserTimeZone } from '../shared/browser-time-zone'
+import { cardScope, useReviewBackgroundActions, type EditDraft } from './use-review-background-actions'
 
 export const NON_RETRYABLE_ERRORS = new Set(['not_approved', 'variant_not_found'])
 
 const UNDO_REFUSED_NOTICE =
   "That grade can't be undone any more, because the card was reviewed again since."
-
-function cardScope(card: ReviewCard): { variantId?: string } {
-  return card.cardKey ? { variantId: card.variantId } : {}
-}
 
 function sameGradeAttempt(pending: PendingGrade | null, variantId: string, grade: ReviewGrade): pending is PendingGrade {
   return pending !== null && pending.variantId === variantId && pending.grade === grade
@@ -52,6 +49,7 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
   const [error, setError] = useState<string | null>(null)
   const [failedGrade, setFailedGrade] = useState<ReviewGrade | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState<EditDraft | null>(null)
   const inFlight = useRef(false)
   const pendingGrade = useRef<PendingGrade | null>(null)
 
@@ -133,7 +131,7 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
         tz: browserTimeZone(),
         burySiblings,
         rehearsal: Boolean(rehearsal),
-      })
+      }).catch((): SubmitReviewOutcome => ({ ok: false, error: 'grade_save_failed' }))
 
       if (!outcome.ok) {
         dispatch({ type: 'gradeRolledBack', snapshot })
@@ -169,31 +167,6 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
     await grade(value)
   }
 
-  const control = (kind: 'suspend' | 'bury') =>
-    exclusive(async () => {
-      if (!current) {
-        return
-      }
-
-      const outcome = await updateCardSchedule({
-        data: {
-          knowledgeBitId: current.knowledgeBitId,
-          ...cardScope(current),
-          tz: browserTimeZone(),
-          ...(kind === 'suspend' ? { suspended: true } : { buried: true }),
-        },
-      }).catch(() => ({ ok: false as const, error: 'control_failed' }))
-
-      if (!outcome.ok) {
-        setError(outcome.error)
-        return
-      }
-
-      notifyPendingReviewChanged()
-
-      await moveOnAfter({ type: 'acted', entry: { kind, card: current, stamp }, now: Date.now() })
-    })
-
   const undo = () =>
     exclusive(async () => {
       const entry = state.undo[state.undo.length - 1]
@@ -228,52 +201,26 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
       setError(outcome.error)
     }).catch(() => setError('undo_failed'))
 
-  const submitEdit = (payload: { prompt: string; answer: string; context?: string | null } | { note: string } | { list: string }) =>
-    exclusive(async () => {
-      if (!current) {
-        return
-      }
-
-      setEditError(null)
-
-      const outcome = await editReviewCard({
-        data: { variantId: current.variantId, ...payload },
-      }).catch(() => ({ ok: false as const, error: 'edit_failed', message: undefined }))
-
-      if (!outcome.ok) {
-        setEditError(
-          outcome.error === 'not_found'
-            ? 'This card was changed or removed elsewhere.'
-            : (outcome.error === 'invalid_note' || outcome.error === 'invalid_list') && outcome.message
-              ? outcome.message
-              : "Couldn't save the edit. Try again.",
-        )
-        return
-      }
-
-      dispatch({
-        type: 'editSaved',
-        knowledgeBitId: current.knowledgeBitId,
-        edit: {
-          variantId: outcome.variantId,
-          replacesVariantId: current.variantId,
-          prompt: outcome.prompt ?? ('prompt' in payload ? payload.prompt.trim() : current.prompt),
-          answer: outcome.answer ?? ('answer' in payload ? payload.answer.trim() : current.answer),
-          context:
-            'context' in payload && payload.context !== undefined
-              ? payload.context?.trim() || null
-              : (current.context ?? null),
-        },
-        now: Date.now(),
-      })
-    })
+  const background = useReviewBackgroundActions({
+    state,
+    dispatch,
+    current,
+    batchSize,
+    stamp,
+    refill,
+    exclusive,
+    setError,
+    setRefilling,
+    setEditError,
+    setEditDraft,
+  })
 
   const saveEdit = (prompt: string, answer: string, context?: string | null) =>
-    submitEdit(context === undefined ? { prompt, answer } : { prompt, answer, context })
+    background.submitEdit(context === undefined ? { prompt, answer } : { prompt, answer, context })
 
-  const saveNote = (note: string) => submitEdit({ note })
+  const saveNote = (note: string) => background.submitEdit({ note })
 
-  const saveList = (list: string) => submitEdit({ list })
+  const saveList = (list: string) => background.submitEdit({ list })
 
   const retryGrade = () => (failedGrade === null ? undefined : grade(failedGrade))
 
@@ -287,12 +234,17 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
     grade,
     gradeKey,
     retryGrade,
-    control,
+    control: background.control,
+    advanceWith: background.advanceWith,
+    editDraft,
     undo,
     saveEdit,
     saveNote,
     saveList,
     advance,
-    setEditError,
+    setEditError: (message: string | null) => {
+      setEditError(message)
+      setEditDraft(null)
+    },
   }
 }
