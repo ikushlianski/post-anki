@@ -55,6 +55,7 @@ export const reviewCardSchema = z.object({
   sentence: z.string().optional(),
   cardKey: cardKeySchema.optional(),
   background: z.string().nullable(),
+  userNote: z.string().nullable().optional(),
   isAiGenerated: z.boolean(),
   aiSuggestion: z.string().nullable().optional(),
   originalPhrase: z.string().optional(),

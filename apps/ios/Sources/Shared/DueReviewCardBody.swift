@@ -84,6 +84,9 @@ struct DueReviewCardBody<AnswerInput: View, RevealedFooter: View, Unrevealed: Vi
                         .textSelection(.enabled)
                 }
 
+                ReviewCardUserNote(bitId: card.knowledgeBitId, note: card.userNote)
+                    .id(card.knowledgeBitId)
+
                 CopyAllButton(parts: CardCopyText.reviewParts(card))
 
                 ShareCardButton(card: card)

@@ -13,6 +13,7 @@ import { loadSubjectPathLabels } from "../subject/subject-path-labels.js";
 import { groupReviewCardsBySubject } from "./knowledge-bit-review-subject-groups.js";
 import { getKnowledgeBitReviewQueue } from "./knowledge-bit-review-queue.repo.js";
 import { buildReviewPack } from "./knowledge-bit-review-pack.service.js";
+import { attachUserNotes } from "./knowledge-bit-user-note.repo.js";
 import { resolveReviewedAt } from "./knowledge-bit-review-time.js";
 import { recordKnowledgeBitReview } from "./knowledge-bit-review.orchestrator.js";
 import { recordKnownKnowledgeBitReview } from "./knowledge-bit-review-known.orchestrator.js";
@@ -39,7 +40,9 @@ export async function handleListKnowledgeBitReviewCards(
 
   const labels = await loadSubjectPathLabels();
 
-  sendJson(res, 200, { ...queue, cards: groupReviewCardsBySubject(queue.cards, labels) });
+  const cards = await attachUserNotes(groupReviewCardsBySubject(queue.cards, labels));
+
+  sendJson(res, 200, { ...queue, cards });
 }
 
 export async function handleGetReviewPack(res: http.ServerResponse, search: string): Promise<void> {
@@ -50,7 +53,18 @@ export async function handleGetReviewPack(res: http.ServerResponse, search: stri
     return;
   }
 
-  sendJson(res, 200, await buildReviewPack(parsed.data.tz, new Date()));
+  const pack = await buildReviewPack(parsed.data.tz, new Date());
+  const cards = await attachUserNotes(pack.cards);
+  const alternates = await attachUserNotes(cards.flatMap((card) => card.alternates));
+  const noteByBit = new Map(alternates.map((alt) => [alt.knowledgeBitId, alt.userNote]));
+
+  sendJson(res, 200, {
+    ...pack,
+    cards: cards.map((card) => ({
+      ...card,
+      alternates: card.alternates.map((alt) => ({ ...alt, userNote: noteByBit.get(alt.knowledgeBitId) ?? null })),
+    })),
+  });
 }
 
 export async function handleRecordKnowledgeBitReview(

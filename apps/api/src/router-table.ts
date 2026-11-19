@@ -261,6 +261,12 @@ export const ROUTES: RouteDef[] = [
     param: "id",
   },
   {
+    method: "PUT",
+    pattern: /^\/knowledge-bits\/([^/]+)\/note$/,
+    name: "setKnowledgeBitUserNote",
+    param: "id",
+  },
+  {
     method: "PATCH",
     pattern: /^\/knowledge-bits\/([^/]+)$/,
     name: "editKnowledgeBit",

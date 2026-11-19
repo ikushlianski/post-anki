@@ -6,6 +6,7 @@ import { CardText } from '../code-block/card-text'
 import { hasFencedCode } from '../code-block/split-fenced-code'
 import { CopyCardIdButton } from '../debugging/copy-card-id-button'
 import { CardContextLine } from './card-context-line'
+import { KnowledgeBitUserNote } from './knowledge-bit-user-note'
 import { KnowledgeBrowserDetailCards } from './knowledge-browser-detail-cards'
 import { formatAddedAt } from './knowledge-browser-columns'
 import { BROWSER_ADDED_BY_LABELS, BROWSER_ORIGIN_LABELS, BROWSER_STATE_LABELS } from './knowledge-browser-filters'
@@ -138,6 +139,13 @@ export function KnowledgeBrowserDetailBody({ detail }: { detail: KnowledgeBitDet
             </li>
           ))}
         </ul>
+      </Section>
+      <Section title="My note" testId="knowledge-browser-detail-user-note">
+        <KnowledgeBitUserNote
+          key={detail.knowledgeBitId}
+          knowledgeBitId={detail.knowledgeBitId}
+          initialNote={detail.userNote}
+        />
       </Section>
       <KnowledgeBrowserDetailCards cards={detail.cards} />
       <Section title="Details" testId="knowledge-browser-detail-meta">

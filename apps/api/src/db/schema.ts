@@ -1255,6 +1255,7 @@ export const knowledgeBits = pgTable(
     ordinal: integer("ordinal").notNull(),
     body: text("body").notNull(),
     background: text("background"),
+    userNote: text("user_note"),
     // Bit-level review gate (ki-approval-gate/spec.md) — distinct from knowledgeSources.status's
     // own "pending", which means "not yet detected". Every row, old and new, defaults here.
     approvalState: text("approval_state").notNull().default("pending"),

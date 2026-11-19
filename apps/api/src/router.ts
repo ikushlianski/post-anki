@@ -45,6 +45,7 @@ export type RouteName =
   | "countKnowledgeBitBrowserSubjects"
   | "listKnowledgeBitBrowserMatches"
   | "getKnowledgeBitDetail"
+  | "setKnowledgeBitUserNote"
   | "exportKnowledgeBits"
   | "bulkDeleteKnowledgeBits"
   | "purgeKnowledgeBits"

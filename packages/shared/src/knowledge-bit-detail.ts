@@ -57,6 +57,7 @@ export const knowledgeBitDetailSchema = z.object({
   knowledgeBitId: z.string(),
   body: z.string(),
   context: z.string().nullable(),
+  userNote: z.string().nullable().optional(),
   phrasings: z.array(knowledgeBitDetailPhrasingSchema).min(1),
   subjectPath: z.array(z.string()),
   tags: z.array(z.string()),
@@ -72,3 +73,11 @@ export const knowledgeBitDetailSchema = z.object({
 });
 
 export type KnowledgeBitDetail = z.infer<typeof knowledgeBitDetailSchema>;
+
+export const KNOWLEDGE_BIT_USER_NOTE_MAX_LENGTH = 2000;
+
+export const setKnowledgeBitUserNoteInput = z.object({
+  note: z.string().max(KNOWLEDGE_BIT_USER_NOTE_MAX_LENGTH),
+});
+
+export type SetKnowledgeBitUserNoteInput = z.infer<typeof setKnowledgeBitUserNoteInput>;

@@ -85,6 +85,7 @@ import {
 } from "./knowledge-bit/knowledge-cleanup.controller.js";
 import { handleBulkDeleteKnowledgeBits } from "./knowledge-bit/knowledge-bit-delete.controller.js";
 import { handleCreateKnowledgeBitPhraseSplit } from "./knowledge-source/phrase-split.controller.js";
+import { handleSetKnowledgeBitUserNote } from "./knowledge-bit/knowledge-bit-user-note.controller.js";
 import { handleBulkMoveKnowledgeBits } from "./knowledge-bit/knowledge-bit-move.controller.js";
 import {
   handleBulkApproveKnowledgeBits,
@@ -1115,6 +1116,8 @@ async function route(
       return handleGenerateKnowledgeBitVariants(res, id);
     case "getKnowledgeBitDetail":
       return handleGetKnowledgeBitDetail(res, id);
+    case "setKnowledgeBitUserNote":
+      return handleSetKnowledgeBitUserNote(req, res, id);
     case "editKnowledgeBit":
       return handleEditKnowledgeBit(req, res, id);
     case "getCurriculumStats":

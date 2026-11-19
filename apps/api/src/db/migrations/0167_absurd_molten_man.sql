@@ -1,0 +1,1 @@
+ALTER TABLE "knowledge_bits" ADD COLUMN "user_note" text;

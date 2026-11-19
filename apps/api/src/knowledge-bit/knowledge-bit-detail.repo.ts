@@ -75,6 +75,7 @@ export async function getKnowledgeBitDetail(
     .select({
       body: knowledgeBits.body,
       context: knowledgeBits.background,
+      userNote: knowledgeBits.userNote,
       createdAt: knowledgeBits.createdAt,
       origin: sourceTypeSql,
       addedBy: addedBySql,
@@ -128,6 +129,7 @@ export async function getKnowledgeBitDetail(
     knowledgeBitId: id,
     body: row.body,
     context: row.context?.trim() ? row.context : null,
+    userNote: row.userNote?.trim() ? row.userNote : null,
     phrasings: variants.map((variant) => ({
       id: variant.id,
       kind: variant.kind as KnowledgeBitQuestionVariantKind,

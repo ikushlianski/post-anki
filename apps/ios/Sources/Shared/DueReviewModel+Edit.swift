@@ -25,7 +25,8 @@ extension DueReviewModel {
                 cardKey: latest.cardKey,
                 aiSuggestion: latest.aiSuggestion,
                 originalPhrase: latest.originalPhrase,
-                subjectPath: latest.subjectPath
+                subjectPath: latest.subjectPath,
+                userNote: latest.userNote
             )
 
             return nil
@@ -79,7 +80,8 @@ extension DueReviewModel {
                 cardKey: latest.cardKey,
                 aiSuggestion: latest.aiSuggestion,
                 originalPhrase: latest.originalPhrase,
-                subjectPath: latest.subjectPath
+                subjectPath: latest.subjectPath,
+                userNote: latest.userNote
             )
 
             return nil

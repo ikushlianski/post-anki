@@ -49,11 +49,12 @@ public struct ReviewCard: Codable, Identifiable, Hashable, Sendable {
     public let aiSuggestion: String?
     public let originalPhrase: String?
     public let subjectPath: String?
+    public var userNote: String?
     public var isRehearsal = false
 
     private enum CodingKeys: String, CodingKey {
         case variantId, knowledgeBitId, kind, context, prompt, answer, sentence, background, phase, leech
-        case intervalPreview, cardKey, aiSuggestion, originalPhrase, subjectPath
+        case intervalPreview, cardKey, aiSuggestion, originalPhrase, subjectPath, userNote
     }
 
     public var asRehearsal: ReviewCard {
@@ -98,7 +99,8 @@ public struct ReviewCard: Codable, Identifiable, Hashable, Sendable {
         cardKey: String? = nil,
         aiSuggestion: String? = nil,
         originalPhrase: String? = nil,
-        subjectPath: String? = nil
+        subjectPath: String? = nil,
+        userNote: String? = nil
     ) {
         self.variantId = variantId
         self.knowledgeBitId = knowledgeBitId
@@ -115,6 +117,7 @@ public struct ReviewCard: Codable, Identifiable, Hashable, Sendable {
         self.aiSuggestion = aiSuggestion
         self.originalPhrase = originalPhrase
         self.subjectPath = subjectPath
+        self.userNote = userNote
     }
 }
 

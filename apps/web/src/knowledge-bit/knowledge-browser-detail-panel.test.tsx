@@ -204,12 +204,15 @@ describe('knowledge browser detail panel', () => {
     expect(await screen.findByTestId('knowledge-browser-detail-missing')).toBeTruthy()
   })
 
-  it('should offer no edit, delete or move controls', async () => {
+  it('should offer no card edit, delete or move controls, only the personal note', async () => {
     api.get.mockResolvedValue({ ok: true, detail: full })
     renderPanel()
     await screen.findByTestId('knowledge-browser-detail-meta')
 
-    const labels = screen.getAllByRole('button', { hidden: true }).map((button) => button.getAttribute('aria-label'))
+    const labels = screen
+      .getAllByRole('button', { hidden: true })
+      .filter((button) => button.getAttribute('data-testid') !== 'user-note-edit')
+      .map((button) => button.getAttribute('aria-label'))
 
     expect(labels.sort()).toEqual(['Close', 'Close details'])
     expect(screen.queryByRole('textbox')).toBeNull()

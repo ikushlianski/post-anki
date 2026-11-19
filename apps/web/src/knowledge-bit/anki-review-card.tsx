@@ -1,3 +1,4 @@
+import { KnowledgeBitUserNote } from './knowledge-bit-user-note'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { isBlankKind, renderClozeBack, stripPromptHint, type ReviewCard } from '@post-anki/shared'
 
@@ -151,6 +152,11 @@ export function AnkiReviewCard({
               {card.background}
             </p>
           )}
+          <KnowledgeBitUserNote
+            key={card.knowledgeBitId}
+            knowledgeBitId={card.knowledgeBitId}
+            initialNote={card.userNote}
+          />
           <AiSuggestionBlock original={card.originalPhrase ?? card.answer} aiSuggestion={card.aiSuggestion} />
           {!card.isAiGenerated && <CardSourceLink sourceLinks={card.sourceLinks} />}
         </>
