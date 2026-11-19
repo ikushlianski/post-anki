@@ -323,6 +323,7 @@ describe("migrations — knowledge_sources table (prose-knowledge-fisher--accept
       expect.objectContaining({ column_name: "highlights", data_type: "jsonb", is_nullable: "YES" }),
       expect.objectContaining({ column_name: "source_author", data_type: "text", is_nullable: "YES" }),
       expect.objectContaining({ column_name: "text_key", data_type: "text", is_nullable: "YES" }),
+      expect.objectContaining({ column_name: "origin", data_type: "text", is_nullable: "YES" }),
     ]);
   });
 
@@ -809,6 +810,7 @@ describe("migrations — knowledge_bits table (prose-knowledge-fisher--detect-kn
       expect.objectContaining({ column_name: "similar_bit_ids", data_type: "jsonb", is_nullable: "YES" }),
       expect.objectContaining({ column_name: "chat_first_prompt", data_type: "text", is_nullable: "YES" }),
       expect.objectContaining({ column_name: "generated_by_model_id", data_type: "text", is_nullable: "YES" }),
+      expect.objectContaining({ column_name: "user_note", data_type: "text", is_nullable: "YES" }),
     ]);
   });
 
