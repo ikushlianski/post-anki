@@ -7,6 +7,7 @@ import { hasFencedCode } from '../code-block/split-fenced-code'
 import { AiLabelBadge } from './ai-label-badge'
 import { AiSuggestionBlock } from './ai-suggestion-block'
 import { CardSourceLink } from './card-source-link'
+import { AnkiReviewMakeCard } from './anki-review-make-card'
 import { KnowledgeBitChatPanel } from './knowledge-bit-chat-panel'
 
 function renderFillBlankPrompt(prompt: string): ReactNode {
@@ -94,6 +95,7 @@ export function AnkiReviewCard({
   }
 
   const showAnswerRef = useRef<HTMLButtonElement>(null)
+  const answerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!revealed) {
@@ -135,18 +137,28 @@ export function AnkiReviewCard({
 
       {revealed && (
         <>
-          {!editor &&
-            (!isBlankKind(card.kind) && card.kind !== 'cloze' && card.kind !== 'list_next' && hasFencedCode(card.answer) ? (
-              <CardText
-                text={card.answer}
-                testId="anki-review-answer"
-                className="whitespace-pre-line break-words border-t border-neutral-200 pt-4"
-              />
-            ) : (
-              <p data-testid="anki-review-answer" className="whitespace-pre-line break-words border-t border-neutral-200 pt-4">
-                {renderAnswer(card)}
-              </p>
-            ))}
+          <div ref={answerRef}>
+            {!editor &&
+              (!isBlankKind(card.kind) && card.kind !== 'cloze' && card.kind !== 'list_next' && hasFencedCode(card.answer) ? (
+                <CardText
+                  text={card.answer}
+                  testId="anki-review-answer"
+                  className="whitespace-pre-line break-words border-t border-neutral-200 pt-4"
+                />
+              ) : (
+                <p data-testid="anki-review-answer" className="whitespace-pre-line break-words border-t border-neutral-200 pt-4">
+                  {renderAnswer(card)}
+                </p>
+              ))}
+          </div>
+          {!editor && (
+            <AnkiReviewMakeCard
+              knowledgeBitId={card.knowledgeBitId}
+              question={prompt}
+              variantId={card.variantId}
+              answerRef={answerRef}
+            />
+          )}
           {card.background && (
             <p data-testid="anki-review-background" className="text-sm text-neutral-500">
               {card.background}

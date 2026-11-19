@@ -87,6 +87,9 @@ struct DueReviewCardBody<AnswerInput: View, RevealedFooter: View, Unrevealed: Vi
                 ReviewCardUserNote(bitId: card.knowledgeBitId, note: card.userNote)
                     .id(card.knowledgeBitId)
 
+                ReviewMakeCardButton(bitId: card.knowledgeBitId, question: card.face.front, answer: answerText, canReachServer: model.canReachServer)
+                    .id(card.knowledgeBitId)
+
                 CopyAllButton(parts: CardCopyText.reviewParts(card))
 
                 ShareCardButton(card: card)
