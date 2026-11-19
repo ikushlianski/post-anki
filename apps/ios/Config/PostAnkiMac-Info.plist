@@ -20,6 +20,10 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Post Anki uses the microphone to turn your speech into text when you dictate a chat question. Audio is not stored.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Post Anki uses speech recognition to turn your dictation into text, on your device when available.</string>
 	<key>PostAnkiAppGroup</key>
 	<string>$(POSTANKI_APP_GROUP)</string>
 	<key>PostAnkiBandLabel</key>

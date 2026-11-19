@@ -88,7 +88,8 @@ struct SocraticScreen: View {
                 ChatComposerBar(
                     draft: $model.draft,
                     placeholder: "Your answer…",
-                    isSending: model.isSending
+                    isSending: model.isSending,
+                    lastReply: model.messages.last.flatMap { $0.role == .mentor ? $0.text : nil }
                 ) {
                     Task { await model.send() }
                 }

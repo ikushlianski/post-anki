@@ -25,9 +25,18 @@ struct ChatComposerBar: View {
     @Binding var draft: String
     let placeholder: String
     let isSending: Bool
+    var lastReply: String?
     let onSend: () -> Void
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            composer
+            ChatVoiceControls(draft: $draft, isBusy: isSending, lastReply: lastReply)
+        }
+        .zoomPadding()
+    }
+
+    private var composer: some View {
         HStack {
             TextField(placeholder, text: $draft, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
@@ -51,6 +60,5 @@ struct ChatComposerBar: View {
             Button("Send", action: onSend)
                 .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
         }
-        .zoomPadding()
     }
 }

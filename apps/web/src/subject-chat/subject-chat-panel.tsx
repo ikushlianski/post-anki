@@ -196,6 +196,7 @@ export function SubjectChatPanel({
         onDraftChange={setDraft}
         onSend={send}
         pending={mutation.isPending}
+        lastReply={messages.at(-1)?.role === 'assistant' ? messages.at(-1)?.text ?? null : null}
         testIdPrefix={PREFIX}
       />
     </div>

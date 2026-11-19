@@ -1,4 +1,5 @@
 import { ChatModelPicker } from '../chat-model/chat-model-picker'
+import { ChatVoiceBar } from '../voice/chat-voice-bar'
 import { useChatModel } from '../chat-model/use-chat-model'
 import { useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
@@ -133,30 +134,39 @@ export function StudyChatSidebar({
         ) : null}
       </div>
 
-      <div className="flex gap-2 border-t border-neutral-200 p-3">
-        <input
-          type="text"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              send()
-            }
-          }}
-          disabled={mutation.isPending}
-          placeholder="Ask a question…"
-          data-testid="study-chat-input"
-          className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500 disabled:bg-neutral-100"
+      <div className="space-y-2 border-t border-neutral-200 p-3">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                send()
+              }
+            }}
+            disabled={mutation.isPending}
+            placeholder="Ask a question…"
+            data-testid="study-chat-input"
+            className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500 disabled:bg-neutral-100"
+          />
+          <button
+            type="button"
+            data-testid="study-chat-send"
+            disabled={mutation.isPending || draft.trim().length === 0}
+            onClick={send}
+            className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+          >
+            Send
+          </button>
+        </div>
+        <ChatVoiceBar
+          draft={draft}
+          onDraftChange={setDraft}
+          busy={mutation.isPending}
+          lastReply={messages.at(-1)?.role === 'assistant' ? messages.at(-1)?.text ?? null : null}
+          testIdPrefix="study-chat"
         />
-        <button
-          type="button"
-          data-testid="study-chat-send"
-          disabled={mutation.isPending || draft.trim().length === 0}
-          onClick={send}
-          className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-        >
-          Send
-        </button>
       </div>
     </div>
   )

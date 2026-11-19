@@ -108,6 +108,8 @@ struct KnowledgeItemChatScreen: View {
                 canSend: thread.wrappedValue.canSend,
                 turnsLeft: thread.wrappedValue.turnsLeft,
                 focused: $composerFocused,
+                isBusy: thread.wrappedValue.isSending,
+                lastReply: thread.wrappedValue.lines.last.flatMap { $0.isUser ? nil : $0.text },
                 onSend: { Task { await model.send() } }
             )
         }

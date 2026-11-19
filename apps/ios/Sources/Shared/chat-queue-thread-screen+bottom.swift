@@ -54,6 +54,8 @@ extension ChatQueueThreadScreen {
                 canSend: model.canSend,
                 turnsLeft: model.turnsLeft,
                 focused: $composerFocused,
+                isBusy: model.isSending,
+                lastReply: model.lines.last.flatMap { $0.isUser ? nil : $0.text },
                 onSend: { Task { await model.send() } }
             )
         }

@@ -7,6 +7,8 @@ struct ChatQueueComposer: View {
     let canSend: Bool
     let turnsLeft: Int
     var focused: FocusState<Bool>.Binding
+    var isBusy = false
+    var lastReply: String?
     let onSend: () -> Void
 
     var body: some View {
@@ -48,6 +50,8 @@ struct ChatQueueComposer: View {
                 .accessibilityLabel("Send")
                 .accessibilityIdentifier("chat-queue-send")
             }
+
+            ChatVoiceControls(draft: $draft, isBusy: isBusy, lastReply: lastReply)
 
             Text("\(turnsLeft) left")
                 .zoomFont(.caption)

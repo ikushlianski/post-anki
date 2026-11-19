@@ -1,5 +1,7 @@
 import type { ReactNode, RefObject } from 'react'
 
+import { ChatVoiceBar } from '../voice/chat-voice-bar'
+
 export interface ChatListMessage {
   id: string
   role: 'user' | 'assistant'
@@ -65,6 +67,7 @@ export function ChatInputRow({
   onSend,
   pending,
   disabled = false,
+  lastReply = null,
   testIdPrefix,
 }: {
   draft: string
@@ -72,33 +75,44 @@ export function ChatInputRow({
   onSend: () => void
   pending: boolean
   disabled?: boolean
+  lastReply?: string | null
   testIdPrefix: string
 }) {
   return (
-    <div className="flex gap-2 border-t border-neutral-200 p-3">
-      <input
-        type="text"
-        value={draft}
-        onChange={(event) => onDraftChange(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            onSend()
-          }
-        }}
+    <div className="space-y-2 border-t border-neutral-200 p-3">
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={draft}
+          onChange={(event) => onDraftChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              onSend()
+            }
+          }}
+          disabled={pending || disabled}
+          placeholder="Ask a question…"
+          data-testid={`${testIdPrefix}-input`}
+          className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500 disabled:bg-neutral-100"
+        />
+        <button
+          type="button"
+          data-testid={`${testIdPrefix}-send`}
+          disabled={pending || disabled || draft.trim().length === 0}
+          onClick={onSend}
+          className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+        >
+          Send
+        </button>
+      </div>
+      <ChatVoiceBar
+        draft={draft}
+        onDraftChange={onDraftChange}
+        busy={pending}
+        lastReply={lastReply}
         disabled={pending || disabled}
-        placeholder="Ask a question…"
-        data-testid={`${testIdPrefix}-input`}
-        className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500 disabled:bg-neutral-100"
+        testIdPrefix={testIdPrefix}
       />
-      <button
-        type="button"
-        data-testid={`${testIdPrefix}-send`}
-        disabled={pending || disabled || draft.trim().length === 0}
-        onClick={onSend}
-        className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-      >
-        Send
-      </button>
     </div>
   )
 }

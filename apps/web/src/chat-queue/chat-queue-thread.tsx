@@ -1,7 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import {
   CHAT_QUEUE_MAX_MESSAGE_CHARS,
-  CHAT_QUEUE_STARTER_PROMPTS,
   type ChatQueueKnowledgeBit,
 } from "@post-anki/shared";
 
@@ -13,6 +12,8 @@ import {
   TEXT_FIELD_CLASS,
 } from "../knowledge-bit/knowledge-bit-review-classes";
 import { ChatModelPicker } from "../chat-model/chat-model-picker";
+import { ChatVoiceBar } from "../voice/chat-voice-bar";
+import { ChatQueueStarters } from "./chat-queue-starters";
 import { ChatQueueDeleteLast } from "./chat-queue-delete-last";
 import { ChatQueueCopyButton } from "./chat-queue-copy-button";
 import { clearChatDraft } from "./chat-queue-draft-storage";
@@ -77,6 +78,7 @@ export function ChatQueueThread({ item, now, onBack, onResolved, onSnoozeChanged
     onRejected: handleProposalRejected,
   });
   const lastProposals = thread.lines[thread.lines.length - 1]?.proposals ?? []
+  const lastReply = thread.lines.at(-1)?.isUser === false ? thread.lines.at(-1)?.text ?? null : null
   const lastLineId = thread.lines[thread.lines.length - 1]?.id ?? ''
   const proposalSaving = lastProposals.some(
     (proposal) => proposals.statusOf(lastLineId, proposal.index).state === 'saving',
@@ -201,22 +203,7 @@ export function ChatQueueThread({ item, now, onBack, onResolved, onSnoozeChanged
       ) : (
         <>
           {thread.showsStarters ? (
-            <div
-              className="flex flex-wrap gap-2"
-              data-testid="chat-queue-starters"
-            >
-              {CHAT_QUEUE_STARTER_PROMPTS.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  disabled={locked}
-                  onClick={() => void thread.send(prompt)}
-                  className={SECONDARY_BUTTON_CLASS}
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
+            <ChatQueueStarters locked={locked} onPick={(prompt) => void thread.send(prompt)} />
           ) : null}
 
           {thread.limitReached ? (
@@ -261,6 +248,14 @@ export function ChatQueueThread({ item, now, onBack, onResolved, onSnoozeChanged
                   Send
                 </button>
               </div>
+              <ChatVoiceBar
+                draft={thread.draft}
+                onDraftChange={thread.changeDraft}
+                busy={thread.sending}
+                lastReply={lastReply}
+                disabled={locked}
+                testIdPrefix="chat-queue"
+              />
               {showRejectHint ? (
                 <p data-testid="chat-queue-reject-hint" className="text-xs text-neutral-500">
                   What is wrong with it?

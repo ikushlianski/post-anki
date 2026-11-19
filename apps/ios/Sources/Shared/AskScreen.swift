@@ -71,7 +71,8 @@ struct AskScreen: View {
             ChatComposerBar(
                 draft: $chat.draft,
                 placeholder: "Ask your cards…",
-                isSending: chat.isSending
+                isSending: chat.isSending,
+                lastReply: chat.turns.last.flatMap { $0.entry.role == "assistant" ? $0.entry.text : nil }
             ) {
                 Task { await chat.send() }
             }

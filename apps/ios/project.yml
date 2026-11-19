@@ -39,6 +39,8 @@ targets:
     info:
       path: Config/PostAnkiIOS-Info.plist
       properties:
+        NSMicrophoneUsageDescription: Post Anki uses the microphone to turn your speech into text when you dictate a chat question. Audio is not stored.
+        NSSpeechRecognitionUsageDescription: Post Anki uses speech recognition to turn your dictation into text, on your device when available.
         CFBundleShortVersionString: "0.1.0"
         PostAnkiKeychainGroup: $(POSTANKI_KEYCHAIN_GROUP)
         PostAnkiAppGroup: $(POSTANKI_APP_GROUP)
@@ -83,6 +85,8 @@ targets:
     info:
       path: Config/PostAnkiIOSDev-Info.plist
       properties:
+        NSMicrophoneUsageDescription: Post Anki uses the microphone to turn your speech into text when you dictate a chat question. Audio is not stored.
+        NSSpeechRecognitionUsageDescription: Post Anki uses speech recognition to turn your dictation into text, on your device when available.
         CFBundleShortVersionString: "0.1.0"
         PostAnkiKeychainGroup: $(POSTANKI_KEYCHAIN_GROUP)
         PostAnkiAppGroup: $(POSTANKI_APP_GROUP)
@@ -198,6 +202,8 @@ targets:
     info:
       path: Config/PostAnkiMac-Info.plist
       properties:
+        NSMicrophoneUsageDescription: Post Anki uses the microphone to turn your speech into text when you dictate a chat question. Audio is not stored.
+        NSSpeechRecognitionUsageDescription: Post Anki uses speech recognition to turn your dictation into text, on your device when available.
         PostAnkiKeychainGroup: $(POSTANKI_KEYCHAIN_GROUP)
         PostAnkiAppGroup: $(POSTANKI_APP_GROUP)
         CFBundleDisplayName: $(INFOPLIST_KEY_CFBundleDisplayName)
