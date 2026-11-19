@@ -33,8 +33,7 @@ extension DueReviewModel {
             topicId: scope?.topicId,
             knowledgeBitId: scope?.knowledgeBitId,
             aheadDays: aheadDays,
-            excludeNew: repeatOnly,
-            shuffleSeed: shuffleSeed
+            excludeNew: repeatOnly
         ), !Task.isCancelled, generation == windowGeneration else { return }
 
         let pendingBits = await gradeQueue.pendingKnowledgeBitIds()
@@ -71,6 +70,8 @@ extension DueReviewModel {
                 )
             }
         )
+
+        if isShuffled { queue = ReviewQueueShuffle.shuffled(queue) }
 
         if response.cards.count < ReviewCardWindow.topUpLimit || queue.count == before {
             windowExhausted = true

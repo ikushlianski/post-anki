@@ -89,8 +89,8 @@ struct MacDueReviewView: View {
         }
 
         ToolbarItem {
-            DueReviewShuffleToggle(model: model)
-                .help("Shuffle today's cards, favouring recent ones")
+            DueReviewShuffleButton(model: model)
+                .help("Shuffle the cards you have not answered yet")
         }
 
         if model.state == .card, !model.isGrading, let card = model.current {

@@ -15,13 +15,6 @@ extension DueReviewModel {
         await load()
     }
 
-    func setShuffle(_ on: Bool) async {
-        guard (shuffleSeed != nil) != on else { return }
-
-        shuffleSeed = on ? UUID().uuidString : nil
-        await load()
-    }
-
     func markCurrentKnown() async {
         guard !isGrading, let card = current, !card.isRehearsal else { return }
 

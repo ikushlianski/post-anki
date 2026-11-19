@@ -26,6 +26,12 @@ struct DueReviewCardControlsMenu: View {
                 }
                 .accessibilityIdentifier("due-review-move")
 
+                Button("Shuffle remaining cards", systemImage: "shuffle") {
+                    model.shuffleRemaining()
+                }
+                .disabled(model.queue.count < 2)
+                .accessibilityIdentifier("due-review-shuffle")
+
                 Button("Bury until tomorrow", systemImage: "moon.zzz") {
                     Task { await model.buryCurrent() }
                 }

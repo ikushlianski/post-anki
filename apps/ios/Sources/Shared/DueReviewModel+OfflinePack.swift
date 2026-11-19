@@ -16,7 +16,7 @@ extension DueReviewModel {
     }
 
     private var packScope: ReviewPackScope? {
-        guard aheadDays == 0, scope == nil, !repeatOnly, shuffleSeed == nil else { return nil }
+        guard aheadDays == 0, scope == nil, !repeatOnly else { return nil }
 
         return .all
     }
@@ -41,7 +41,7 @@ extension DueReviewModel {
         dailyLimit = nil
         noCardsYet = false
         pendingCount = await gradeQueue.count()
-        queue = cards
+        queue = isShuffled ? ReviewQueueShuffle.shuffled(cards) : cards
 
         guard !queue.isEmpty else {
             current = nil

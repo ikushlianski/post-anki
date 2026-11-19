@@ -48,8 +48,7 @@ extension DueReviewModel {
                 topicId: scope?.topicId,
                 knowledgeBitId: scope?.knowledgeBitId,
                 aheadDays: aheadDays,
-                excludeNew: repeatOnly,
-                shuffleSeed: shuffleSeed
+                excludeNew: repeatOnly
             )
             let cards = await visibleCards(response.cards)
             let counts = response.counts
@@ -68,7 +67,7 @@ extension DueReviewModel {
             noCardsYet = response.nextDueAt == nil
                 && counts.new == 0 && counts.learning == 0 && counts.review == 0
                 && reviewedCount == 0
-            queue = cards
+            queue = isShuffled ? ReviewQueueShuffle.shuffled(cards) : cards
             pendingCount = await gradeQueue.count()
 
             let scopedDone = scope != nil && reviewedCount > 0 && response.nextDueAt != nil

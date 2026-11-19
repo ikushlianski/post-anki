@@ -69,32 +69,6 @@ extension SmokeTests {
             #expect(cardQueries().last?.contains("newCards=exclude") == true)
         }
 
-        private func seed(of query: String) -> String? {
-            query.split(separator: "&").first { $0.hasPrefix("shuffleSeed=") }.map { String($0.dropFirst("shuffleSeed=".count)) }
-        }
-
-        @Test("should reload with a fresh seed when shuffle is turned on and drop it when turned off")
-        func shuffleToggle() async {
-            let session = FakeServerSession(routes())
-            defer { session.end() }
-            let model = DueReviewModel(repeatOnly: false, retryDelay: nil)
-
-            await model.load()
-            await model.setShuffle(true)
-
-            let seeded = cardQueries().last.flatMap(seed(of:))
-
-            #expect(seeded != nil)
-            #expect(seeded == model.shuffleSeed)
-            #expect(cardQueries().count == 2)
-
-            await model.setShuffle(false)
-
-            #expect(model.shuffleSeed == nil)
-            #expect(cardQueries().count == 3)
-            #expect(cardQueries().last?.contains("shuffleSeed") == false)
-        }
-
         @Test("should not filter a scoped review even when the preference is on")
         func scopedIgnoresToggle() {
             let model = DueReviewModel(scope: .subject(id: "s1", name: "Math"), repeatOnly: true, retryDelay: nil)

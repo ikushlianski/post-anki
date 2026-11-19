@@ -37,7 +37,7 @@ final class DueReviewModel {
     var suspendedUndo: ReviewCard?
     var knownUndo: KnownUndo?
     var repeatOnly: Bool
-    var shuffleSeed: String?
+    var isShuffled = false
     var nextDueAt: String?
     var dailyLimit: DailyReviewLimit?
     var noCardsYet = false
