@@ -86,6 +86,8 @@ struct DueReviewCardBody<AnswerInput: View, RevealedFooter: View, Unrevealed: Vi
 
                 CopyAllButton(parts: CardCopyText.reviewParts(card))
 
+                ShareCardButton(card: card)
+
                 CopyCardIdButton(id: card.variantId)
 
                 if showsGradeButtons, card.isRehearsal {

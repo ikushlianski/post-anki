@@ -1,10 +1,12 @@
 import { CopyCardIdButton } from '../debugging/copy-card-id-button'
+import { ShareCardButton } from './share-card-button'
 
 export function AnkiReviewCardActions({
   revealed,
   leech,
   disabled,
   cardId,
+  shareText,
   onEdit,
   onBury,
   onSuspend,
@@ -14,6 +16,7 @@ export function AnkiReviewCardActions({
   leech: boolean
   disabled: boolean
   cardId?: string
+  shareText?: string
   onEdit: () => void
   onBury: () => void
   onSuspend: () => void
@@ -33,6 +36,7 @@ export function AnkiReviewCardActions({
           Edit <kbd>E</kbd>
         </button>
       )}
+      {shareText && <ShareCardButton text={shareText} className={button} />}
       {cardId && <CopyCardIdButton id={cardId} />}
       {onChat && (
         <button type="button" data-testid="anki-review-chat" disabled={disabled} onClick={onChat} className={button}>

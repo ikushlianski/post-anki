@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { MutableRefObject } from 'react'
 
 import { browserTimeZone } from '../shared/browser-time-zone'
+import { loadReviewCardsWithOfflineFallback } from '../review-offline/load-review-cards'
 import { getReviewCards } from './anki-review.api'
 import { isScoped, reviewQueueQueryKey, stopWhenNothingDue, type AnkiReviewScope } from './anki-review-queue'
 import { withoutGradedThisSession, type SessionUndoEntry } from './anki-review-session'
@@ -22,7 +23,10 @@ export function useAnkiReviewQueue({
   return useQuery({
     queryKey: [...reviewQueueQueryKey(scope), aheadDays],
     queryFn: async () => {
-      const outcome = await getReviewCards({ data: { limit: BATCH_LIMIT, tz: browserTimeZone(), aheadDays, ...scope } })
+      const outcome = await loadReviewCardsWithOfflineFallback(
+        () => getReviewCards({ data: { limit: BATCH_LIMIT, tz: browserTimeZone(), aheadDays, ...scope } }),
+        !isScoped(scope) && aheadDays === 0,
+      )
 
       if (!outcome.ok) return outcome
 

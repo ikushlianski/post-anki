@@ -2,7 +2,8 @@ import { useRef, useState, type Dispatch } from 'react'
 import type { ReviewCard, ReviewGrade } from '@post-anki/shared'
 
 import type { AnkiReviewSessionAction, AnkiReviewSessionState, SessionUndoEntry } from './anki-review-session'
-import { editReviewCard, submitReview, undoReview, updateCardSchedule } from './anki-review.api'
+import { editReviewCard, updateCardSchedule } from './anki-review.api'
+import { submitGradeOrQueue, undoGrade } from '../review-offline/submit-grade-or-queue'
 import { incrementDailyReviewCount } from './daily-review-storage'
 import { notifyPendingReviewChanged } from './knowledge-bit-review-events'
 import { browserTimeZone } from '../shared/browser-time-zone'
@@ -108,17 +109,16 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
 
       pendingGrade.current = attempt
 
-      const outcome = await submitReview({
-        data: {
-          variantId: current.variantId,
-          grade: value,
-          durationMs,
-          requestId: attempt.requestId,
-          tz: browserTimeZone(),
-          burySiblings,
-          ...(rehearsal ? { rehearsal: true } : {}),
-        },
-      }).catch(() => ({ ok: false as const, error: 'grading_failed' }))
+      const outcome = await submitGradeOrQueue({
+        variantId: current.variantId,
+        knowledgeBitId: current.knowledgeBitId,
+        grade: value,
+        durationMs,
+        requestId: attempt.requestId,
+        tz: browserTimeZone(),
+        burySiblings,
+        rehearsal: Boolean(rehearsal),
+      })
 
       if (!outcome.ok) {
         setError(outcome.error)
@@ -205,7 +205,7 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
 
       const outcome =
         entry.kind === 'grade'
-          ? await undoReview({ data: { reviewId: entry.reviewId } })
+          ? await undoGrade(entry.reviewId, entry.card.variantId)
           : await updateCardSchedule({
               data: {
                 knowledgeBitId: entry.card.knowledgeBitId,

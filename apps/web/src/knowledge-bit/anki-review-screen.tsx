@@ -11,6 +11,7 @@ import { useCardSelection } from '../subject-chat/use-card-selection'
 import { useSubjectHinting } from '../subject-study-options/use-subject-hinting'
 import { AnkiReviewCard } from './anki-review-card'
 import { AnkiReviewCardActions } from './anki-review-card-actions'
+import { cardShareText } from './card-share-text'
 import { AnkiReviewCardEditPanel } from './anki-review-card-edit-panel'
 import { AnkiReviewGradeError } from './anki-review-grade-error'
 import { AnkiReviewCounts } from './anki-review-counts'
@@ -37,6 +38,8 @@ import {
 } from './anki-review-queue'
 import { AnkiReviewShortcutsHelp } from './anki-review-shortcuts-help'
 import { useOnlineStatus } from '../shared/use-online-status'
+import { OfflineReviewSync } from '../review-offline/offline-review-sync'
+import { savedCardsView } from '../review-offline/saved-cards-view'
 
 export type { AnkiReviewScope }
 
@@ -54,7 +57,6 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
   const studyAheadRef = useRef(false)
 
   undoRef.current = state.undo
-
   const [aheadDays, setAheadDays] = useState(0)
   const queue = useAnkiReviewQueue({ scope, aheadDays, undoRef, studyAheadRef })
 
@@ -98,12 +100,9 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
   }, [stats.pointsEarned, queryClient])
 
   const celebration = (
-    <SessionCelebration
-      pointsEarned={stats.pointsEarned}
-      leveledUp={stats.leveledUp}
-      level={stats.levelReached}
-    />
+    <SessionCelebration pointsEarned={stats.pointsEarned} leveledUp={stats.leveledUp} level={stats.levelReached} />
   )
+
   const cardAreaRef = useRef<HTMLDivElement | null>(null)
   const cardSelection = useCardSelection(cardAreaRef, state.revealed, current?.variantId ?? '')
   const noApprovedCards =
@@ -180,6 +179,7 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
       )}
 
       <div role="status" aria-live="polite">
+        <OfflineReviewSync {...savedCardsView(queue.data, current !== null || actions.refilling)} />
         {state.notice && (
           <p data-testid="anki-review-notice" className="mb-4 text-sm text-amber-700">
             {state.notice}
@@ -245,6 +245,7 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
                   revealed={state.revealed && !editing}
                   leech={current.leech}
                   cardId={current.variantId}
+                  shareText={cardShareText(current)}
                   disabled={actions.busy || editing}
                   onEdit={() => dispatch({ type: 'editStarted', now: Date.now() })}
                   onBury={() => void actions.control('bury')}
