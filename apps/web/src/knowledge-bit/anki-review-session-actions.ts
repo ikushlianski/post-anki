@@ -90,9 +90,9 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
     }
   }
 
-  async function advance() {
+  async function advance(notice?: string) {
     setError(null)
-    await moveOnAfter({ type: 'advance', now: Date.now() })
+    await moveOnAfter({ type: 'advance', now: Date.now(), notice })
   }
 
   const grade = (value: ReviewGrade) =>

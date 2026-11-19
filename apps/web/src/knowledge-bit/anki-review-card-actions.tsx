@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 import { CopyCardIdButton } from '../debugging/copy-card-id-button'
 import { ShareCardButton } from './share-card-button'
 
@@ -11,6 +13,8 @@ export function AnkiReviewCardActions({
   onBury,
   onSuspend,
   onChat,
+  onMove,
+  movePicker,
 }: {
   revealed: boolean
   leech: boolean
@@ -21,11 +25,13 @@ export function AnkiReviewCardActions({
   onBury: () => void
   onSuspend: () => void
   onChat?: () => void
+  onMove?: () => void
+  movePicker?: ReactNode
 }) {
   const button = 'inline-flex min-h-[44px] items-center justify-center rounded-md border border-neutral-200 px-2 py-1 text-xs disabled:opacity-40 sm:min-h-0'
 
   return (
-    <div data-testid="anki-review-card-actions" className="flex items-center gap-2">
+    <div data-testid="anki-review-card-actions" className="flex flex-wrap items-center gap-2">
       {leech && (
         <span data-testid="anki-review-leech" role="status" aria-live="polite" className="text-xs font-medium text-amber-700">
           Leech
@@ -41,6 +47,18 @@ export function AnkiReviewCardActions({
       {onChat && (
         <button type="button" data-testid="anki-review-chat" disabled={disabled} onClick={onChat} className={button}>
           Chat <kbd>C</kbd>
+        </button>
+      )}
+      {onMove && (
+        <button
+          type="button"
+          data-testid="anki-review-move"
+          title="Move this card to another deck"
+          disabled={disabled}
+          onClick={onMove}
+          className={button}
+        >
+          Move to deck
         </button>
       )}
       <button
@@ -63,6 +81,7 @@ export function AnkiReviewCardActions({
       >
         Suspend <kbd>@</kbd>
       </button>
+      {movePicker}
     </div>
   )
 }

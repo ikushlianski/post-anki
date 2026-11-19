@@ -44,7 +44,7 @@ export interface AnkiReviewSessionState {
 
 export type AnkiReviewSessionAction =
   | { type: 'reveal' }
-  | { type: 'advance'; now: number }
+  | { type: 'advance'; now: number; notice?: string }
   | { type: 'refilled'; now: number }
   | { type: 'acted'; entry: SessionUndoEntry; now: number; notice?: string; hide?: string[]; followUp?: ReviewCard | null }
   | { type: 'undone'; now: number }
@@ -132,7 +132,7 @@ export function ankiReviewSessionReducer(
     case 'reveal':
       return { ...state, revealed: true }
     case 'advance':
-      return { ...moveOn(state, action.now), notice: null }
+      return { ...moveOn(state, action.now), notice: action.notice ?? null }
     case 'refilled':
       return { ...state, index: 0, hidden: [], revealed: false, shownAt: action.now }
     case 'acted': {

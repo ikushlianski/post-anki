@@ -10,8 +10,7 @@ import { SubjectChatPanel } from '../subject-chat/subject-chat-panel'
 import { useCardSelection } from '../subject-chat/use-card-selection'
 import { useSubjectHinting } from '../subject-study-options/use-subject-hinting'
 import { AnkiReviewCard } from './anki-review-card'
-import { AnkiReviewCardActions } from './anki-review-card-actions'
-import { cardShareText } from './card-share-text'
+import { AnkiReviewCardActionsWithMove } from './anki-review-card-actions-with-move'
 import { AnkiReviewCardEditPanel } from './anki-review-card-edit-panel'
 import { AnkiReviewGradeError } from './anki-review-grade-error'
 import { AnkiReviewCounts } from './anki-review-counts'
@@ -241,11 +240,10 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
               onChatOpenChange={setChatOpen}
               onReplaceAccepted={() => void actions.control('suspend')}
               actions={
-                <AnkiReviewCardActions
+                <AnkiReviewCardActionsWithMove
+                  card={current}
                   revealed={state.revealed && !editing}
-                  leech={current.leech}
-                  cardId={current.variantId}
-                  shareText={cardShareText(current)}
+                  advance={actions.advance}
                   disabled={actions.busy || editing}
                   onEdit={() => dispatch({ type: 'editStarted', now: Date.now() })}
                   onBury={() => void actions.control('bury')}

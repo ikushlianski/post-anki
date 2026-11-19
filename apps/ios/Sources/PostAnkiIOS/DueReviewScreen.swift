@@ -110,6 +110,7 @@ struct DueReviewScreen: View {
             DueReviewEditSheet(model: model, route: route) { editRoute = nil }
         }
         .dueReviewChatSheet(model: model)
+        .dueReviewMoveSheet(model: model)
         .navigationTitle(model.aheadLabel ?? title)
         .navigationBarTitleDisplayMode(.inline)
         .task { await model.loadIfNeeded() }

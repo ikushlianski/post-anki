@@ -51,6 +51,7 @@ struct MacDueReviewView: View {
             .frame(minWidth: 420 * zoom, minHeight: 360 * zoom)
         }
         .dueReviewChatSheet(model: model)
+        .dueReviewMoveSheet(model: model)
         .task { await model.loadIfNeeded() }
     }
 
@@ -103,7 +104,7 @@ struct MacDueReviewView: View {
 
             ToolbarItem {
                 DueReviewCardControlsMenu(model: model)
-                    .help("Chat, bury or suspend this card")
+                    .help("Chat, move, bury or suspend this card")
             }
         }
 

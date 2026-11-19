@@ -8,6 +8,9 @@ struct DueReviewCardControlsMenu: View {
             Button("Chat about this card", systemImage: "bubble.left.and.bubble.right") {
                 model.chatCard = model.current
             }
+            Button("Move to deck", systemImage: "folder") {
+                model.presentMovePicker()
+            }
             Button("Bury until tomorrow", systemImage: "moon.zzz") {
                 Task { await model.buryCurrent() }
             }
