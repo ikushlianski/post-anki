@@ -116,6 +116,7 @@ describe("POST /mcp list_knowledge_sources", () => {
           kind: "prose",
           label: "Closures capture scope.",
           sourceUrl: "https://example.com/a",
+          origin: null,
           subjectId: "sub_1",
           status: "detected",
           createdAt: "2026-01-01T00:00:00.000Z",

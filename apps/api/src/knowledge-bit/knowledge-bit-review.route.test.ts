@@ -19,6 +19,7 @@ const state = vi.hoisted(() => ({
   outcome: null as RecordKnowledgeBitReviewOutcome | null,
   undo: null as UndoKnowledgeBitReviewOutcome | null,
   controls: null as UpdateScheduleControlsOutcome | null,
+  notes: new Map<string, string>(),
 }));
 
 vi.mock("./knowledge-bit-review-queue.repo.js", () => ({
@@ -32,6 +33,12 @@ vi.mock("./knowledge-bit-review-pack.service.js", () => ({
     truncated: false,
     cards: [],
   })),
+}));
+
+vi.mock("./knowledge-bit-user-note.repo.js", () => ({
+  attachUserNotes: vi.fn(async (cards: Array<{ knowledgeBitId: string }>) =>
+    cards.map((card) => ({ ...card, userNote: state.notes.get(card.knowledgeBitId) ?? null })),
+  ),
 }));
 
 vi.mock("../subject/subject-path-labels.js", () => ({ loadSubjectPathLabels: vi.fn(async () => new Map()) }));
@@ -79,6 +86,7 @@ afterAll(async () => {
 afterEach(() => {
   state.queue = emptyQueue();
   state.outcome = null;
+  state.notes.clear();
   vi.clearAllMocks();
 });
 
@@ -115,6 +123,8 @@ describe("GET /knowledge-bits/review-cards", () => {
       nextDueAt: "2026-10-11T12:00:00.000Z",
     };
 
+    state.notes.set("kb_1", "Remember SYN, SYN-ACK, ACK");
+
     const response = await fetch(`${baseUrl}/knowledge-bits/review-cards`, { headers: AUTH });
     const body = (await response.json()) as { cards: Record<string, unknown>[] } & Record<string, unknown>;
 
@@ -123,6 +133,7 @@ describe("GET /knowledge-bits/review-cards", () => {
     expect(body.cards[0]?.intervalPreview).toEqual({ again: 86_400, hard: 86_400, good: 86_400, easy: 345_600 });
     expect(body.cards[0]?.isAiGenerated).toBe(false);
     expect(body.cards[0]?.sourceLinks).toEqual([]);
+    expect(body.cards[0]?.userNote).toBe("Remember SYN, SYN-ACK, ACK");
     expect(body.cards[0]).not.toHaveProperty("bitBody");
     expect(body.counts).toEqual({ new: 3, learning: 0, review: 2 });
     expect(body.newRemainingToday).toBe(17);
