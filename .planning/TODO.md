@@ -86,6 +86,8 @@ updated: 2026-09-04
 - Out of scope: Chat and new AI question variants offline.
 
 ### Coding tasks
+- [ ] Web offline review closes its remaining race gaps: undo during the moment a grade finishes sending, saved-card marks lost to a pack refresh, grades parked too eagerly when the server is briefly down, and the offline store cleared on sign-out.
+- [x] The web app works offline for review, queueing grades and syncing them when the connection returns.
 - [x] Apps store the offline pack on disk, refreshed every 6 minutes while open and when possible.
 - [x] Server offers an offline pack of cards due within a day for recently studied subjects.
 - [x] Review opens the stored pack when offline and keeps grades on the device with their review time.
@@ -134,6 +136,19 @@ updated: 2026-09-04
 - Out of scope: Rewrites of working features, new paid infrastructure, anything touching money or privacy without a human call
 
 ### Coding tasks
+- [ ] Voice chat polish: keep a strong reference to the utterance being spoken on Apple, make the dictator ignore callbacks of an earlier recognition task, and stop reading underscores inside identifiers such as snake_case.
+- [ ] Marking a card known on iPhone and Mac reverses the review counts when the server says the card no longer exists, and offline bury or suspend on web does not flash the next card before restoring.
+- [x] If saving a grade throws unexpectedly on web, the grade rolls back with the plain message instead of being lost, and a sibling card hidden after confirmation never shows a stale revealed state.
+- [x] The learner can talk to Post Anki by voice in chat, hearing replies read aloud and dictating questions.
+- [x] While reviewing, the learner can highlight part of an answer and turn it into a new card on web, iPhone and Mac.
+- [x] A tool lets the learner send a working session or an AI explanation into Post Anki as a knowledge source, so it becomes cards.
+- [x] A card's review status updates on screen the moment the learner grades it, before the server confirms, and rolls back with a plain message if saving fails.
+- [x] The learner can share a single card with another person from web, iPhone and Mac.
+- [x] Settings has a way to copy a card's id, so the learner can quote it when debugging.
+- [x] The 'I know this' button moves to the sides of the review screen, and the duplicate 'I know it' buttons above the answer buttons are removed.
+- [x] During review the learner can move the current card to a different deck in one or two clicks, without leaving the review.
+- [x] Each card can carry an optional personal note from the learner, shown and editable on the card on web, iPhone and Mac.
+- [x] Grading and moving a card feels instant: every review action other than the four grade buttons saves in the background without making the learner wait.
 - [x] Triage on every device: change an item's subject, or create a subject or subsubject on the spot.
 - [x] Add knowledge text field and send button stand out clearly from the page background.
 - [x] Treat imported text files as hostile: reject malformed content, strip browser-runnable markup, fence text from prompt instructions.
@@ -738,6 +753,7 @@ updated: 2026-09-04
 - Out of scope: Creating or renaming subjects automatically without approval
 
 ### Coding tasks
+- [x] A regular background job finds cards that have no subject and suggests where to place each one, for the learner to approve.
 - [x] A cheap grader weighs how large a subject has grown and suggests sub-subjects (modules).
 - [x] A piece that fits no subject gets a very conservative new-subject suggestion for approval.
 - [x] Subject and sub-subject suggestions show in one place where a click approves, edits or dismisses them.

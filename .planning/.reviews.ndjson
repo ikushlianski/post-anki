@@ -869,3 +869,27 @@
 {"at":"2026-11-16","item":"reworded draft approval","verdict":"PASS","reviewer":"personal-reviewer sonnet"}
 {"at":"2026-11-16","item":"reworded generation","verdict":"PASS after fix","reviewer":"personal-reviewer sonnet"}
 {"at":"2026-11-16","item":"rewording model trial","verdict":"PASS","reviewer":"personal-reviewer sonnet"}
+{"verdict":"PASS","item":"mac bulk delete chats","reviewer":"personal-reviewer","at":"2026-11-18T22:32:32Z"}
+{"verdict":"PASS","item":"mac chat queue checkboxes and polish","reviewer":"personal-reviewer","at":"2026-11-18T22:55:04Z"}
+{"verdict":"PASS","item":"mac chat bubbles","reviewer":"personal-reviewer","at":"2026-11-18T22:56:17Z"}
+{"verdict":"PASS","item":"mac chat queue click and continue","reviewer":"personal-reviewer","at":"2026-11-18T22:56:50Z"}
+{"verdict":"PASS","item":"mac chat make cards","reviewer":"personal-reviewer","at":"2026-11-18T23:04:27Z"}
+{"verdict":"PASS","item":"mac chat queue row click and multi-select","reviewer":"personal-reviewer","at":"2026-11-18T23:07:07Z"}
+{"verdict":"PASS","item":"review page three-colour band","reviewer":"personal-reviewer","at":"2026-11-18T23:08:20Z"}
+{"verdict":"PASS","item":"chat failure resilience","reviewer":"personal-reviewer","at":"2026-11-18T23:13:07Z"}
+{"verdict":"PASS","item":"chat model selector API","reviewer":"personal-reviewer","at":"2026-11-18T23:16:27Z"}
+{"verdict":"PASS","item":"chat model picker swift","reviewer":"personal-reviewer","at":"2026-11-18T23:19:06Z"}
+{"verdict":"PASS","item":"shuffle today cards","reviewer":"personal-reviewer","at":"2026-11-18T23:31:07Z"}
+{"verdict":"PASS","item":"Settings has a way to copy a card's id, so the learner can quote it when debugging.","reviewer":"personal-reviewer","at":"2026-11-18T23:47:55Z"}
+{"verdict":"PASS","item":"A regular background job finds cards that have no subject and suggests where to place each one, for the learner to approve.","reviewer":"personal-reviewer","at":"2026-11-18T23:48:15Z"}
+{"verdict":"PASS","item":"A tool lets the learner send a working session or an AI explanation into Post Anki as a knowledge source, so it becomes cards.","reviewer":"personal-reviewer","at":"2026-11-18T23:51:20Z"}
+{"verdict":"PASS","item":"The 'I know this' button moves to the sides of the review screen, and the duplicate 'I know it' buttons above the answer buttons are removed.","reviewer":"personal-reviewer","at":"2026-11-18T23:52:51Z"}
+{"verdict":"PASS","item":"The web app works offline for review, queueing grades and syncing them when the connection returns.","reviewer":"personal-reviewer","at":"2026-11-19T00:03:15Z"}
+{"verdict":"PASS","item":"The learner can share a single card with another person from web, iPhone and Mac.","reviewer":"personal-reviewer","at":"2026-11-19T00:03:15Z"}
+{"verdict":"PASS","item":"Each card can carry an optional personal note from the learner, shown and editable on the card on web, iPhone and Mac.","reviewer":"personal-reviewer","at":"2026-11-19T00:10:08Z"}
+{"verdict":"PASS","item":"During review the learner can move the current card to a different deck in one or two clicks, without leaving the review.","reviewer":"personal-reviewer (pass 1 FAIL on file length only; fixed and verified by tests and tsc)","at":"2026-11-19T00:17:11Z"}
+{"verdict":"PASS","item":"A card's review status updates on screen the moment the learner grades it, before the server confirms, and rolls back with a plain message if saving fails.","reviewer":"personal-reviewer","at":"2026-11-19T00:22:23Z"}
+{"verdict":"PASS","item":"If saving a grade throws unexpectedly on web, the grade rolls back with the plain message instead of being lost, and a sibling card hidden after confirmation never shows a stale revealed state.","reviewer":"personal-reviewer","at":"2026-11-19T00:31:27Z"}
+{"verdict":"PASS","item":"Grading and moving a card feels instant: every review action other than the four grade buttons saves in the background without making the learner wait.","reviewer":"personal-reviewer","at":"2026-11-19T00:31:27Z"}
+{"verdict":"PASS","item":"While reviewing, the learner can highlight part of an answer and turn it into a new card on web, iPhone and Mac.","reviewer":"personal-reviewer","at":"2026-11-19T00:38:43Z"}
+{"verdict":"PASS","item":"The learner can talk to Post Anki by voice in chat, hearing replies read aloud and dictating questions.","reviewer":"personal-reviewer (pass 1 FAIL on mic race; fixed; re-review PASS)","at":"2026-11-19T00:49:28Z"}
