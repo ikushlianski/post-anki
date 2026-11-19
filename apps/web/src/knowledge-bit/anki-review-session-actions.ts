@@ -1,17 +1,16 @@
 import { useRef, useState, type Dispatch } from 'react'
 import type { ReviewCard, ReviewGrade } from '@post-anki/shared'
 
-import type { AnkiReviewSessionAction, AnkiReviewSessionState, SessionUndoEntry } from './anki-review-session'
+import type { AnkiReviewSessionAction, AnkiReviewSessionState } from './anki-review-session'
 import { editReviewCard, updateCardSchedule } from './anki-review.api'
 import { submitGradeOrQueue, undoGrade } from '../review-offline/submit-grade-or-queue'
+import { confirmedGradeAction, isBatchExhausted, optimisticGradeAction } from './anki-review-optimistic-grade'
 import { incrementDailyReviewCount } from './daily-review-storage'
 import { notifyPendingReviewChanged } from './knowledge-bit-review-events'
 import { browserTimeZone } from '../shared/browser-time-zone'
 
 export const NON_RETRYABLE_ERRORS = new Set(['not_approved', 'variant_not_found'])
 
-const LEECH_NOTICE =
-  'This card was forgotten again and suspended as a leech. Consider rewriting it.'
 const UNDO_REFUSED_NOTICE =
   "That grade can't be undone any more, because the card was reviewed again since."
 
@@ -75,10 +74,7 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
   }
 
   async function moveOnAfter(action: AnkiReviewSessionAction) {
-    const hasFollowUp = action.type === 'acted' && Boolean(action.followUp)
-    const fromFront = state.front.length > 0
-    const nextIndex = fromFront ? state.index : state.index + 1
-    const exhausted = !hasFollowUp && state.front.length <= 1 && nextIndex >= batchSize
+    const exhausted = isBatchExhausted(state, batchSize, action.type === 'acted' && Boolean(action.followUp))
 
     dispatch(action)
 
@@ -109,6 +105,25 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
 
       pendingGrade.current = attempt
 
+      const snapshot = state
+      const exhausted = isBatchExhausted(state, batchSize, false)
+
+      dispatch(
+        optimisticGradeAction({
+          rehearsal: Boolean(rehearsal),
+          requestId: attempt.requestId,
+          card: current,
+          grade: value,
+          durationMs,
+          stamp,
+          now: Date.now(),
+        }),
+      )
+
+      if (exhausted) {
+        setRefilling(true)
+      }
+
       const outcome = await submitGradeOrQueue({
         variantId: current.variantId,
         knowledgeBitId: current.knowledgeBitId,
@@ -121,6 +136,8 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
       })
 
       if (!outcome.ok) {
+        dispatch({ type: 'gradeRolledBack', snapshot })
+        setRefilling(false)
         setError(outcome.error)
         setFailedGrade(NON_RETRYABLE_ERRORS.has(outcome.error) ? null : value)
         return
@@ -128,38 +145,20 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
 
       pendingGrade.current = null
 
-      if (rehearsal) {
-        await moveOnAfter({ type: 'advance', now: Date.now() })
-        return
+      if (!rehearsal) {
+        incrementDailyReviewCount()
+        notifyPendingReviewChanged()
+        dispatch(confirmedGradeAction(attempt.requestId, outcome))
       }
 
-      incrementDailyReviewCount()
-      notifyPendingReviewChanged()
+      const followUp = !rehearsal && Boolean(outcome.followUp)
 
-      const leechSuspended = outcome.leech && outcome.suspended
-      const entry: SessionUndoEntry = {
-        kind: 'grade',
-        reviewId: outcome.reviewId,
-        card: current,
-        grade: value,
-        durationMs,
-        leechSuspended,
-        points: {
-          awarded: outcome.points.awarded,
-          leveledUp: outcome.points.leveledUp,
-          level: outcome.points.level,
-        },
-        stamp,
+      if (exhausted && !followUp) {
+        await refill()
+        dispatch({ type: 'refilled', now: Date.now() })
       }
 
-      await moveOnAfter({
-        type: 'acted',
-        entry,
-        now: Date.now(),
-        notice: leechSuspended ? LEECH_NOTICE : undefined,
-        hide: outcome.buriedVariantIds,
-        followUp: outcome.followUp ?? null,
-      })
+      setRefilling(false)
     })
 
   const gradeKey = async (value: ReviewGrade) => {

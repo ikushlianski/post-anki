@@ -2,15 +2,21 @@ import Foundation
 import PostAnkiAPI
 
 extension DueReviewModel {
+    static let gradeSaveFailedMessage = "Couldn't save that grade. Try again."
+
     func syncSaveFailure() async {
-        guard var failure = await gradeQueue.failure else {
+        guard let failure = await gradeQueue.failure else {
             saveFailure = nil
 
             return
         }
 
-        failure.title = unsentCards[failure.id].map(Self.displayPrompt)
-        saveFailure = failure
+        saveFailure = SaveFailure(
+            id: failure.id,
+            bitId: failure.bitId,
+            title: unsentCards[failure.id].map(Self.displayPrompt),
+            message: Self.gradeSaveFailedMessage
+        )
     }
 
     func retryFailedSave() async {
@@ -25,19 +31,13 @@ extension DueReviewModel {
         await gradeQueue.skipFailed()
         saveFailure = nil
 
+        let latest = lastGraded
+
         if let card = unsentCards.removeValue(forKey: failed.id) {
-            reviewedCount = max(0, reviewedCount - 1)
-
-            if card.phase == "new" {
-                gradedNewCount = max(0, gradedNewCount - 1)
-            } else {
-                gradedOtherCount = max(0, gradedOtherCount - 1)
-            }
-
-            skippedVariantIds.insert(card.variantId)
+            await restore(GradedCard(card: card, grade: latest?.grade ?? .again, reviewId: nil, requestId: failed.id))
         }
 
-        if lastGraded?.requestId == failed.id { lastGraded = nil }
+        if let latest, latest.requestId != failed.id { lastGraded = latest }
 
         pendingCount = await gradeQueue.count()
         sendPendingInBackground()

@@ -50,7 +50,7 @@ extension SmokeTests {
             let model = await failingModel(file: file)
 
             #expect(model.saveFailure?.title == "Q01")
-            #expect(model.saveFailure?.message.isEmpty == false)
+            #expect(model.saveFailure?.message == "Couldn't save that grade. Try again.")
             #expect(model.pendingCount == 1)
         }
 
@@ -97,6 +97,27 @@ extension SmokeTests {
             #expect(model.gradedOtherCount == 0)
             #expect(model.pendingCount == 0)
             #expect(model.lastGraded == nil)
+        }
+
+        @Test("should put the refused card back on screen and not count it after Skip")
+        func skipRestoresCard() async throws {
+            let file = tempFile()
+            defer { try? FileManager.default.removeItem(at: file) }
+
+            let session = FakeServerSession(failing)
+            defer { session.end() }
+
+            let model = await failingModel(file: file)
+
+            #expect(model.current?.variantId == "v02")
+
+            await model.skipFailedSave()
+            await model.sendTask?.value
+
+            #expect(model.current?.variantId == "v01")
+            #expect(model.isRevealed == false)
+            #expect(model.remainingCounts?.review == 12)
+            #expect(model.queue.first?.variantId == "v02")
         }
 
         @Test("should hold later grades behind the failed one")

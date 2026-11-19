@@ -133,7 +133,8 @@ describe('useAnkiReviewSessionActions grading', () => {
 
     await act(() => result.current.grade('good'))
 
-    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'acted', hide: ['variant-2'] }))
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'gradeConfirmed', confirmed: expect.objectContaining({ hide: ['variant-2'] }) }),
+    )
   })
 })
 
@@ -158,7 +159,8 @@ describe('useAnkiReviewSessionActions rehearsal', () => {
       await result.current.grade('good')
     })
 
-    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'acted', followUp }))
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'gradeConfirmed', confirmed: expect.objectContaining({ followUp }) }),
+    )
   })
 
   it('should send the rehearsal flag, leave undo and counts alone, and ignore any follow-up for a rehearsal grade', async () => {

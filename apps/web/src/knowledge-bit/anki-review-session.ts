@@ -13,6 +13,15 @@ export type SessionUndoEntry =
     }
   | { kind: 'suspend' | 'bury'; card: ReviewCard; stamp: number }
 
+export interface ConfirmedGrade {
+  reviewId: string
+  leechSuspended: boolean
+  points: { awarded: number; leveledUp: boolean; level: number }
+  hide: string[]
+  followUp: ReviewCard | null
+  notice?: string
+}
+
 export interface SessionTally {
   stamp: number
   new: number
@@ -47,6 +56,8 @@ export type AnkiReviewSessionAction =
   | { type: 'advance'; now: number; notice?: string }
   | { type: 'refilled'; now: number }
   | { type: 'acted'; entry: SessionUndoEntry; now: number; notice?: string; hide?: string[]; followUp?: ReviewCard | null }
+  | { type: 'gradeConfirmed'; pendingId: string; confirmed: ConfirmedGrade; now: number }
+  | { type: 'gradeRolledBack'; snapshot: AnkiReviewSessionState }
   | { type: 'undone'; now: number }
   | { type: 'undoDropped'; notice: string }
   | { type: 'editStarted'; now: number }
@@ -151,6 +162,10 @@ export function ankiReviewSessionReducer(
         notice: action.notice ?? null,
       }
     }
+    case 'gradeConfirmed':
+      return confirmGrade(state, action.pendingId, action.confirmed)
+    case 'gradeRolledBack':
+      return { ...action.snapshot, notice: null }
     case 'undone': {
       const entry = state.undo[state.undo.length - 1]
 
@@ -196,4 +211,21 @@ function endEditing(state: AnkiReviewSessionState, now: number): AnkiReviewSessi
   }
 
   return { ...state, editingSince: null, shownAt: state.shownAt + (now - state.editingSince) }
+}
+
+function confirmGrade(state: AnkiReviewSessionState, pendingId: string, confirmed: ConfirmedGrade): AnkiReviewSessionState {
+  const { reviewId, leechSuspended, points, hide, followUp, notice } = confirmed
+  const undo = state.undo.map((entry) =>
+    entry.kind === 'grade' && entry.reviewId === pendingId ? { ...entry, reviewId, leechSuspended, points } : entry,
+  )
+  const kept = hide.length > 0 ? state.front.filter((card) => !hide.includes(card.variantId)) : state.front
+
+  return {
+    ...state,
+    undo,
+    front: followUp ? [followUp, ...kept] : kept,
+    rehearsal: followUp !== null ? true : state.rehearsal,
+    hidden: hide.length > 0 ? [...state.hidden, ...hide] : state.hidden,
+    notice: notice ?? state.notice,
+  }
 }

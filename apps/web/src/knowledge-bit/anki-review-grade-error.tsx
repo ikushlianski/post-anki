@@ -1,4 +1,5 @@
 import { useOnlineStatus } from '../shared/use-online-status'
+import { GRADE_SAVE_FAILED_MESSAGE } from './anki-review-optimistic-grade'
 import { actionErrorMessage, NON_RETRYABLE_ERRORS } from './anki-review-session-actions'
 import type { useAnkiReviewSessionActions } from './anki-review-session-actions'
 
@@ -15,7 +16,7 @@ export function AnkiReviewGradeError({ actions }: { actions: Actions }) {
 
   return (
     <div role="alert" data-testid="anki-review-grade-error" className="flex flex-col gap-2">
-      <p className="text-sm text-red-600">{actionErrorMessage(actions.error)}</p>
+      <p className="text-sm text-red-600">{actions.canRetryGrade ? GRADE_SAVE_FAILED_MESSAGE : actionErrorMessage(actions.error)}</p>
       {actions.canRetryGrade && (
         <button
           type="button"
