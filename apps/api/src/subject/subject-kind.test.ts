@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pickSubjectKind } from "./subject-kind.js";
+import { isEnglishSubject, pickSubjectKind } from "./subject-kind.js";
 
 function row(id: string, name: string, parentId: string | null, kind = "architecture-mentor") {
   return { id, name, parentId, kind };
@@ -49,5 +49,33 @@ describe("pickSubjectKind", () => {
 
     expect(pickSubjectKind("c", rows)).toBe("language");
     expect(pickSubjectKind("l", rows)).toBe("business");
+  });
+});
+
+describe("isEnglishSubject", () => {
+  const rows = [
+    row("e", " English ", null),
+    row("ph", "Phrases", "e"),
+    row("p", "Polish", null),
+    row("b", "Business", null),
+    row("a", "A", "c"),
+    row("c", "C", "a"),
+  ];
+
+  it("should be true for the English root in any case and for its sub-subjects", () => {
+    expect(isEnglishSubject("e", rows)).toBe(true);
+    expect(isEnglishSubject("ph", rows)).toBe(true);
+    expect(isEnglishSubject("ph", [row("ph", "Phrases", "e"), row("e", "english", null)])).toBe(true);
+  });
+
+  it("should be false for other languages, business, missing and null subjects", () => {
+    expect(isEnglishSubject("p", rows)).toBe(false);
+    expect(isEnglishSubject("b", rows)).toBe(false);
+    expect(isEnglishSubject("missing", rows)).toBe(false);
+    expect(isEnglishSubject(null, rows)).toBe(false);
+  });
+
+  it("should stop on a parent cycle", () => {
+    expect(isEnglishSubject("a", rows)).toBe(false);
   });
 });

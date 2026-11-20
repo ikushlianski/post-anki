@@ -28,7 +28,7 @@ import { selectFlaggedLessons } from "./knowledge-bit-flagged-lesson.js";
 import { loadLearningIntentSafely } from "./knowledge-bit-learning-intent.js";
 import { loadDetailLevelSafely } from "./knowledge-bit-detail-level.js";
 import { resolveFusionModelIds } from "./knowledge-bit-fusion-settings.js";
-import { resolveSubjectKind } from "../subject/subject-kind.js";
+import { resolveIsEnglishSubject, resolveSubjectKind } from "../subject/subject-kind.js";
 import type { PendingKnowledgeSource } from "./knowledge-bit.repo.js";
 
 // Everything a step takes or returns is stored by the engine. Source text, chunk text and
@@ -132,6 +132,8 @@ async function writeOptionsFor(
 
   const subjectKind = await (deps.loadSubjectKind ?? resolveSubjectKind)(snapshot.subjectId);
 
+  const englishSubject = await (deps.loadIsEnglishSubject ?? resolveIsEnglishSubject)(snapshot.subjectId);
+
   const sourceKind = await deps.loadSourceKind?.(snapshot.id);
 
   const clozeShaped = await isClozeShaped(snapshot.id, await deps.loadRawText(snapshot.id), deps);
@@ -149,6 +151,7 @@ async function writeOptionsFor(
     learningIntent,
     subjectKind,
     ...(sourceKind ? { sourceKind } : {}),
+    ...(englishSubject ? { englishSubject } : {}),
     ...(ankiImport ? { ankiImport } : {}),
     ...(targetPhrases && targetPhrases.length > 0 ? { targetPhrases } : {}),
     ...(detailLevel ? { detailLevel } : {}),

@@ -1,7 +1,7 @@
 import { NON_NATIVE_PHRASE_FLAG } from "@post-anki/shared";
 import type { PhraseSourceText } from "../knowledge-source/phrase-source-text.js";
 import { BASIC_CARD_FRONT_MAX_CHARS } from "./knowledge-bit-basic-card-validation.js";
-import { blankPhrase, phraseWords, revealsPhrase } from "./meeting-phrase-blank.js";
+import { blankPhrase, containsWholePhrase, phraseWords, revealsPhrase } from "./meeting-phrase-blank.js";
 import { SOURCE_ITEM_QUOTE_MAX_CHARS } from "./knowledge-bit-source-quote.js";
 import type { LessonDraft } from "./knowledge-bit-source-item-validation.js";
 
@@ -17,9 +17,8 @@ export interface MeetingPhraseAgentOutput {
   chunk?: string;
   sentences?: PhraseSentence[];
   russianMeaning?: string;
-  russianAlt?: string;
-  simpleExplanation?: string;
   situation?: string;
+  example?: string;
 }
 
 export interface PickedSentence {
@@ -95,21 +94,24 @@ export function pickSentences(
   return kept.length === 0 ? null : kept.slice(0, MAX_SENTENCES);
 }
 
-function alternativeFronts(output: MeetingPhraseAgentOutput, target: string): string[] {
-  const seen = new Set<string>();
+function verifiedExample(output: MeetingPhraseAgentOutput, target: string): string | null {
+  const example = output.example?.trim() ?? "";
 
-  return [output.situation, output.russianMeaning, output.russianAlt, output.simpleExplanation].flatMap((raw) => {
-    const front = raw?.trim() ?? "";
-    const key = comparable(front);
+  return example !== "" && containsWholePhrase(example, target) ? example : null;
+}
 
-    if (front === "" || seen.has(key) || revealsPhrase(front, target)) {
-      return [];
-    }
+function cueFronts(output: MeetingPhraseAgentOutput, target: string): string[] {
+  const cue = output.russianMeaning?.trim() ?? "";
+  const situation = output.situation?.trim() ?? "";
 
-    seen.add(key);
+  if (cue === "" || revealsPhrase(cue, target)) {
+    return [];
+  }
 
-    return [front];
-  });
+  const hasSafeSituation = situation !== "" && !revealsPhrase(situation, target);
+  const front = hasSafeSituation ? `${cue}\n${situation}` : cue;
+
+  return [front.length <= BASIC_CARD_FRONT_MAX_CHARS ? front : cue];
 }
 
 export function buildPhraseLesson(
@@ -136,7 +138,7 @@ export function buildPhraseLesson(
     answer: sentence.chunk,
     quote,
   }));
-  const frontCards = alternativeFronts(output, target).map((front) => ({
+  const frontCards = cueFronts(output, target).map((front) => ({
     kind: "basic" as const,
     statement: phrase,
     question: front,
@@ -148,7 +150,7 @@ export function buildPhraseLesson(
   return {
     statement: phrase,
     quote,
-    example: null,
+    example: verifiedExample(output, target),
     cards: [...sentenceCards, ...frontCards],
     aiSuggestion: flagged && hasBetterVersion ? suggestion : null,
     ...(flagged ? { reviewFlag: NON_NATIVE_PHRASE_FLAG as "non_native_phrase" } : {}),

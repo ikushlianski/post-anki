@@ -15,13 +15,14 @@ import {
   type MeetingPhraseAgentOutput,
 } from "../knowledge-bit/meeting-phrase-draft.js";
 import type { LessonDraft } from "../knowledge-bit/knowledge-bit-source-item-validation.js";
-import { parsePhraseSourceText } from "../knowledge-source/phrase-source-text.js";
+import { parseEnglishNote, parsePhraseSourceText } from "../knowledge-source/phrase-source-text.js";
 import { buildMeetingPhrasePrompt, MEETING_PHRASE_INSTRUCTIONS } from "./knowledge-bit-meeting-phrase.prompt.js";
 
 const FIELD_MAX_CHARS = 200;
 const SENTENCE_MAX_CHARS = 150;
 const MEANING_MAX_CHARS = 100;
 const FRONT_MAX_CHARS = 100;
+const EXAMPLE_MAX_CHARS = 240;
 const ATTEMPTS = 2;
 
 export const meetingPhraseResultSchema = z
@@ -39,9 +40,8 @@ export const meetingPhraseResultSchema = z
       )
       .max(3),
     russianMeaning: z.string().min(1).max(FRONT_MAX_CHARS),
-    russianAlt: z.string().min(1).max(FRONT_MAX_CHARS),
-    simpleExplanation: z.string().min(1).max(FRONT_MAX_CHARS),
-    situation: z.string().min(1).max(FIELD_MAX_CHARS),
+    situation: z.string().max(FIELD_MAX_CHARS).default(""),
+    example: z.string().max(EXAMPLE_MAX_CHARS).default(""),
   })
   .refine((value) => !value.looksNonNative || value.suggestion.trim() !== "", {
     message: "suggestion is required when looksNonNative is true",
@@ -62,13 +62,14 @@ export interface RunMeetingPhraseOptions {
   abortSignal?: AbortSignal;
   retryRateLimit?: boolean;
   onUsage?: (usage: ReportedUsage) => void;
+  englishSubject?: boolean;
 }
 
 export async function runMeetingPhraseCard(
   chunk: string,
   options: RunMeetingPhraseOptions = {},
 ): Promise<LessonDraft[]> {
-  const source = parsePhraseSourceText(chunk);
+  const source = options.englishSubject ? parseEnglishNote(chunk) : parsePhraseSourceText(chunk);
 
   if (!source) {
     throw new Error("knowledge_bit_meeting_phrase_invalid_source");

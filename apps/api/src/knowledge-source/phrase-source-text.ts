@@ -25,3 +25,17 @@ export function parsePhraseSourceText(text: string): PhraseSourceText | null {
 
   return phrase ? { phrase, hint: hint || null, unsure } : null;
 }
+
+export function parseEnglishNote(chunk: string): PhraseSourceText | null {
+  const parsed = parsePhraseSourceText(chunk);
+
+  if (parsed) {
+    return parsed;
+  }
+
+  const [first = "", ...rest] = chunk.trim().split(/\r?\n/);
+  const phrase = first.trim();
+  const hint = rest.join(" ").replace(/\s+/g, " ").trim();
+
+  return phrase ? { phrase, hint: hint || null, unsure: false } : null;
+}

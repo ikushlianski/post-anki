@@ -107,6 +107,22 @@ describe("planStep for long Anki cloze notes", () => {
 });
 
 describe("chunkStep", () => {
+  it("should tell the writer when the source sits under the English subject", async () => {
+    const d = deps({ loadIsEnglishSubject: vi.fn().mockResolvedValue(true) });
+
+    await chunkStep(snapshot, 0, d);
+
+    expect(d.writeItems).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ englishSubject: true }));
+  });
+
+  it("should leave the English flag off for other subjects", async () => {
+    const d = deps({ loadIsEnglishSubject: vi.fn().mockResolvedValue(false) });
+
+    await chunkStep(snapshot, 0, d);
+
+    expect(d.writeItems).toHaveBeenCalledWith(expect.any(String), expect.not.objectContaining({ englishSubject: true }));
+  });
+
   it("should hand an Anki note to the model as plain fact text with no markers", async () => {
     const d = deps({
       loadIsAnkiImport: vi.fn().mockResolvedValue(true),

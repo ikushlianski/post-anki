@@ -176,6 +176,7 @@ export interface RunKnowledgeBitSourceItemsOptions {
   detailLevel?: DetailLevel;
   subjectKind?: SubjectKind;
   sourceKind?: string;
+  englishSubject?: boolean;
   targetPhrases?: string[];
   focus?: KnowledgeHighlight[];
   abortSignal?: AbortSignal;
@@ -233,11 +234,17 @@ function toValidLessons(
     .filter((lesson) => validateLesson(lesson, chunk).ok && quoteOverlapsFocus(lesson.quote, chunk, focus));
 }
 
+const ENGLISH_NOTE_MAX_WORDS = 15;
+
+function isShortNote(chunk: string): boolean {
+  return chunk.trim().split(/\s+/).filter(Boolean).length <= ENGLISH_NOTE_MAX_WORDS;
+}
+
 export async function runKnowledgeBitSourceItems(
   chunk: string,
   options: RunKnowledgeBitSourceItemsOptions = {},
 ): Promise<LessonDraft[]> {
-  if (options.sourceKind === "phrase") {
+  if (options.sourceKind === "phrase" || (options.englishSubject && isShortNote(chunk))) {
     return runMeetingPhraseCard(chunk, options);
   }
 

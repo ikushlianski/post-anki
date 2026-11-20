@@ -50,3 +50,28 @@ describe("writeAndValidate for an Anki import chunk", () => {
     expect(enrichItems).not.toHaveBeenCalled();
   });
 });
+
+describe("writeAndValidate for an English subject note", () => {
+  const phraseDraft = {
+    statement: "circle back",
+    quote: "circle back",
+    example: "Let's circle back on this after the demo.",
+    cards: [
+      {
+        kind: "basic" as const,
+        statement: "circle back",
+        question: "Вернуться к теме позже\nHint: circle ...",
+        answer: "circle back",
+        quote: "circle back",
+      },
+    ],
+  };
+
+  it("should keep a card with a Russian cue for a short English note", async () => {
+    const writeItems = vi.fn().mockResolvedValue([phraseDraft]);
+    const result = await writeAndValidate("circle back", { englishSubject: true }, depsWith(writeItems));
+
+    expect(result.valid).toHaveLength(1);
+    expect(result.valid[0]?.cards[0]?.answer).toBe("circle back");
+  });
+});

@@ -14,6 +14,7 @@ export interface WriteOptions {
   detailLevel?: DetailLevel;
   subjectKind?: SubjectKind;
   sourceKind?: string;
+  englishSubject?: boolean;
   targetPhrases?: string[];
   focus?: KnowledgeHighlight[];
   abortSignal?: AbortSignal;
@@ -38,6 +39,7 @@ export interface GenerateItemsDeps {
   loadStyleNotesBlock?: (subjectId: string | null) => Promise<string>;
   loadLearningIntent?: LearningIntentLoader;
   loadSubjectKind?: (subjectId: string | null) => Promise<SubjectKind>;
+  loadIsEnglishSubject?: (subjectId: string | null) => Promise<boolean>;
   loadSourceKind?: (sourceId: string) => Promise<string>;
   loadIsAnkiImport?: (sourceId: string) => Promise<boolean>;
   loadTargetPhrases?: (sourceId: string) => Promise<string[]>;

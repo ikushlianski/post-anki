@@ -146,7 +146,7 @@ async function writeAndValidateWith(
     return DELIBERATE_EMPTY;
   }
 
-  const allowMixedScript = options.sourceKind === "phrase";
+  const allowMixedScript = options.sourceKind === "phrase" || options.englishSubject === true;
   const firstResult = validateSourceItems(first, chunk, allowMixedScript);
   const needsRetry =
     firstResult.valid.length === 0 || firstResult.dropped.length * 2 >= first.length;

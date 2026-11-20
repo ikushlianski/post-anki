@@ -60,14 +60,43 @@ export function pickSubjectKind(subjectId: string | null, rows: SubjectKindRow[]
   return rootName === "business" ? "business" : "other";
 }
 
+export function isEnglishSubject(subjectId: string | null, rows: SubjectKindRow[]): boolean {
+  if (!subjectId) {
+    return false;
+  }
+
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const seen = new Set<string>();
+  let current = byId.get(subjectId);
+  let root = current;
+
+  while (current && !seen.has(current.id)) {
+    seen.add(current.id);
+    root = current;
+    current = current.parentId ? byId.get(current.parentId) : undefined;
+  }
+
+  return root?.name.trim().toLowerCase() === "english";
+}
+
+async function loadSubjectRows(): Promise<SubjectKindRow[]> {
+  return getDb()
+    .select({ id: subjects.id, parentId: subjects.parentId, name: subjects.name, kind: subjects.kind })
+    .from(subjects);
+}
+
+export async function resolveIsEnglishSubject(subjectId: string | null): Promise<boolean> {
+  if (!subjectId) {
+    return false;
+  }
+
+  return isEnglishSubject(subjectId, await loadSubjectRows());
+}
+
 export async function resolveSubjectKind(subjectId: string | null): Promise<SubjectKind> {
   if (!subjectId) {
     return "other";
   }
 
-  const rows = await getDb()
-    .select({ id: subjects.id, parentId: subjects.parentId, name: subjects.name, kind: subjects.kind })
-    .from(subjects);
-
-  return pickSubjectKind(subjectId, rows);
+  return pickSubjectKind(subjectId, await loadSubjectRows());
 }

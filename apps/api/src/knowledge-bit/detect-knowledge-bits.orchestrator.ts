@@ -17,7 +17,7 @@ import {
 import { markKnowledgeSourceItemCapReached } from "./knowledge-source-item-cap.repo.js";
 import { markKnowledgeSourceNothingExtracted } from "./knowledge-source-nothing-extracted.repo.js";
 import { loadLearningIntentSafely, resolveKnowledgeBitLearningIntent } from "./knowledge-bit-learning-intent.js";
-import { resolveSubjectKind } from "../subject/subject-kind.js";
+import { resolveIsEnglishSubject, resolveSubjectKind } from "../subject/subject-kind.js";
 import { getKnowledgeItemModelId } from "../admin-settings/admin-settings.repo.js";
 import { loadFusionModelIds, resolveFusionModelIds } from "./knowledge-bit-fusion-settings.js";
 import { loadHighlights, loadIsAnkiImport, loadTargetPhrases, loadKnowledgeSourceKind } from "./knowledge-source-kind.repo.js";
@@ -72,6 +72,7 @@ export function defaultGenerateItemsDeps(): GenerateItemsDeps {
     loadStyleNotesBlock,
     loadLearningIntent: resolveKnowledgeBitLearningIntent,
     loadSubjectKind: resolveSubjectKind,
+    loadIsEnglishSubject: resolveIsEnglishSubject,
     loadSourceKind: loadKnowledgeSourceKind,
     loadIsAnkiImport,
     loadTargetPhrases,
@@ -170,6 +171,7 @@ export async function generateItemsForSource(
   const styleNotesBlock = await loadStyleNotesBlockSafely(source, deps);
   const learningIntent = await loadLearningIntentSafely(source.subjectId, source.id, deps.loadLearningIntent);
   const subjectKind = await (deps.loadSubjectKind ?? resolveSubjectKind)(source.subjectId);
+  const englishSubject = await (deps.loadIsEnglishSubject ?? resolveIsEnglishSubject)(source.subjectId);
   const sourceKind = await loadOptionalSafely(source.id, "knowledge_source_kind_load_failed", deps.loadSourceKind);
   const isAnkiImport = await loadOptionalSafely(source.id, "knowledge_source_anki_import_load_failed", deps.loadIsAnkiImport);
   const ankiImport = isAnkiImport || (source.rawText !== null && hasClozeMarkup(source.rawText)) || undefined;
@@ -188,6 +190,7 @@ export async function generateItemsForSource(
     learningIntent,
     subjectKind,
     ...(sourceKind ? { sourceKind } : {}),
+    ...(englishSubject ? { englishSubject } : {}),
     ...(ankiImport ? { ankiImport } : {}),
     ...(targetPhrases && targetPhrases.length > 0 ? { targetPhrases } : {}),
     ...(detailLevel ? { detailLevel } : {}),

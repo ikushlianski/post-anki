@@ -23,6 +23,9 @@ vi.mock("../admin-settings/admin-settings.repo.js", () => ({
   getKnowledgeItemModelId: vi.fn().mockResolvedValue("openrouter/google/gemma-4-31b-it"),
 }));
 
+vi.mock("./knowledge-bit-meeting-phrase.agent.js", () => ({ runMeetingPhraseCard: vi.fn().mockResolvedValue([]) }));
+
+import { runMeetingPhraseCard } from "./knowledge-bit-meeting-phrase.agent.js";
 import { getKnowledgeItemModelId } from "../admin-settings/admin-settings.repo.js";
 import { generateWithRetry } from "./generate-with-retry.js";
 import {
@@ -464,4 +467,49 @@ describe("runKnowledgeBitSourceItems by subject kind", () => {
       expect(agentKeysUsed()).toEqual(["knowledgeBitLessons", "knowledgeBitSourceItems"]);
     },
   );
+});
+
+describe("runKnowledgeBitSourceItems for the English subject", () => {
+  function resetCalls(): void {
+    vi.mocked(generateWithRetry).mockClear();
+    vi.mocked(runMeetingPhraseCard).mockClear();
+    generateMock.mockClear();
+  }
+
+  it("should turn a short note under English into a phrase card even for a language subject", async () => {
+    resetCalls();
+
+    await runKnowledgeBitSourceItems("circle back", { subjectKind: "language", englishSubject: true });
+
+    expect(runMeetingPhraseCard).toHaveBeenCalledWith("circle back", expect.objectContaining({ englishSubject: true }));
+    expect(generateMock).not.toHaveBeenCalled();
+  });
+
+  it("should keep the legacy lesson path for another language subject", async () => {
+    resetCalls();
+    generateMock.mockResolvedValueOnce({ object: { items: [{ ...CARD, quote: LESSON.quote }] } });
+
+    await runKnowledgeBitSourceItems(SOURCE, { subjectKind: "language" });
+
+    expect(runMeetingPhraseCard).not.toHaveBeenCalled();
+    expect(vi.mocked(generateWithRetry).mock.calls.map((call) => call[2])).toEqual(["knowledgeBitSourceItemsLegacy"]);
+  });
+
+  it("should still use the phrase card for a phrase source outside English", async () => {
+    resetCalls();
+
+    await runKnowledgeBitSourceItems("Phrase: touch base", { sourceKind: "phrase" });
+
+    expect(runMeetingPhraseCard).toHaveBeenCalledTimes(1);
+  });
+
+  it("should treat an English note longer than 15 words as text, not a phrase", async () => {
+    resetCalls();
+    generateMock.mockResolvedValueOnce({ object: { items: [{ ...CARD, quote: LESSON.quote }] } });
+    const longNote = Array.from({ length: 16 }, (_, index) => `word${index}`).join(" ");
+
+    await runKnowledgeBitSourceItems(longNote, { subjectKind: "language", englishSubject: true });
+
+    expect(runMeetingPhraseCard).not.toHaveBeenCalled();
+  });
 });

@@ -8,8 +8,6 @@ const SOURCE = { phrase: "touch base", hint: null, unsure: false };
 function output(overrides: Partial<MeetingPhraseAgentOutput> = {}): MeetingPhraseAgentOutput {
   return {
     russianMeaning: "Коротко связаться",
-    russianAlt: "Выйти на связь",
-    simpleExplanation: "to talk to someone for a short time",
     context: "",
     looksNonNative: false,
     suggestion: "",
@@ -87,8 +85,8 @@ describe("buildPhraseLesson", () => {
 
   it("should import a three-letter phrase such as FYI instead of failing it on quote length", () => {
     const chunk = "Phrase: FYI";
-    const lesson = buildPhraseLesson({ ...SOURCE, phrase: "FYI" }, output({ russianMeaning: "", russianAlt: "" }), chunk);
-    const result = validateSourceItems([lesson], chunk);
+    const lesson = buildPhraseLesson({ ...SOURCE, phrase: "FYI" }, output(), chunk);
+    const result = validateSourceItems([lesson], chunk, true);
 
     expect(result.valid).toHaveLength(1);
     expect(result.dropped).toEqual([]);
@@ -96,10 +94,10 @@ describe("buildPhraseLesson", () => {
 
   it("should not reject a very short phrase because of the quote length minimum", () => {
     const chunk = "Phrase: wrap up";
-    const lesson = buildPhraseLesson({ ...SOURCE, phrase: "wrap up" }, output({ russianMeaning: "", russianAlt: "" }), chunk);
+    const lesson = buildPhraseLesson({ ...SOURCE, phrase: "wrap up" }, output(), chunk);
     const card = lesson.cards[0];
 
-    expect(card && validateSourceItem(card, chunk).ok).toBe(true);
+    expect(card && validateSourceItem(card, chunk, true).ok).toBe(true);
   });
 });
 
@@ -207,29 +205,25 @@ describe("buildPhraseLesson with sentences", () => {
     expect(first?.context).toBe("In a call");
   });
 
-  it("should add the four other wordings as extra cards answered by the bare phrase", () => {
-    const cards = lessonFor({ situation: "You want a short catch-up with a colleague." }).cards.slice(2);
+  it("should add one extra card whose front is just the Russian cue, answered by the bare phrase", () => {
+    const cards = lessonFor().cards.slice(2);
 
-    expect(cards.map((card) => card.question)).toEqual([
-      "You want a short catch-up with a colleague.",
-      "Коротко связаться",
-      "Выйти на связь",
-      "to talk to someone for a short time",
-    ]);
-    expect(cards.map((card) => card.answer)).toEqual(Array(4).fill("touch base"));
+    expect(cards.map((card) => card.question)).toEqual(["Коротко связаться"]);
+    expect(cards.map((card) => card.answer)).toEqual(["touch base"]);
     expect(lessonFor().statement).toBe("touch base");
   });
 
-  it("should leave out a wording that contains the phrase or one of its key words", () => {
-    const cards = lessonFor({ simpleExplanation: "to touch someone briefly", russianAlt: "Touch base" }).cards.slice(2);
+  it("should add one short English line under the cue only when a situation is given", () => {
+    const cards = lessonFor({ situation: "You want a short catch-up with a colleague." }).cards.slice(2);
 
-    expect(cards.map((card) => card.question)).toEqual(["Коротко связаться"]);
+    expect(cards.map((card) => card.question)).toEqual(["Коротко связаться\nYou want a short catch-up with a colleague."]);
   });
 
-  it("should leave out a repeated wording", () => {
-    const cards = lessonFor({ russianAlt: "коротко связаться" }).cards.slice(2);
-
-    expect(cards).toHaveLength(2);
+  it("should leave out a cue or situation that contains the phrase or one of its key words", () => {
+    expect(lessonFor({ russianMeaning: "Touch base" }).cards.slice(2)).toEqual([]);
+    expect(lessonFor({ situation: "You want to touch someone briefly." }).cards.slice(2).map((card) => card.question)).toEqual([
+      "Коротко связаться",
+    ]);
   });
 
   it("should use the AI-corrected phrase as the bare answer of the extra cards when flagged", () => {
@@ -242,7 +236,7 @@ describe("buildPhraseLesson with sentences", () => {
   it("should fall back to the wordings alone with the phrase on the back when no sentence is usable", () => {
     const lesson = buildPhraseLesson(SOURCE, output(), CHUNK);
 
-    expect(lesson.cards.map((card) => card.answer)).toEqual(["touch base", "touch base", "touch base"]);
+    expect(lesson.cards.map((card) => card.answer)).toEqual(["touch base"]);
     expect(lesson.cards[0]?.question).toBe("Коротко связаться");
   });
 
@@ -252,23 +246,23 @@ describe("buildPhraseLesson with sentences", () => {
     const result = validateSourceItems([lesson], chunk);
 
     expect(result.dropped).toEqual([]);
-    expect(result.valid[0]?.cards).toHaveLength(5);
+    expect(result.valid[0]?.cards).toHaveLength(3);
   });
 });
 
 describe("wrong-language check for phrase cards", () => {
   const lesson = () =>
-    buildPhraseLesson(
-      SOURCE,
-      output({ sentences: [sentence("Let's touch base on Friday.", "Связаться в пятницу и обсудить дела")] }),
-      CHUNK,
-    );
+  {
+      const out = output({ sentences: [sentence("Let's touch base on Friday.", "Связаться в пятницу и обсудить дела")] });
+
+      return buildPhraseLesson(SOURCE, out, CHUNK, pickSentences(SOURCE, out));
+    };
 
   it("should accept a phrase front with a Russian translation and a pure Russian front", () => {
     const result = validateSourceItems([lesson()], CHUNK, true);
 
     expect(result.dropped).toEqual([]);
-    expect(result.valid[0]?.cards.length).toBeGreaterThanOrEqual(3);
+    expect(result.valid[0]?.cards.length).toBeGreaterThanOrEqual(2);
   });
 
   it("should still reject the same Russian fronts when the pipeline is not the phrase pipeline", () => {
@@ -289,5 +283,19 @@ describe("wrong-language check for phrase cards", () => {
 
     expect(validateSourceItem(item, source)).toEqual({ ok: false, reason: "wrong_language" });
     expect(validateSourceItem(item, source, true).ok).toBe(true);
+  });
+});
+
+describe("buildPhraseLesson example", () => {
+  it("should keep a usage example that contains the target", () => {
+    const lesson = buildPhraseLesson(SOURCE, output({ example: "Let's touch base after stand-up." }), CHUNK);
+
+    expect(lesson.example).toBe("Let's touch base after stand-up.");
+  });
+
+  it("should drop an example that does not contain the target", () => {
+    const lesson = buildPhraseLesson(SOURCE, output({ example: "Let's sync after stand-up." }), CHUNK);
+
+    expect(lesson.example).toBeNull();
   });
 });

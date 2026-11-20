@@ -48,6 +48,12 @@ function keyWords(phrase: string): string[] {
   return long.length > 0 ? long : words.filter((word) => word.length >= SHORT_KEY_WORD_MIN_CHARS);
 }
 
+export function containsWholePhrase(text: string, phrase: string): boolean {
+  const words = phraseWords(phrase);
+
+  return words.length > 0 && phraseMatcher(words).test(text);
+}
+
 export function revealsPhrase(front: string, phrase: string): boolean {
   const words = phraseWords(phrase);
 

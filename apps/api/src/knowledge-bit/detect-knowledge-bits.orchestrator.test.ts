@@ -70,6 +70,7 @@ function buildGenerateDeps(overrides: Partial<GenerateItemsDeps> = {}): Generate
     markItemCapReached: vi.fn().mockResolvedValue(true),
     markFailed: vi.fn().mockResolvedValue(true),
     loadFeedbackBlock: vi.fn().mockResolvedValue(""),
+    loadIsEnglishSubject: vi.fn().mockResolvedValue(false),
     ...overrides,
   };
 }
@@ -152,6 +153,20 @@ describe("generateItemsForSource", () => {
     });
     expect(deps.markDetected).toHaveBeenCalledWith("ks_1", pending.claimedAt);
     expect(result).toEqual({ status: "detected", inserted: 3, failureReason: null });
+  });
+
+  it("should tell the writer when the source sits under the English subject", async () => {
+    const deps = buildGenerateDeps({
+      writeItems: vi.fn().mockResolvedValue(RU_EXAMPLE_ITEMS),
+      loadIsEnglishSubject: vi.fn().mockResolvedValue(true),
+    });
+
+    await generateItemsForSource(source("ks_1", RU_SOURCE_TEXT), {}, deps);
+
+    expect(deps.writeItems).toHaveBeenCalledWith(
+      RU_SOURCE_TEXT.trim(),
+      expect.objectContaining({ englishSubject: true }),
+    );
   });
 
   it("should hand the reviewer feedback of the source's subject to every chunk call", async () => {

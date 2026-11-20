@@ -50,8 +50,6 @@ const VALID = {
   chunk: "touch base",
   sentences: SENTENCES,
   russianMeaning: "Коротко связаться",
-  russianAlt: "Выйти на связь",
-  simpleExplanation: "to talk to someone for a short time",
   situation: "You want a quick word with a teammate before the call.",
 };
 
@@ -65,19 +63,16 @@ describe("runMeetingPhraseCard", () => {
 
     const [lesson] = await runMeetingPhraseCard(formatPhraseSourceText("touch base", null));
 
-    expect(lesson?.cards.map((card) => card.answer)).toEqual(Array(7).fill("touch base"));
+    expect(lesson?.cards.map((card) => card.answer)).toEqual(Array(4).fill("touch base"));
     expect(lesson?.cards[0]?.question).toBe("Let's ____ on Friday to review the plan.\nСвязаться");
     expect(lesson?.cards.slice(3).map((card) => card.question)).toEqual([
-      "You want a quick word with a teammate before the call.",
-      "Коротко связаться",
-      "Выйти на связь",
-      "to talk to someone for a short time",
+      "Коротко связаться\nYou want a quick word with a teammate before the call.",
     ]);
     expect(lesson?.statement).toBe("touch base");
   });
 
-  it("should reject a result without the three extra wordings or with a fourth sentence", () => {
-    const { russianAlt: _dropped, ...missing } = VALID;
+  it("should reject a result without the Russian cue or with a fourth sentence", () => {
+    const { russianMeaning: _dropped, ...missing } = VALID;
 
     expect(meetingPhraseResultSchema.safeParse(VALID).success).toBe(true);
     expect(meetingPhraseResultSchema.safeParse(missing).success).toBe(false);
@@ -90,7 +85,7 @@ describe("runMeetingPhraseCard", () => {
     const instructions = agentCtorMock.mock.calls[0]?.[0].instructions as string;
 
     expect(instructions).toContain("translation");
-    expect(instructions).toContain("simpleExplanation");
+    expect(instructions).toContain("russianMeaning");
     expect(instructions).toContain("never contain the phrase or its key words");
     expect(instructions).toContain("SECURITY");
   });
@@ -109,8 +104,8 @@ describe("runMeetingPhraseCard", () => {
     const [lesson] = await runMeetingPhraseCard(formatPhraseSourceText("touch base", null));
 
     expect(generateMock).toHaveBeenCalledTimes(2);
-    expect(lesson?.cards).toHaveLength(4);
-    expect(lesson?.cards.map((card) => card.answer)).toEqual(Array(4).fill("touch base"));
+    expect(lesson?.cards).toHaveLength(1);
+    expect(lesson?.cards.map((card) => card.answer)).toEqual(Array(1).fill("touch base"));
   });
 
   it("should keep the sentences from the second answer when the first has none that fit", async () => {
@@ -120,7 +115,7 @@ describe("runMeetingPhraseCard", () => {
 
     const [lesson] = await runMeetingPhraseCard(formatPhraseSourceText("touch base", null));
 
-    expect(lesson?.cards).toHaveLength(7);
+    expect(lesson?.cards).toHaveLength(4);
   });
 
   it("should build sentences around the AI-corrected phrase when flagged", async () => {
@@ -140,7 +135,7 @@ describe("runMeetingPhraseCard", () => {
     const [lesson] = await runMeetingPhraseCard(formatPhraseSourceText("touch base", null));
 
     expect(lesson?.cards[0]?.question).toBe("Let's ____ tomorrow.\nУвидеться");
-    expect(lesson?.cards.map((card) => card.answer)).toEqual(Array(5).fill("catch up"));
+    expect(lesson?.cards.map((card) => card.answer)).toEqual(Array(2).fill("catch up"));
   });
 
   it("should tell the model to write three sentences that contain the phrase", async () => {
