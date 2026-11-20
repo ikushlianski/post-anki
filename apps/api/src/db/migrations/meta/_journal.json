@@ -1177,6 +1177,13 @@
       "when": 1795046679731,
       "tag": "0167_absurd_molten_man",
       "breakpoints": true
+    },
+    {
+      "idx": 168,
+      "version": "7",
+      "when": 1795216955637,
+      "tag": "0168_good_omega_sentinel",
+      "breakpoints": true
     }
   ]
 }

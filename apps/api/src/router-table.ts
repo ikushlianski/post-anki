@@ -317,6 +317,7 @@ export const ROUTES: RouteDef[] = [
   },
   { method: "GET", pattern: "/content-inbox", name: "listContentInbox" },
   { method: "POST", pattern: "/biz-education-distills", name: "triggerBizEducationDistill" },
+  { method: "POST", pattern: "/notion-english-phrases", name: "triggerNotionEnglishPhrases" },
   { method: "POST", pattern: "/source-duplicate-scans", name: "triggerSourceDuplicateScan" },
   {
     method: "GET",

@@ -9,6 +9,7 @@ import {
 import type { NotionItem, NotionSource } from "@post-anki/shared";
 import { itemsFromBlocks, itemsFromDatabaseRows } from "@post-anki/core";
 import { loadEnv } from "../shared/env.js";
+import type { PhraseBlock } from "./phrase-key.js";
 
 let cached: Client | undefined;
 
@@ -68,4 +69,23 @@ export async function readSourceItems(
   }
 
   return itemsFromDatabaseRows(await queryDatabase(id, client));
+}
+
+export async function listPhraseBlocks(pageId: string, client = getNotionClient()): Promise<PhraseBlock[]> {
+  const blocks = await listPageBlocks(pageId, client);
+
+  return blocks.map((block) => {
+    const richText = block.type === "bulleted_list_item" ? block.bulleted_list_item.rich_text : [];
+
+    return {
+      id: block.id,
+      type: block.type,
+      text: richText.map((part) => part.plain_text).join(""),
+      hasChildren: block.has_children,
+    };
+  });
+}
+
+export async function deleteNotionBlock(blockId: string, client = getNotionClient()): Promise<void> {
+  await client.blocks.delete({ block_id: blockId });
 }

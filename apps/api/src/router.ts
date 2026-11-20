@@ -8,6 +8,7 @@ export type RouteName =
   | "checkWebAuth"
   | "listContentInbox"
   | "triggerBizEducationDistill"
+  | "triggerNotionEnglishPhrases"
   | "listSubjects"
   | "createSubject"
   | "createKnowledgeSource"

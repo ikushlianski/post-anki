@@ -15,7 +15,7 @@ RUN npm ci --workspace @post-anki/api --include-workspace-root
 
 FROM base AS runtime
 COPY --from=deps /app/node_modules ./node_modules
-COPY package.json ./
+COPY package.json notion-connectors.json ./
 COPY packages/shared ./packages/shared
 COPY packages/core ./packages/core
 COPY apps/api ./apps/api

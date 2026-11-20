@@ -416,6 +416,7 @@ import {
   handleListContentInbox,
   handleTriggerBizEducationDistill,
 } from "./biz-education-distiller/content-inbox.controller.js";
+import { handleNotionEnglishPhrases } from "./notion-connector/english-phrases.handler.js";
 import { handleGetMilestones } from "./milestone/milestone.controller.js";
 import {
   handleListStudyMaterials,
@@ -508,7 +509,7 @@ async function authorized(req: http.IncomingMessage): Promise<boolean> {
 }
 
 function requiresSharedSecretOnly(path: string): boolean {
-  return isAuthPath(path) || path === "/web-auth/checks";
+  return isAuthPath(path) || path === "/web-auth/checks" || path === "/notion-english-phrases";
 }
 
 function hasSharedSecret(req: http.IncomingMessage): boolean {
@@ -1376,6 +1377,8 @@ async function route(
       return handleListContentInbox(res);
     case "triggerBizEducationDistill":
       return handleTriggerBizEducationDistill(res);
+    case "triggerNotionEnglishPhrases":
+      return handleNotionEnglishPhrases(res, url);
     case "triggerSourceDuplicateScan":
       return handleTriggerSourceDuplicateScan(res);
     case "listSourceDuplicateSuggestions":

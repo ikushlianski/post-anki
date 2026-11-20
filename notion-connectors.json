@@ -17,6 +17,12 @@
         "direction": "reading-notes"
       },
       "removeAfterImport": false
+    },
+    {
+      "name": "english-phrases-3",
+      "source": { "kind": "page", "id": "2dfdec4d-fc6e-80bc-9803-c86fb9e994eb" },
+      "destination": { "kind": "knowledge-source", "subjectPath": "English", "maxPerRun": 10 },
+      "removeAfterImport": false
     }
   ]
 }

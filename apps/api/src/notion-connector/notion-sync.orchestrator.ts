@@ -1,5 +1,5 @@
 import type { Client } from "@notionhq/client";
-import type { NotionConnector, NotionItem, NotionSource } from "@post-anki/shared";
+import { isKnowledgeSourceConnector, type NotionConnector, type NotionItem, type NotionSource } from "@post-anki/shared";
 import { filterByTag } from "@post-anki/core";
 import { log } from "../shared/log.js";
 import { embedFacts } from "../facts/facts-embedding.orchestrator.js";
@@ -68,8 +68,10 @@ async function routeItem(connector: NotionConnector, item: NotionItem, deps: Not
 
   if (destination.kind === "fact") {
     await insertFact({ body: item.text, source: "notion", sourceRef: `notion:${item.id}`, tags: item.tags });
-  } else {
+  } else if (destination.kind === "project-todo") {
     await deps.addTodo({ file: destination.file, direction: destination.direction }, item.text);
+  } else {
+    throw new Error(`Destination ${destination.kind} is not handled by the tagged sync`);
   }
 
   await recordSynced(item.id, connector.name, destination.kind, new Date(item.lastEditedTime));
@@ -83,6 +85,10 @@ export async function syncConnector(
   connector: NotionConnector,
   deps: NotionSyncDeps,
 ): Promise<ConnectorSyncResult> {
+  if (isKnowledgeSourceConnector(connector) || !connector.tag) {
+    throw new Error(`Connector "${connector.name}" is not a tagged connector`);
+  }
+
   const tagged = filterByTag(await deps.readItems(connector.source), connector.tag);
   const alreadySynced = await listSyncedNotionItems(tagged.map((item) => item.id));
   const result: ConnectorSyncResult = { connector: connector.name, imported: 0, skipped: 0, failed: 0 };
@@ -121,7 +127,7 @@ export async function runNotionSync(
 ): Promise<ConnectorSyncResult[]> {
   const results: ConnectorSyncResult[] = [];
 
-  for (const connector of connectors) {
+  for (const connector of connectors.filter((candidate) => !isKnowledgeSourceConnector(candidate))) {
     const { intervalMinutes } = connector;
 
     if (!connector.enabled) {

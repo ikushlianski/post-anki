@@ -1679,6 +1679,21 @@ export const notionConnectorRuns = pgTable("notion_connector_runs", {
   lastRunAt: timestamp("last_run_at", { withTimezone: true }).notNull(),
 });
 
+export const notionImportLog = pgTable(
+  "notion_import_log",
+  {
+    id: text("id").primaryKey(),
+    connector: text("connector").notNull(),
+    notionBlockId: text("notion_block_id").notNull(),
+    originalText: text("original_text").notNull(),
+    knowledgeSourceId: text("knowledge_source_id").notNull(),
+    importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    deleteError: text("delete_error"),
+  },
+  (table) => [index("notion_import_log_connector_deleted_idx").on(table.connector, table.deletedAt)],
+);
+
 // One row per extraction run rating; tracks the overall quality of a source's extraction pass
 // so model selection can learn from both good and bad runs (added in migration 0093).
 export const knowledgeSourceExtractionGrade = pgTable(
