@@ -1,3 +1,5 @@
+import { clearOfflineStore } from '../review-offline/clear-offline-store'
+
 export type SignInOutcome = 'signed_in' | 'rate_limited' | 'failed'
 
 async function postJson(path: string, body: unknown): Promise<Response> {
@@ -39,6 +41,12 @@ export async function signOut(): Promise<boolean> {
     if (!response.ok) {
       return false
     }
+  } catch {
+    return false
+  }
+
+  try {
+    await clearOfflineStore()
   } catch {
     return false
   }

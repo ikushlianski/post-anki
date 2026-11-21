@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { clearOfflineStore } from '../review-offline/clear-offline-store'
 import { signInWithPassword, signOut } from './web-auth.browser'
+
+vi.mock('../review-offline/clear-offline-store', () => ({ clearOfflineStore: vi.fn().mockResolvedValue(undefined) }))
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -20,6 +23,27 @@ describe('signOut', () => {
 
     expect(await signOut()).toBe(true)
     expect(assign).toHaveBeenCalledWith('/login')
+    expect(clearOfflineStore).toHaveBeenCalledTimes(1)
+  })
+
+  it('should report failure and stay on the page when the offline data could not be wiped', async () => {
+    assign.mockReset()
+    vi.mocked(clearOfflineStore).mockRejectedValueOnce(new Error('locked'))
+    stubLocation()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 200 })))
+
+    expect(await signOut()).toBe(false)
+    expect(assign).not.toHaveBeenCalled()
+  })
+
+  it('should keep the saved offline cards when sign-out fails', async () => {
+    vi.mocked(clearOfflineStore).mockClear()
+    stubLocation()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 403 })))
+
+    await signOut()
+
+    expect(clearOfflineStore).not.toHaveBeenCalled()
   })
 
   it('should stay on the page and report failure when sign-out is refused or the network is down', async () => {

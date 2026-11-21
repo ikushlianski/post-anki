@@ -8,6 +8,7 @@ import { undoQueuedGrade } from './offline-grade-undo'
 import { noteGraded, unmarkGraded } from './pack-graded-marks'
 import type { OfflineReviewStore, SendGrade } from './offline-review-types'
 import { sendQueuedGrade } from './send-queued-grade'
+import { generationOf, isCurrentGeneration } from './store-generation'
 
 const OFFLINE_REVIEW_PREFIX = 'offline:'
 
@@ -52,6 +53,7 @@ export async function submitGradeOrQueue(
   store: OfflineReviewStore = getOfflineStore(),
 ): Promise<SubmitReviewOutcome> {
   const payload = submission
+  const token = generationOf(store)
 
   try {
     const outcome = await submitReview({
@@ -67,7 +69,7 @@ export async function submitGradeOrQueue(
     })
 
     if (outcome.ok && !submission.rehearsal) {
-      await noteGraded(store, submission.variantId, submission.knowledgeBitId).catch(() => undefined)
+      await noteGraded(store, submission.variantId, submission.knowledgeBitId, Date.now(), token).catch(() => undefined)
     }
 
     return outcome
@@ -76,18 +78,41 @@ export async function submitGradeOrQueue(
       return { ok: false, error: 'grading_failed' }
     }
 
-    await enqueueGrade(store, {
-      requestId: submission.requestId,
-      variantId: submission.variantId,
-      knowledgeBitId: submission.knowledgeBitId,
-      grade: submission.grade,
-      durationMs: submission.durationMs,
-      tz: submission.tz,
-      burySiblings: submission.burySiblings,
-    })
+    if (!isCurrentGeneration(store, token)) {
+      return queuedOutcome(submission)
+    }
+
+    await enqueueGrade(
+      store,
+      {
+        requestId: submission.requestId,
+        variantId: submission.variantId,
+        knowledgeBitId: submission.knowledgeBitId,
+        grade: submission.grade,
+        durationMs: submission.durationMs,
+        tz: submission.tz,
+        burySiblings: submission.burySiblings,
+      },
+      new Date(),
+      token,
+    )
 
     return queuedOutcome(submission)
   }
+}
+
+async function undoSentGrade(reviewId: string | undefined, variantId: string | undefined, store: OfflineReviewStore) {
+  if (!reviewId) {
+    return { ok: false, error: 'undo_unavailable' } as const
+  }
+
+  const outcome = await undoReview({ data: { reviewId } })
+
+  if (outcome.ok && variantId) {
+    await unmarkGraded(store, variantId).catch(() => undefined)
+  }
+
+  return outcome
 }
 
 export async function undoGrade(
@@ -112,7 +137,7 @@ export async function undoGrade(
     case 'removed':
       return { ok: true, knowledgeBitId: '', variantId: variantId ?? '', cardKey: '', unburiedVariantIds: [] }
     case 'sent':
-      return result.reviewId ? undoReview({ data: { reviewId: result.reviewId } }) : { ok: false, error: 'undo_unavailable' }
+      return undoSentGrade(result.reviewId, variantId, store)
     case 'unconfirmed':
       return { ok: false, error: 'undo_unconfirmed' }
     case 'missing':

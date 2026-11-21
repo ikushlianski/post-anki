@@ -1,4 +1,4 @@
-import { flightFor, waitForCancelled, type CancelledOutcome } from './offline-flight'
+import { flightFor, waitForCancelled, type CancelledOutcome, type Flight } from './offline-flight'
 import { notifyQueuedGradesChanged } from './offline-grade-queue'
 import type { OfflineReviewStore, SendGrade } from './offline-review-types'
 
@@ -24,6 +24,21 @@ export async function undoQueuedGrade(
     return waitForCancelled(flight, requestId)
   }
 
+  flight.undoing.add(requestId)
+
+  try {
+    return await undoStoredGrade(store, send, flight, requestId)
+  } finally {
+    flight.undoing.delete(requestId)
+  }
+}
+
+async function undoStoredGrade(
+  store: OfflineReviewStore,
+  send: SendGrade,
+  flight: Flight,
+  requestId: string,
+): Promise<QueuedUndoOutcome> {
   const grade = (await store.listGrades()).find((item) => item.requestId === requestId)
 
   if (!grade) {

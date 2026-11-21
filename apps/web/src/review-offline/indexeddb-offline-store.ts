@@ -56,7 +56,17 @@ export function createIndexedDbOfflineStore(factory: IDBFactory): RawOfflineStor
     return result
   }
 
+  async function clearAll(): Promise<void> {
+    const tx = (await db()).transaction([PACK_STORE, GRADE_STORE], 'readwrite')
+
+    tx.objectStore(PACK_STORE).clear()
+    tx.objectStore(GRADE_STORE).clear()
+
+    await finished(tx)
+  }
+
   return {
+    clear: clearAll,
     readPack: () => run<unknown>(PACK_STORE, 'readonly', (store) => store.get(PACK_KEY)).then((value) => value ?? null),
     writePack: async (value: StoredPack) => {
       await run(PACK_STORE, 'readwrite', (store) => store.put(value, PACK_KEY))

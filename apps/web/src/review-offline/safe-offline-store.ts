@@ -103,5 +103,13 @@ export function createSafeOfflineStore(
         fallback.deleteGrade(requestId).catch(() => undefined),
       ])
     },
+    async clear() {
+      const results = await Promise.allSettled([primary.clear(), fallback.clear()])
+      const failed = results.find((result) => result.status === 'rejected')
+
+      if (failed) {
+        throw failed.reason
+      }
+    },
   }
 }

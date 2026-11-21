@@ -2,7 +2,8 @@ import { reviewPackSchema } from '@post-anki/shared'
 import type { ReviewCard, ReviewCardsResponse, ReviewPack } from '@post-anki/shared'
 
 import { withoutQueuedGrades } from './offline-grade-queue'
-import { carriedMarks } from './pack-graded-marks'
+import { carriedMarks, withPackLock } from './pack-graded-marks'
+import { generationOf, isCurrentGeneration } from './store-generation'
 import type { OfflineReviewStore, QueuedGrade, StoredPack } from './offline-review-types'
 
 export const MAX_PACK_CARDS = 150
@@ -48,6 +49,8 @@ export async function refreshStoredPack(
   fetchPack: () => Promise<unknown>,
   now = new Date(),
 ): Promise<boolean> {
+  const token = generationOf(store)
+
   try {
     const parsed = reviewPackSchema.safeParse(await fetchPack())
 
@@ -55,9 +58,17 @@ export async function refreshStoredPack(
       return false
     }
 
-    const gradedSince = carriedMarks(await store.readPack(), now.getTime())
+    const pack = boundPack(parsed.data)
 
-    return await store.writePack({ savedAt: now.toISOString(), pack: boundPack(parsed.data), gradedSince })
+    return await withPackLock(store, async () => {
+      const gradedSince = carriedMarks(await store.readPack(), now.getTime())
+
+      if (!isCurrentGeneration(store, token)) {
+        return false
+      }
+
+      return store.writePack({ savedAt: now.toISOString(), pack, gradedSince })
+    })
   } catch {
     return false
   }

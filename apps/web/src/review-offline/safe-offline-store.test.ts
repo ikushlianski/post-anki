@@ -8,7 +8,7 @@ import { fullGrade, makeCard, makePack } from './test-helpers'
 function brokenStore(): RawOfflineStore {
   const fail = () => Promise.reject(new Error('storage unavailable'))
 
-  return { readPack: fail, writePack: fail, listGrades: fail, putGrade: fail, deleteGrade: fail }
+  return { readPack: fail, writePack: fail, listGrades: fail, putGrade: fail, deleteGrade: fail, clear: fail }
 }
 
 const packInput = { savedAt: '2026-11-19T10:00:00.000Z', pack: makePack([makeCard('1')]), gradedSince: [] }
@@ -66,5 +66,19 @@ describe('safe offline store', () => {
     await raw.putGrade(fullGrade())
 
     expect(await store.listGrades()).toHaveLength(1)
+  })
+
+  it('should wipe the saved pack and queued grades, and report it when browser storage cannot be wiped', async () => {
+    const raw = createMemoryOfflineStore()
+    const store = createSafeOfflineStore(raw)
+
+    await store.writePack(packInput)
+    await store.putGrade(fullGrade())
+    await store.clear()
+
+    expect(await store.readPack()).toBeNull()
+    expect(await store.listGrades()).toEqual([])
+    expect(await raw.listGrades()).toEqual([])
+    await expect(createSafeOfflineStore(brokenStore()).clear()).rejects.toThrow('storage unavailable')
   })
 })

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
+import { enqueueGrade, flushQueuedGrades } from './offline-grade-queue'
 import { noteGraded, unmarkGraded } from './pack-graded-marks'
 import { boundPack, isPackFresh, MAX_PACK_CARDS, PACK_MAX_AGE_MS, packToReviewCards, refreshStoredPack } from './review-pack'
-import { fullGrade, makeCard, makePack, makeStore } from './test-helpers'
+import { confirmed, deferred, fullGrade, makeCard, makeGrade, makePack, makeStore } from './test-helpers'
 
 const stored = (cards = [makeCard('1')]) => ({
   savedAt: '2026-11-19T10:00:00.000Z',
@@ -88,5 +89,40 @@ describe('review pack', () => {
     expect(await refreshStoredPack(store, async () => Promise.reject(new Error('offline')))).toBe(false)
     expect(await refreshStoredPack(store, async () => ({ cards: 'bad' }))).toBe(false)
     expect((await store.readPack())?.pack.cards).toHaveLength(1)
+  })
+
+  it('should keep a card graded while the pack is being refreshed', async () => {
+    const store = makeStore()
+    const gate = deferred<void>()
+    const writePack = store.writePack
+
+    await refreshStoredPack(store, async () => makePack([makeCard('1'), makeCard('2')]))
+
+    store.writePack = async (value) => {
+      await gate.promise
+
+      return writePack(value)
+    }
+
+    const refresh = refreshStoredPack(store, async () => makePack([makeCard('1'), makeCard('2')]))
+    const noting = noteGraded(store, 'variant-1', 'bit-1')
+
+    gate.resolve()
+    await Promise.all([refresh, noting])
+
+    expect((await store.readPack())?.gradedSince.map((mark) => mark.variantId)).toEqual(['variant-1'])
+  })
+
+  it('should keep hiding a card whose queued grade synced while the pack was downloading', async () => {
+    const store = makeStore()
+
+    await refreshStoredPack(store, async () => makePack([makeCard('1'), makeCard('2')]))
+    await enqueueGrade(store, makeGrade({ variantId: 'variant-1', knowledgeBitId: 'bit-1' }))
+    await flushQueuedGrades(store, async () => confirmed)
+    await refreshStoredPack(store, async () => makePack([makeCard('1'), makeCard('2')]))
+
+    const saved = await store.readPack()
+
+    expect(saved && packToReviewCards(saved, []).cards.map((card) => card.variantId)).toEqual(['variant-2'])
   })
 })

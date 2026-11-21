@@ -1,5 +1,7 @@
 import type { ReviewGrade } from '@post-anki/shared'
 
+import { noteGraded } from './pack-graded-marks'
+import { generationOf, isCurrentGeneration } from './store-generation'
 import { flightFor, rememberSent, settleCancelled, type Flight } from './offline-flight'
 import {
   isParkedGrade,
@@ -14,6 +16,7 @@ const CHANGE_EVENT = 'offline-review-grades-changed'
 const ENQUEUED_EVENT = 'offline-review-grade-enqueued'
 const BASE_DELAY_MS = 2_000
 const MAX_DELAY_MS = 60_000
+const MAX_CONSECUTIVE_HARD_FAILURES = 2
 
 export interface NewQueuedGrade {
   requestId: string
@@ -45,9 +48,18 @@ export function backoffDelayMs(attempt: number): number {
   return Math.min(BASE_DELAY_MS * 2 ** Math.max(attempt, 0), MAX_DELAY_MS)
 }
 
-export async function enqueueGrade(store: OfflineReviewStore, input: NewQueuedGrade, now = new Date()): Promise<boolean> {
+export async function enqueueGrade(
+  store: OfflineReviewStore,
+  input: NewQueuedGrade,
+  now = new Date(),
+  token = generationOf(store),
+): Promise<boolean> {
   if (await store.hasGrade(input.requestId)) {
     return true
+  }
+
+  if (!isCurrentGeneration(store, token)) {
+    return false
   }
 
   const durable = await store.putGrade({
@@ -68,9 +80,11 @@ export async function enqueueGrade(store: OfflineReviewStore, input: NewQueuedGr
 }
 
 export async function resetParkedGrades(store: OfflineReviewStore): Promise<void> {
+  const token = generationOf(store)
+
   for (const grade of await store.listGrades()) {
     if (isParkedGrade(grade)) {
-      await store.putGrade({ ...grade, hardFailures: 0 })
+      await putIfCurrent(store, token, { ...grade, hardFailures: 0 })
     }
   }
 
@@ -129,55 +143,74 @@ async function resolveCancelledRetry(store: OfflineReviewStore, flight: Flight, 
   settleCancelled(flight, grade.requestId, { kind: 'unconfirmed' })
 }
 
+async function putIfCurrent(store: OfflineReviewStore, token: number, grade: QueuedGrade): Promise<void> {
+  if (isCurrentGeneration(store, token)) {
+    await store.putGrade(grade)
+  }
+}
+
+function leaveFlight(flight: Flight, requestId: string): boolean {
+  const wasCancelled = flight.cancelled.delete(requestId)
+
+  flight.inFlight = null
+
+  return wasCancelled
+}
+
 async function flushOnce(store: OfflineReviewStore, send: SendGrade): Promise<FlushResult> {
   const flight = flightFor(store)
   let confirmed = 0
   let blocked = false
+  let consecutiveHard = 0
+  const token = generationOf(store)
 
   for (const grade of await store.listGrades()) {
-    if (isParkedGrade(grade)) {
+    if (isParkedGrade(grade) || flight.undoing.has(grade.requestId)) {
       continue
     }
 
     flight.inFlight = grade.requestId
 
-    if (!(await store.hasGrade(grade.requestId))) {
-      flight.inFlight = null
+    if (!isCurrentGeneration(store, token) || !(await store.hasGrade(grade.requestId))) {
+      if (leaveFlight(flight, grade.requestId)) {
+        settleCancelled(flight, grade.requestId, { kind: 'removed' })
+      }
 
       continue
     }
 
     const outcome = await attempt(send, grade)
-    const wasCancelled = flight.cancelled.delete(grade.requestId)
-
-    flight.inFlight = null
 
     if (outcome.kind === 'hard') {
-      await store.putGrade({ ...grade, hardFailures: grade.hardFailures + 1 })
+      await putIfCurrent(store, token, { ...grade, hardFailures: grade.hardFailures + 1 })
 
-      if (wasCancelled) {
+      if (leaveFlight(flight, grade.requestId)) {
         flight.unconfirmed.add(grade.requestId)
         settleCancelled(flight, grade.requestId, { kind: 'unconfirmed' })
       }
 
-      if (grade.hardFailures + 1 < MAX_HARD_FAILURES) {
-        blocked = true
+      consecutiveHard += 1
+      blocked ||= grade.hardFailures + 1 < MAX_HARD_FAILURES
 
+      if (consecutiveHard >= MAX_CONSECUTIVE_HARD_FAILURES) {
         break
       }
 
       continue
     }
 
+    consecutiveHard = 0
+
     if (outcome.result.outcome === 'retry') {
       if (grade.hardFailures > 0) {
-        await store.putGrade({ ...grade, hardFailures: 0 })
+        await putIfCurrent(store, token, { ...grade, hardFailures: 0 })
       }
 
-      if (wasCancelled) {
+      if (flight.cancelled.has(grade.requestId)) {
         await resolveCancelledRetry(store, flight, send, grade)
       }
 
+      leaveFlight(flight, grade.requestId)
       blocked = true
 
       break
@@ -191,9 +224,10 @@ async function flushOnce(store: OfflineReviewStore, send: SendGrade): Promise<Fl
 
     if (isConfirmed) {
       confirmed += 1
+      await noteGraded(store, grade.variantId, grade.knowledgeBitId, Date.now(), token).catch(() => undefined)
     }
 
-    if (wasCancelled) {
+    if (leaveFlight(flight, grade.requestId)) {
       settleCancelled(flight, grade.requestId, isConfirmed ? { kind: 'sent', reviewId } : { kind: 'removed' })
     } else if (isConfirmed && reviewId) {
       rememberSent(flight, grade.requestId, reviewId)

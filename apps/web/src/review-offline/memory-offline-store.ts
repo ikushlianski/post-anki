@@ -16,5 +16,9 @@ export function createMemoryOfflineStore(): RawOfflineStore {
     deleteGrade: async (requestId) => {
       grades.delete(requestId)
     },
+    clear: async () => {
+      pack = null
+      grades.clear()
+    },
   }
 }

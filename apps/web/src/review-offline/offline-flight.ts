@@ -11,6 +11,7 @@ export interface Flight {
   inFlight: string | null
   cancelled: Set<string>
   unconfirmed: Set<string>
+  undoing: Set<string>
   sent: Map<string, string>
   waiters: Map<string, Array<(outcome: CancelledOutcome) => void>>
   memoryOnly: boolean
@@ -26,6 +27,7 @@ export function flightFor(store: OfflineReviewStore): Flight {
       inFlight: null,
       cancelled: new Set(),
       unconfirmed: new Set(),
+      undoing: new Set(),
       sent: new Map(),
       waiters: new Map(),
       memoryOnly: false,
@@ -34,6 +36,10 @@ export function flightFor(store: OfflineReviewStore): Flight {
   }
 
   return flight
+}
+
+export function resetFlight(store: OfflineReviewStore): void {
+  flights.delete(store)
 }
 
 export function rememberSent(flight: Flight, requestId: string, reviewId: string): void {

@@ -2,7 +2,7 @@ import { reviewGradeSchema, reviewPackSchema } from '@post-anki/shared'
 import type { ReviewPack } from '@post-anki/shared'
 import { z } from 'zod'
 
-export const MAX_HARD_FAILURES = 3
+export const MAX_HARD_FAILURES = 5
 
 export const queuedGradeSchema = z.object({
   requestId: z.string().uuid(),
@@ -50,6 +50,7 @@ export interface RawOfflineStore {
   listGrades(): Promise<unknown[]>
   putGrade(grade: QueuedGrade): Promise<void>
   deleteGrade(requestId: string): Promise<void>
+  clear(): Promise<void>
 }
 
 export interface OfflineReviewStore {
@@ -59,6 +60,7 @@ export interface OfflineReviewStore {
   putGrade(grade: QueuedGrade): Promise<boolean>
   hasGrade(requestId: string): Promise<boolean>
   deleteGrade(requestId: string): Promise<void>
+  clear(): Promise<void>
 }
 
 export type SendOutcome = 'confirmed' | 'retry' | 'rejected'

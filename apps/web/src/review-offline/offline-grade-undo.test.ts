@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
+import { flightFor } from './offline-flight'
 import { enqueueGrade, flushQueuedGrades } from './offline-grade-queue'
 import { undoQueuedGrade } from './offline-grade-undo'
-import { confirmed, gatedSend, makeGrade, makeStore, rejected, retry } from './test-helpers'
+import { confirmed, deferred, gatedSend, makeGrade, makeStore, rejected, retry } from './test-helpers'
 
 describe('undoing a queued grade', () => {
   it('should remove a grade that has not been sent yet', async () => {
@@ -109,5 +110,45 @@ describe('undoing a queued grade', () => {
       reviewId: 'server-review-1',
     })
     expect(await store.listGrades()).toEqual([])
+  })
+
+  it('should hand back the server review when undo lands just after a send is confirmed but before it is cleared', async () => {
+    const store = makeStore()
+    const grade = makeGrade()
+    const clearing = deferred<void>()
+    const deleteGrade = store.deleteGrade
+
+    store.deleteGrade = async (requestId) => {
+      await clearing.promise
+      await deleteGrade(requestId)
+    }
+
+    await enqueueGrade(store, grade)
+
+    const flush = flushQueuedGrades(store, async () => confirmed)
+
+    await vi.waitFor(() => expect(flightFor(store).inFlight).toBe(grade.requestId))
+
+    const undo = undoQueuedGrade(store, async () => confirmed, grade.requestId)
+
+    clearing.resolve()
+    await flush
+
+    expect(await undo).toEqual({ kind: 'sent', reviewId: 'server-review-1' })
+  })
+
+  it('should not send a grade the learner is already undoing', async () => {
+    const store = makeStore()
+    const grade = makeGrade()
+    const send = vi.fn(async () => confirmed)
+
+    await enqueueGrade(store, grade)
+
+    const undo = undoQueuedGrade(store, send, grade.requestId)
+
+    await flushQueuedGrades(store, send)
+
+    expect(await undo).toEqual({ kind: 'removed' })
+    expect(send).not.toHaveBeenCalled()
   })
 })

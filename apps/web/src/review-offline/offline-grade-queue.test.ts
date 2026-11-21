@@ -93,7 +93,7 @@ describe('offline grade queue', () => {
     expect(send).toHaveBeenCalledTimes(1)
   })
 
-  it('should park a grade that keeps failing for non-network reasons and let later grades through', async () => {
+  it('should keep retrying a failing grade and let later grades through while it waits', async () => {
     const store = makeStore()
 
     await enqueueGrade(store, makeGrade({ variantId: 'poison' }), new Date(1000))
@@ -101,21 +101,46 @@ describe('offline grade queue', () => {
 
     const send = vi.fn(async (grade: { variantId: string }) => {
       if (grade.variantId === 'poison') {
-        throw new Error('validation')
+        throw new Error('server down')
       }
 
       return confirmed
     })
-    let last = await flushQueuedGrades(store, send)
+    const first = await flushQueuedGrades(store, send)
 
-    for (let round = 1; round < MAX_HARD_FAILURES; round += 1) {
-      expect(last.blocked).toBe(true)
+    expect(first).toMatchObject({ confirmed: 1, remaining: 1, parked: 0, blocked: true })
+    expect((await store.listGrades()).map((grade) => grade.variantId)).toEqual(['poison'])
+  })
 
-      last = await flushQueuedGrades(store, send)
+  it('should park a grade only after several failed attempts', async () => {
+    const store = makeStore()
+
+    await enqueueGrade(store, makeGrade())
+
+    const send = async () => {
+      throw new Error('server down')
     }
 
-    expect(last).toMatchObject({ confirmed: 1, remaining: 0, parked: 1, blocked: false })
-    expect((await store.listGrades()).map((grade) => grade.variantId)).toEqual(['poison'])
+    for (let round = 1; round < MAX_HARD_FAILURES; round += 1) {
+      expect(await flushQueuedGrades(store, send)).toMatchObject({ parked: 0, blocked: true })
+    }
+
+    expect(await flushQueuedGrades(store, send)).toMatchObject({ remaining: 0, parked: 1, blocked: false })
+  })
+
+  it('should stop hammering a server that fails on every grade in one pass', async () => {
+    const store = makeStore()
+    const send = vi.fn(async () => {
+      throw new Error('server down')
+    })
+
+    for (let index = 0; index < 5; index += 1) {
+      await enqueueGrade(store, makeGrade(), new Date(index))
+    }
+
+    await flushQueuedGrades(store, send)
+
+    expect(send).toHaveBeenCalledTimes(2)
   })
 
   it('should not count network failures as poison', async () => {
