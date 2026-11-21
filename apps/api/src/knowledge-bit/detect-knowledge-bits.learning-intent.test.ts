@@ -29,6 +29,7 @@ function buildDeps(overrides: Partial<GenerateItemsDeps> = {}): GenerateItemsDep
     loadFeedbackBlock: vi.fn().mockResolvedValue(""),
     loadStyleNotesBlock: vi.fn().mockResolvedValue(""),
     loadSubjectKind: vi.fn().mockResolvedValue("business"),
+    loadIsEnglishSubject: vi.fn().mockResolvedValue(false),
     ...overrides,
   };
 }
