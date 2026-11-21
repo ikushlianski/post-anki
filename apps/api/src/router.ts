@@ -153,6 +153,7 @@ export type RouteName =
   | "gapMasteryCrossCuttingNudge"
   | "getAdminSettings"
   | "updateAdminSettings"
+  | "createMeAgentTodo"
   | "createApiToken"
   | "listApiTokens"
   | "revokeApiToken"

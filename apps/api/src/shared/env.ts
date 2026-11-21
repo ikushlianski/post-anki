@@ -67,6 +67,8 @@ const envObject = z.object({
   ),
   EXTENSION_ID: z.string().min(1).optional(),
   NOTION_TOKEN: z.string().min(1).optional(),
+  ME_AGENT_TODO_URL: optionalNonEmpty,
+  ME_AGENT_TODO_TOKEN: optionalNonEmpty,
   // Durable extraction pilot. Plain strings on purpose: an empty or odd value must never stop the
   // API from booting; the pilot code parses them and falls back to its defaults (off, 10 s, 30 min).
   DURABLE_EXTRACTION: z.string().optional(),

@@ -175,6 +175,7 @@ import {
   handleTriageGap,
 } from "./gap/gap.controller.js";
 import { handleDailyPush, handleDueQueue } from "./push/push.controller.js";
+import { handleCreateMeAgentTodo } from "./me-agent/me-agent-todo.controller.js";
 import {
   handleListTagNodes,
   handleSearch,
@@ -1020,6 +1021,8 @@ async function route(
       return handleGapMasteryCrossCuttingNudge(res);
     case "getAdminSettings":
       return handleGetAdminSettings(res);
+    case "createMeAgentTodo":
+      return handleCreateMeAgentTodo(req, res);
     case "updateAdminSettings":
       return handleUpdateAdminSettings(req, res);
     case "createApiToken":

@@ -410,6 +410,7 @@ export const ROUTES: RouteDef[] = [
   },
   { method: "GET", pattern: "/admin/settings", name: "getAdminSettings" },
   { method: "PATCH", pattern: "/admin/settings", name: "updateAdminSettings" },
+  { method: "POST", pattern: "/me-agent/todos", name: "createMeAgentTodo" },
   { method: "POST", pattern: "/api-tokens", name: "createApiToken" },
   { method: "GET", pattern: "/api-tokens", name: "listApiTokens" },
   { method: "DELETE", pattern: /^\/api-tokens\/([^/]+)$/, name: "revokeApiToken", param: "id" },
