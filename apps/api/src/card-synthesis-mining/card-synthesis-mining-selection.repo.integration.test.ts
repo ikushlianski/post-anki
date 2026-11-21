@@ -52,11 +52,11 @@ function vectorLiteral(first: number): string {
   return `[${values.join(",")}]`;
 }
 
-async function insertBit(id: string, sourceId: string, createdAt: string, embedded: boolean) {
+async function insertBit(id: string, sourceId: string, ordinal: number, createdAt: string, embedded: boolean) {
   await client.query(
     `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, approval_state, created_at, embedding_vec)
-     VALUES ($1, $2, 0, $3, 'approved', $4, $5::halfvec)`,
-    [id, sourceId, `body ${id}`, createdAt, embedded ? vectorLiteral(0.5) : null],
+     VALUES ($1, $2, $6, $3, 'approved', $4, $5::halfvec)`,
+    [id, sourceId, `body ${id}`, createdAt, embedded ? vectorLiteral(0.5) : null, ordinal],
   );
 }
 
@@ -68,10 +68,10 @@ beforeAll(async () => {
   await client.query(
     "INSERT INTO knowledge_sources (id, kind, subject_id) VALUES ('srcRoot', 'manual', 'root'), ('srcChild', 'manual', 'child')",
   );
-  await insertBit("b1", "srcRoot", "2026-01-01T00:00:00Z", true);
-  await insertBit("b2", "srcChild", "2026-01-02T00:00:00Z", true);
-  await insertBit("b3", "srcChild", "2026-01-03T00:00:00Z", true);
-  await insertBit("b4", "srcChild", "2026-01-04T00:00:00Z", false);
+  await insertBit("b1", "srcRoot", 0, "2026-01-01T00:00:00Z", true);
+  await insertBit("b2", "srcChild", 0, "2026-01-02T00:00:00Z", true);
+  await insertBit("b3", "srcChild", 1, "2026-01-03T00:00:00Z", true);
+  await insertBit("b4", "srcChild", 2, "2026-01-04T00:00:00Z", false);
 }, 30_000);
 
 afterAll(async () => {
