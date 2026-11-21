@@ -54,6 +54,8 @@ import { createLongPasteSplitterAgent } from "./long-paste-splitter.agent.js";
 import { createSubjectAssignmentEscalationAgent } from "./subject-assignment-escalation.agent.js";
 import { createCardDedupEscalationAgent } from "./card-dedup-escalation.agent.js";
 import { createKnownCardsJudgeAgent } from "./known-cards-judge.agent.js";
+import { createCardSynthesisClassifierAgent } from "./card-synthesis-classifier.agent.js";
+import { createCardSynthesisWriterAgent } from "./card-synthesis-writer.agent.js";
 import { createCardRewordingAgent } from "./card-rewording.agent.js";
 import { createSubjectCreationAgent } from "./subject-creation.agent.js";
 
@@ -111,6 +113,8 @@ export const AGENT_KEYS = {
   cardDedupEscalation: "cardDedupEscalation",
   cardRewording: "cardRewording",
   knownCardsJudge: "knownCardsJudge",
+  cardSynthesisClassifier: "cardSynthesisClassifier",
+  cardSynthesisWriter: "cardSynthesisWriter",
   subjectCreation: "subjectCreation",
 } as const;
 
@@ -213,6 +217,8 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.cardDedupEscalation]: createCardDedupEscalationAgent(),
         [AGENT_KEYS.cardRewording]: createCardRewordingAgent(),
         [AGENT_KEYS.knownCardsJudge]: createKnownCardsJudgeAgent(),
+        [AGENT_KEYS.cardSynthesisClassifier]: createCardSynthesisClassifierAgent(),
+        [AGENT_KEYS.cardSynthesisWriter]: createCardSynthesisWriterAgent(),
         [AGENT_KEYS.subjectCreation]: createSubjectCreationAgent(),
       },
       ...(observability ? { observability } : {}),

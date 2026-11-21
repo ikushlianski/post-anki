@@ -2674,3 +2674,35 @@ export const ankiImportNotes = pgTable(
     ),
   }),
 );
+
+export const synthesisMiningExaminedBits = pgTable(
+  "synthesis_mining_examined_bits",
+  {
+    id: text("id").primaryKey(),
+    bitId: text("bit_id").notNull(),
+    runId: text("run_id").notNull(),
+    clusterId: text("cluster_id"),
+    outcome: text("outcome").notNull(),
+    examinedAt: timestamp("examined_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("synthesis_mining_examined_bits_bit_unique").on(table.bitId),
+    index("synthesis_mining_examined_bits_run_idx").on(table.runId),
+  ],
+);
+
+export const synthesisMiningClusters = pgTable(
+  "synthesis_mining_clusters",
+  {
+    id: text("id").primaryKey(),
+    runId: text("run_id").notNull(),
+    subjectId: text("subject_id").notNull(),
+    bitIds: jsonb("bit_ids").$type<string[]>().notNull(),
+    evidenceBitIds: jsonb("evidence_bit_ids").$type<string[]>().notNull().default([]),
+    evidenceLink: jsonb("evidence_link").$type<{ bitId: string; snippet: string }[]>(),
+    outcome: text("outcome").notNull(),
+    sourceId: text("source_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("synthesis_mining_clusters_run_idx").on(table.runId)],
+);

@@ -1191,6 +1191,13 @@
       "when": 1795249816143,
       "tag": "0169_curvy_sleeper",
       "breakpoints": true
+    },
+    {
+      "idx": 170,
+      "version": "7",
+      "when": 1795250665764,
+      "tag": "0170_bumpy_bug",
+      "breakpoints": true
     }
   ]
 }

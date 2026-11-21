@@ -44,6 +44,8 @@ const knowledgePipelineSweepSchedule =
 const cardEmbeddingScanSchedule = config.get("cardEmbeddingScanSchedule") ?? "0 */6 * * *";
 const bizEducationDistillSchedule = config.get("bizEducationDistillSchedule") ?? "*/15 * * * *";
 const notionEnglishPhrasesSchedule = config.get("notionEnglishPhrasesSchedule") ?? "0 7 * * *";
+const cardSynthesisMiningSchedule = config.get("cardSynthesisMiningSchedule") ?? "0 8 * * *";
+const cardSynthesisMiningEnabled = config.getBoolean("cardSynthesisMiningEnabled") ?? false;
 // Secret the API's own auth check (server.ts's authorized()) verifies as a
 // bearer token — must equal the API's API_SHARED_SECRET (today CI-owned only
 // via PROD_API_SHARED_SECRET, not previously in Pulumi config). One-time
@@ -524,6 +526,25 @@ const notionEnglishPhrasesJob = new gcp.cloudscheduler.Job(
   { dependsOn: [apiService, ...enabledApis] },
 );
 
+const cardSynthesisMiningJob = new gcp.cloudscheduler.Job(
+  "card-synthesis-mining",
+  {
+    project: projectId,
+    region,
+    name: "post-anki-card-synthesis-mining",
+    schedule: cardSynthesisMiningSchedule,
+    timeZone: knowledgeBitPipelineTimeZone,
+    attemptDeadline: "300s",
+    paused: !cardSynthesisMiningEnabled,
+    httpTarget: {
+      httpMethod: "POST",
+      uri: pulumi.interpolate`${apiService.statuses[0].url}/card-synthesis-mining`,
+      headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
+    },
+  },
+  { dependsOn: [apiService, ...enabledApis] },
+);
+
 export const registryUrl = pulumi.interpolate`${region}-docker.pkg.dev/${projectId}/${registry.repositoryId}`;
 export const webServiceUrl = webService.statuses[0].url;
 export const webSaEmail = webSa.email;
@@ -549,3 +570,4 @@ export const knowledgePipelineSweepJobName = knowledgePipelineSweepJob.name;
 export const cardEmbeddingScanJobName = cardEmbeddingScanJob.name;
 export const bizEducationDistillJobName = bizEducationDistillJob.name;
 export const notionEnglishPhrasesJobName = notionEnglishPhrasesJob.name;
+export const cardSynthesisMiningJobName = cardSynthesisMiningJob.name;

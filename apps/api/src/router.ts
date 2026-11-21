@@ -9,6 +9,7 @@ export type RouteName =
   | "listContentInbox"
   | "triggerBizEducationDistill"
   | "triggerNotionEnglishPhrases"
+  | "triggerCardSynthesisMining"
   | "listSubjects"
   | "createSubject"
   | "createKnowledgeSource"

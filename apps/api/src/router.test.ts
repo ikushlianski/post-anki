@@ -61,6 +61,7 @@ describe("resolveRoute", () => {
         "triggerBizEducationDistill",
       );
       expect(resolveRoute("POST", "/notion-english-phrases")?.name).toBe("triggerNotionEnglishPhrases");
+      expect(resolveRoute("POST", "/card-synthesis-mining")?.name).toBe("triggerCardSynthesisMining");
       expect(resolveRoute("POST", "/triage-sessions/idle-sweep")?.name).toBe("sweepIdleTriageSessions");
       expect(resolveRoute("GET", "/daily-push")?.name).toBe("dailyPush");
       // decide-mode: POST /decide is a legacy RPC-shaped route being
