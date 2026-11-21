@@ -66,7 +66,9 @@ extension ChatQueueThreadModel {
     func decide(
         seq: Int,
         index: Int,
-        decision: ChatQueueProposalDecision
+        decision: ChatQueueProposalDecision,
+        feedback: String? = nil,
+        announcesRejection: Bool = true
     ) async -> Bool {
         let key = ChatQueueProposalKey(seq: seq, index: index)
 
@@ -84,9 +86,9 @@ extension ChatQueueThreadModel {
 
             applyDecision(result, key: key)
 
-            if decision == .reject,
+            if decision == .reject, announcesRejection,
                let front = lines.first(where: { $0.seq == seq })?.proposals.first(where: { $0.index == index })?.front {
-                rejectAnnouncement = Task { await announceRejection(seq: seq, index: index, front: front) }
+                rejectAnnouncement = Task { await announceRejection(seq: seq, index: index, front: front, feedback: feedback) }
             }
 
             return true

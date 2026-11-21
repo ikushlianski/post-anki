@@ -106,5 +106,40 @@ extension SmokeTests {
             #expect(sends().isEmpty)
             #expect(model.awaitsRejectExplanation)
         }
+
+        @Test("should post the chosen reason and note as a follow-up with the deterministic id")
+        func sendsFeedback() async {
+            let (model, session) = await make(["POST \(threadPath)": .json(200, reply)])
+            defer { session.end() }
+
+            let feedback = ChatQueueProposalRejectFeedback.text(reason: .wrongAnswer, note: "  uses v2 ")
+
+            await model.decide(seq: 2, index: 0, decision: .reject, feedback: feedback)
+            await model.rejectAnnouncement?.value
+
+            #expect(sends().count == 1)
+            #expect(sends().first?["clientMessageId"] as? String == "reject:k1:2:0")
+            #expect(sends().first?["message"] as? String == "I rejected your proposed card: Q?. What is wrong: \(RejectReason.wrongAnswer.label): uses v2")
+        }
+
+        @Test("should reject without any follow-up message when the card is discarded")
+        func discardSendsNothing() async {
+            let (model, session) = await make([:])
+            defer { session.end() }
+
+            let ok = await model.decide(seq: 2, index: 0, decision: .reject, announcesRejection: false)
+
+            #expect(ok)
+            #expect(model.lines.first { $0.seq == 2 }?.proposals.first?.status == .rejected)
+            #expect(model.rejectAnnouncement == nil)
+            #expect(sends().isEmpty)
+        }
+
+        @Test("should build feedback only from a reason or a note and trim the note")
+        func feedbackText() {
+            #expect(ChatQueueProposalRejectFeedback.text(reason: nil, note: "  ") == "")
+            #expect(ChatQueueProposalRejectFeedback.text(reason: nil, note: " fix ") == "fix")
+            #expect(ChatQueueProposalRejectFeedback.text(reason: .duplicate, note: "") == RejectReason.duplicate.label)
+        }
     }
 }

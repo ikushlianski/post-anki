@@ -9,8 +9,18 @@ struct ChatQueueProposalCard: View {
     var isRewording = false
     var onReword: (() -> Void)?
     let onDecide: (ChatQueueProposalDecision) -> Void
+    var onReject: ((String?) -> Void)?
 
     @State private var offset: CGFloat = 0
+    @State private var isGivingReasons = false
+
+    private func decide(_ decision: ChatQueueProposalDecision) {
+        if decision == .reject, onReject != nil {
+            isGivingReasons = true
+        } else {
+            onDecide(decision)
+        }
+    }
 
     var body: some View {
         ZoomVStack(alignment: .leading, spacing: 6) {
@@ -59,7 +69,7 @@ struct ChatQueueProposalCard: View {
         .onChange(of: errorMessage) { _, message in
             if let message { TriageFeedbackPlayer.announce(message: message) }
         }
-        .modifier(ProposalAccessibilityActions(proposal: proposal, isEnabled: proposal.status == .pending && !isBusy && !isRewording, onDecide: onDecide, onReword: onReword))
+        .modifier(ProposalAccessibilityActions(proposal: proposal, isEnabled: proposal.status == .pending && !isBusy && !isRewording, onDecide: decide, onReword: onReword))
         .accessibilityIdentifier("chat-queue-proposal-\(proposal.index)")
     }
 
@@ -74,13 +84,27 @@ struct ChatQueueProposalCard: View {
     @ViewBuilder
     private var footer: some View {
         switch proposal.status {
+        case .pending where isGivingReasons:
+            ChatQueueProposalRejectPanel(
+                index: proposal.index,
+                isDisabled: isBusy,
+                onSend: { feedback in
+                    isGivingReasons = false
+                    onReject?(feedback)
+                },
+                onDiscard: {
+                    isGivingReasons = false
+                    onReject?(nil)
+                },
+                onBack: { isGivingReasons = false }
+            )
         case .pending:
             HStack {
                 Button("Accept") { onDecide(.accept) }
                     .buttonStyle(.borderedProminent)
                     .accessibilityIdentifier("chat-queue-proposal-accept-\(proposal.index)")
 
-                Button("Reject", role: .destructive) { onDecide(.reject) }
+                Button("Reject", role: .destructive) { decide(.reject) }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("chat-queue-proposal-reject-\(proposal.index)")
 
@@ -129,7 +153,7 @@ struct ChatQueueProposalCard: View {
                       )
                 else { return }
 
-                onDecide(decision)
+                decide(decision)
             }
     }
 }

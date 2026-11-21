@@ -19,6 +19,17 @@ struct ChatQueueProposalRows: View {
                     },
                     onDecide: { decision in
                         Task { await model.decide(seq: seq, index: proposal.index, decision: decision) }
+                    },
+                    onReject: { feedback in
+                        Task {
+                            await model.decide(
+                                seq: seq,
+                                index: proposal.index,
+                                decision: .reject,
+                                feedback: feedback,
+                                announcesRejection: feedback != nil
+                            )
+                        }
                     }
                 )
             }
