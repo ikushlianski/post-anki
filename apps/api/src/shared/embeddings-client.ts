@@ -3,6 +3,7 @@ import { loadEnv, type Env } from "./env.js";
 import { log } from "./log.js";
 import { assertLlmBudgetAvailable, estimateCostUsd, recordLlmSpend } from "./spend-guard.js";
 import { recordLlmCallEvent } from "../llm-call-events/llm-call-events.repo.js";
+import { summarizeLlmError } from "../llm-call-events/llm-error-summary.js";
 import { auditFieldsFor, type LlmCallAudit } from "../llm-call-events/llm-call-audit.js";
 
 const EMBEDDINGS_AGENT_KEY = "openrouterEmbeddings";
@@ -216,7 +217,7 @@ async function embedEachSeparately(
       await recordEmbeddingsEvent(audit, {
         startedAt,
         success: false,
-        errorMessage: `item ${item.id}: ${errorMessageOf(err)}`,
+        errorMessage: `item ${item.id}: ${summarizeLlmError(err)}`,
         promptTokens: null,
         totalTokens: null,
       });
@@ -282,7 +283,7 @@ export async function embedTexts(
     await recordEmbeddingsEvent(audit, {
       startedAt,
       success: false,
-      errorMessage: errorMessageOf(err),
+      errorMessage: summarizeLlmError(err),
       promptTokens: null,
       totalTokens: null,
     });

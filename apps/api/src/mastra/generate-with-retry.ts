@@ -2,6 +2,7 @@ import pRetry from "p-retry";
 import { log } from "../shared/log.js";
 import { assertLlmBudgetAvailable, estimateCostUsd, recordLlmSpend } from "../shared/spend-guard.js";
 import { recordLlmCallEvent } from "../llm-call-events/llm-call-events.repo.js";
+import { summarizeLlmError } from "../llm-call-events/llm-error-summary.js";
 import { auditFieldsFor, type LlmCallAudit } from "../llm-call-events/llm-call-audit.js";
 
 // Every real network/model call to an LLM agent across the codebase should
@@ -129,7 +130,7 @@ export async function generateWithRetry<T extends GenerateResultWithUsage>(
       knowledgeBitId: options.knowledgeBitId ?? null,
       durationMs: Date.now() - startedAt,
       success: false,
-      errorMessage: err instanceof Error ? err.message : String(err),
+      errorMessage: summarizeLlmError(err),
       promptTokens: null,
       completionTokens: null,
       totalTokens: null,
@@ -194,7 +195,7 @@ export async function recordGenerateCall<T extends GenerateResultWithUsage>(
       knowledgeBitId: options.knowledgeBitId ?? null,
       durationMs: Date.now() - startedAt,
       success: false,
-      errorMessage: err instanceof Error ? err.message : String(err),
+      errorMessage: summarizeLlmError(err),
       promptTokens: null,
       completionTokens: null,
       totalTokens: null,

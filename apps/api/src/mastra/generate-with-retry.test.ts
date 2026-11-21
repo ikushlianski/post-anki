@@ -312,3 +312,48 @@ describe("generateWithRetry audit", () => {
     expect(event).not.toHaveProperty("costUsd");
   });
 });
+
+describe("failed call audit", () => {
+  beforeEach(() => {
+    recordLlmCallEventMock.mockReset();
+  });
+
+  it("should log a failed call with model, caller, error class and status but never the provider text", async () => {
+    const providerError = Object.assign(new Error("echo of the learner prompt and sk-secret"), {
+      name: "APICallError",
+      statusCode: 503,
+    });
+
+    await expect(
+      recordGenerateCall("chat.reply", null, "chatAgent", async () => {
+        throw providerError;
+      }, { modelId: "openrouter/mistralai/mistral-nemo" }),
+    ).rejects.toBe(providerError);
+
+    const event = recordLlmCallEventMock.mock.calls[0]?.[0];
+
+    expect(event).toMatchObject({
+      op: "chat.reply",
+      agentKey: "chatAgent",
+      modelId: "openrouter/mistralai/mistral-nemo",
+      success: false,
+      errorMessage: "APICallError (503)",
+      promptTokens: null,
+      completionTokens: null,
+      totalTokens: null,
+      durationMs: expect.any(Number),
+    });
+    expect(JSON.stringify(event)).not.toContain("sk-secret");
+  });
+
+  it("should still throw the original model error when writing the failure log itself fails", async () => {
+    recordLlmCallEventMock.mockRejectedValue(new Error("db down"));
+    const modelError = new Error("model failed");
+
+    await expect(
+      recordGenerateCall("op", null, "agent", async () => {
+        throw modelError;
+      }),
+    ).rejects.toBe(modelError);
+  });
+});

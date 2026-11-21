@@ -179,7 +179,7 @@ describe("embedTexts", () => {
         curriculumId: null,
         op: "embedTexts",
         success: false,
-        errorMessage: expect.stringContaining("401"),
+        errorMessage: "EmbeddingsRequestError (401)",
         promptTokens: null,
         completionTokens: null,
         totalTokens: null,
