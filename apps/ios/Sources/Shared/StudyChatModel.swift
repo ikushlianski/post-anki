@@ -24,8 +24,18 @@ final class StudyChatModel {
     private let sendHandler: SendHandler
     private let notFoundMessage: String
 
-    init(notFoundMessage: String = "That item no longer exists.", send: @escaping SendHandler) {
+    private let recoverFromStaleModel: @MainActor () async -> Void
+
+    init(
+        notFoundMessage: String = "That item no longer exists.",
+        recoverFromStaleModel: @escaping @MainActor () async -> Void = {
+            ChatModelCatalog.shared.reset()
+            await ChatModelCatalog.shared.refresh()
+        },
+        send: @escaping SendHandler
+    ) {
         self.notFoundMessage = notFoundMessage
+        self.recoverFromStaleModel = recoverFromStaleModel
         sendHandler = send
     }
 
@@ -48,9 +58,15 @@ final class StudyChatModel {
                 lookupFailed: result.lookupFailed
             ))
         } catch {
-            errorMessage = StudyToolsError.message(for: error, notFound: notFoundMessage)
             draft = trimmed
             turns.removeAll { $0.id == userTurn.id }
+
+            if ChatQueueFailure.failure(for: error) == .invalidModel {
+                await recoverFromStaleModel()
+                errorMessage = ChatQueueFailure.invalidModel.message
+            } else {
+                errorMessage = StudyToolsError.message(for: error, notFound: notFoundMessage)
+            }
         }
 
         isSending = false

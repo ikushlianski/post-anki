@@ -29,12 +29,10 @@ final class ChatModelCatalog {
     }
 
     func refresh() async {
-        if let fetched = try? await fetch() {
-            options = fetched
-            selectedId = ChatModelSelection.validate(against: fetched, defaults: defaults)
-        } else {
-            reset()
-        }
+        guard let fetched = try? await fetch() else { return }
+
+        options = fetched
+        selectedId = ChatModelSelection.validate(against: fetched, defaults: defaults)
     }
 
     func select(_ id: String?) {
