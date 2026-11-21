@@ -12,14 +12,17 @@ vi.mock("../subject-study-options/subject-study-options-resolver.js", () => ({
 vi.mock("../study-plan/study-plan-today.js", () => ({
   readStudyPlanClock: vi.fn(async () => ({ today: "2026-11-10", timeZone: "UTC" })),
 }));
+vi.mock("../subject/subject-path-labels.js", () => ({
+  loadSubjectPathLabels: vi.fn(async () => new Map([["s1", "Math"], ["s2", "Law"]])),
+}));
 vi.mock("./knowledge-bit-schedule-options.js", () => ({ toScheduleOptions: vi.fn() }));
 
 import { buildReviewPack } from "./knowledge-bit-review-pack.service.js";
 
 const NOW = new Date("2026-11-10T12:00:00.000Z");
 
-function card(id: string, cardKey = "") {
-  return { variantId: id, knowledgeBitId: `bit_${id}`, cardKey };
+function card(id: string, cardKey = "", subjectId: string | null = null) {
+  return { variantId: id, knowledgeBitId: `bit_${id}`, cardKey, subjectId };
 }
 
 beforeEach(() => {
@@ -81,5 +84,17 @@ describe("buildReviewPack", () => {
 
     expect(pack.cards[0]?.alternates).toEqual([{ variantId: "alt" }]);
     expect(pack.cards[1]?.alternates).toEqual([]);
+  });
+
+  it("should group pack cards by subject in stable order and carry the subject path", async () => {
+    listActiveSubjectIds.mockResolvedValue(["s1", "s2"]);
+    getKnowledgeBitReviewQueue.mockResolvedValue({
+      cards: [card("a", "", "s2"), card("b", "", "s1"), card("c", "", "s2"), card("d", "", "s1")],
+    });
+
+    const pack = await buildReviewPack("UTC", NOW);
+
+    expect(pack.cards.map((c) => c.variantId)).toEqual(["a", "c", "b", "d"]);
+    expect(pack.cards.map((c) => c.subjectPath)).toEqual(["Law", "Law", "Math", "Math"]);
   });
 });

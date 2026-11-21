@@ -5,7 +5,7 @@ import Testing
 extension SmokeTests {
     @Suite("The offline review pack lives on disk and is replaced only by a complete newer pack")
     struct ReviewPackStoreSmokeTests {
-        static func card(_ variant: String, bit: String? = nil, phase: String = "review") -> ReviewCard {
+        static func card(_ variant: String, bit: String? = nil, phase: String = "review", subjectPath: String? = nil) -> ReviewCard {
             ReviewCard(
                 variantId: variant,
                 knowledgeBitId: bit ?? "bit_\(variant)",
@@ -15,7 +15,8 @@ extension SmokeTests {
                 background: nil,
                 phase: phase,
                 leech: false,
-                intervalPreview: IntervalPreview(again: 60, hard: 360, good: 600, easy: 3600)
+                intervalPreview: IntervalPreview(again: 60, hard: 360, good: 600, easy: 3600),
+                subjectPath: subjectPath
             )
         }
 
@@ -53,6 +54,27 @@ extension SmokeTests {
             await store.replace(Self.pack([ReviewPackCard(card: Self.card("new1")), ReviewPackCard(card: Self.card("new2"))]), fetchStartedAt: Date())
 
             #expect(await store.cards(scope: .all)?.cards.map(\.variantId) == ["new1", "new2"])
+        }
+
+        @Test("should keep the server's subject order and subject paths for the whole offline review")
+        func keepsSubjectPathAndOrder() async {
+            let file = Self.tempFile()
+            let store = ReviewPackStore(fileURL: file)
+            defer { try? FileManager.default.removeItem(at: file) }
+
+            await store.replace(
+                Self.pack([
+                    ReviewPackCard(card: Self.card("a", subjectPath: "Law"), subjectId: "s2"),
+                    ReviewPackCard(card: Self.card("b", subjectPath: "Law"), subjectId: "s2"),
+                    ReviewPackCard(card: Self.card("c", subjectPath: "Math"), subjectId: "s1"),
+                ]),
+                fetchStartedAt: Date()
+            )
+
+            let offline = await ReviewPackStore(fileURL: file).cards(scope: .all)
+
+            #expect(offline?.cards.map(\.variantId) == ["a", "b", "c"])
+            #expect(offline?.cards.map(\.subjectPath) == ["Law", "Law", "Math"])
         }
 
         @Test("should only offer a subject's own cards when one subject is reviewed")

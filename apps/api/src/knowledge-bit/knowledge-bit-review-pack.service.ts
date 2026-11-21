@@ -2,13 +2,15 @@ import { loadStudyOptionsResolver } from "../subject-study-options/subject-study
 import { readStudyPlanClock } from "../study-plan/study-plan-today.js";
 import { toScheduleOptions } from "./knowledge-bit-schedule-options.js";
 import { getKnowledgeBitReviewQueue, type KnowledgeBitReviewCardRow } from "./knowledge-bit-review-queue.repo.js";
+import { loadSubjectPathLabels } from "../subject/subject-path-labels.js";
+import { groupReviewCardsBySubject, type GroupedReviewCardRow } from "./knowledge-bit-review-subject-groups.js";
 import { listActiveSubjectIds, listAlternates } from "./knowledge-bit-review-pack.repo.js";
 
 export const PACK_CARD_LIMIT = 150;
 export const PACK_ACTIVE_WINDOW_MS = 3 * 86_400_000;
 export const PACK_DUE_HORIZON_MS = 24 * 3_600_000;
 
-export interface ReviewPackCardRow extends KnowledgeBitReviewCardRow {
+export interface ReviewPackCardRow extends GroupedReviewCardRow {
   alternates: KnowledgeBitReviewCardRow[];
 }
 
@@ -38,7 +40,11 @@ export async function buildReviewPack(tz: string, now: Date): Promise<ReviewPack
     now,
     pack: { subjectIds, dueCutoff },
   });
-  const [resolver, planClock] = await Promise.all([loadStudyOptionsResolver(), readStudyPlanClock(now)]);
+  const [resolver, planClock, labels] = await Promise.all([
+    loadStudyOptionsResolver(),
+    readStudyPlanClock(now),
+    loadSubjectPathLabels(),
+  ]);
   const alternates = await listAlternates(
     queue.cards.filter((card) => !card.cardKey).map((card) => ({
       knowledgeBitId: card.knowledgeBitId,
@@ -51,7 +57,7 @@ export async function buildReviewPack(tz: string, now: Date): Promise<ReviewPack
   return {
     ...empty,
     truncated: queue.cards.length >= PACK_CARD_LIMIT,
-    cards: queue.cards.map((card) => ({
+    cards: groupReviewCardsBySubject(queue.cards, labels).map((card) => ({
       ...card,
       alternates: card.cardKey ? [] : (alternates.get(card.knowledgeBitId) ?? []),
     })),
