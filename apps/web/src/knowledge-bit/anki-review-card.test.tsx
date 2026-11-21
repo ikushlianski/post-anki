@@ -253,6 +253,27 @@ describe('AnkiReviewCard ordered list', () => {
     expect(screen.queryByTestId('anki-review-context')).toBeNull()
   })
 
+  it('should show the subject above the question and keep it after the answer is revealed', () => {
+    const card: ReviewCard = { ...baseCard, subjectPath: 'Business › Sales' }
+    const { rerender } = render(<AnkiReviewCard card={card} revealed={false} onReveal={() => {}} />)
+    const subject = screen.getByTestId('anki-review-subject')
+
+    expect(subject.textContent).toBe('Business › Sales')
+    expect(subject.compareDocumentPosition(screen.getByTestId('anki-review-prompt'))).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+
+    rerender(<AnkiReviewCard card={card} revealed={true} onReveal={() => {}} />)
+
+    expect(screen.getByTestId('anki-review-subject').textContent).toBe('Business › Sales')
+  })
+
+  it('should hide the subject line when the card has no subject', () => {
+    render(<AnkiReviewCard card={{ ...baseCard, subjectPath: null }} revealed={false} onReveal={() => {}} />)
+
+    expect(screen.queryByTestId('anki-review-subject')).toBeNull()
+  })
+
   it('should copy the question, answer and background together with Copy all', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
 

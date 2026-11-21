@@ -105,6 +105,11 @@ export function AnkiReviewCard({
 
   return (
     <div data-testid="anki-review-card" className="flex flex-col gap-4">
+      {card.subjectPath ? (
+        <p data-testid="anki-review-subject" className="break-words text-xs font-medium text-indigo-600">
+          {card.subjectPath}
+        </p>
+      ) : null}
       {!editor && card.context ? (
         <p data-testid="anki-review-context" className="whitespace-pre-line break-words text-xs text-neutral-500">
           {card.context}

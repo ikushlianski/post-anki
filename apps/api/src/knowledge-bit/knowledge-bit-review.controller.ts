@@ -54,6 +54,8 @@ export async function handleGetReviewPack(res: http.ServerResponse, search: stri
   }
 
   const pack = await buildReviewPack(parsed.data.tz, new Date());
+  const labels = await loadSubjectPathLabels();
+  const labelOf = (subjectId: string | null): string | null => (subjectId ? (labels.get(subjectId) ?? null) : null);
   const cards = await attachUserNotes(pack.cards);
   const alternates = await attachUserNotes(cards.flatMap((card) => card.alternates));
   const noteByBit = new Map(alternates.map((alt) => [alt.knowledgeBitId, alt.userNote]));
@@ -62,7 +64,12 @@ export async function handleGetReviewPack(res: http.ServerResponse, search: stri
     ...pack,
     cards: cards.map((card) => ({
       ...card,
-      alternates: card.alternates.map((alt) => ({ ...alt, userNote: noteByBit.get(alt.knowledgeBitId) ?? null })),
+      subjectPath: labelOf(card.subjectId),
+      alternates: card.alternates.map((alt) => ({
+        ...alt,
+        subjectPath: labelOf(alt.subjectId),
+        userNote: noteByBit.get(alt.knowledgeBitId) ?? null,
+      })),
     })),
   });
 }

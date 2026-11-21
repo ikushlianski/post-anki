@@ -61,6 +61,7 @@ export const reviewCardSchema = z.object({
   originalPhrase: z.string().optional(),
   sourceLinks: z.array(z.string()),
   subjectId: z.string().nullable().optional(),
+  subjectPath: z.string().nullable().optional(),
   phase: cardPhaseSchema,
   leech: z.boolean(),
   intervalPreview: intervalPreviewSchema,
