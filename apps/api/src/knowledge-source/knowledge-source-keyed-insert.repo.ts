@@ -1,4 +1,4 @@
-import { and, inArray, like, notInArray } from "drizzle-orm";
+import { and, eq, inArray, like, notInArray, sql } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeSources } from "../db/schema.js";
 import { newId } from "../shared/id.js";
@@ -83,4 +83,36 @@ export async function findAnkiTextKeysTakenElsewhere(
     );
 
   return rows.flatMap((row) => (row.textKey ? [row.textKey] : []));
+}
+
+export const UNUSABLE_SOURCE_STATUSES = ["failed", "nothing_extracted"] as const;
+
+export interface SourceTextRef {
+  id: string;
+  rawText: string;
+}
+
+export async function findSourcesByNormalizedText(
+  subjectId: string,
+  normalizedTexts: readonly string[],
+  db: DbExecutor = getDb(),
+): Promise<SourceTextRef[]> {
+  if (normalizedTexts.length === 0) {
+    return [];
+  }
+
+  const normalizedColumn = sql<string>`lower(regexp_replace(btrim(regexp_replace(translate(${knowledgeSources.rawText}, ${"‘’“”"}::text, ${`''""`}::text), ${"\\s+"}::text, ' ', 'g')), ${"[\\s.,!?;:…]+$"}::text, ''))`;
+
+  const rows = await db
+    .select({ id: knowledgeSources.id, rawText: knowledgeSources.rawText })
+    .from(knowledgeSources)
+    .where(
+      and(
+        eq(knowledgeSources.subjectId, subjectId),
+        notInArray(knowledgeSources.status, [...UNUSABLE_SOURCE_STATUSES]),
+        inArray(normalizedColumn, [...normalizedTexts]),
+      ),
+    );
+
+  return rows.flatMap((row) => (row.rawText ? [{ id: row.id, rawText: row.rawText }] : []));
 }

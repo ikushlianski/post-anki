@@ -5,7 +5,7 @@ import { sendError, sendInvalidQuery, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { ensureSubjectPath, parseSubjectPath } from "../subject/subject-path.js";
 import { fileKeyedNotes } from "../mcp/file-keyed-notes.js";
-import { findSourcesByImportKeys } from "../knowledge-source/knowledge-source-keyed-insert.repo.js";
+import { findSourcesByImportKeys, findSourcesByNormalizedText } from "../knowledge-source/knowledge-source-keyed-insert.repo.js";
 import { loadKnowledgeSourceConnectors } from "./connector-config.js";
 import {
   importEnglishPhrases,
@@ -13,7 +13,8 @@ import {
   type EnglishPhrasesDeps,
   type EnglishPhrasesResult,
 } from "./english-phrases.sync.js";
-import { deleteNotionBlock, listPhraseBlocks } from "./notion.client.js";
+import { deleteNotionBlock, listPhraseBlocksPage } from "./notion.client.js";
+import { normalizeNote } from "./note-text.js";
 import { insertImportLog, markImportDeleted } from "./notion-import-log.repo.js";
 
 interface ImportQuery {
@@ -32,7 +33,21 @@ const querySchema = z.object({
 
 export function realEnglishPhrasesDeps(subjectId: string): EnglishPhrasesDeps {
   return {
-    listBlocks: listPhraseBlocks,
+    listBlocks: listPhraseBlocksPage,
+    findExisting: async (normalizedTexts) => {
+      const rows = await findSourcesByNormalizedText(subjectId, normalizedTexts);
+      const found = new Map<string, string>();
+
+      for (const row of rows) {
+        const normalized = normalizeNote(row.rawText);
+
+        if (!found.has(normalized)) {
+          found.set(normalized, row.id);
+        }
+      }
+
+      return found;
+    },
     fileNote: async (key, text) => {
       const filed = await fileKeyedNotes([{ key, text }], subjectId);
       const [source] = await findSourcesByImportKeys([key]);
@@ -53,8 +68,9 @@ export function realEnglishPhrasesDeps(subjectId: string): EnglishPhrasesDeps {
 export async function runEnglishPhrasesImport(
   connector: KnowledgeSourceConnector,
   query: ImportQuery,
+  visited: Set<string> = new Set(),
 ): Promise<EnglishPhrasesResult> {
-  const { subjectPath, maxPerRun, deleteAfterImport } = connector.destination;
+  const { subjectPath, maxWords, maxPhrases, recursive, deleteAfterImport } = connector.destination;
   const parsed = parseSubjectPath(subjectPath);
 
   if ("error" in parsed) {
@@ -66,19 +82,23 @@ export async function runEnglishPhrasesImport(
   return importEnglishPhrases(realEnglishPhrasesDeps(subject.subjectId), {
     connector: connector.name,
     pageId: connector.source.id,
-    maxPerRun: Math.min(query.limit ?? maxPerRun, maxPerRun),
+    maxWords: Math.min(query.limit ?? maxWords, maxWords),
+    maxPhrases: Math.min(query.limit ?? maxPhrases, maxPhrases),
+    recursive,
     deleteAfterImport,
     dryRun: query.dryRun ?? false,
+    visited,
   });
 }
 
 export async function runAllEnglishPhrasesImports(query: ImportQuery): Promise<ConnectorOutcome[]> {
   const connectors = loadKnowledgeSourceConnectors().filter((connector) => connector.enabled);
   const outcomes: ConnectorOutcome[] = [];
+  const visited = new Set<string>();
 
   for (const connector of connectors) {
     try {
-      outcomes.push({ connector: connector.name, result: await runEnglishPhrasesImport(connector, query) });
+      outcomes.push({ connector: connector.name, result: await runEnglishPhrasesImport(connector, query, visited) });
     } catch (err) {
       log.error({ err, connector: connector.name }, "notion_english_phrases_failed");
       outcomes.push({

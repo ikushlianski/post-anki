@@ -17,7 +17,9 @@ export const notionDestinationSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("knowledge-source"),
     subjectPath: z.string().min(1),
-    maxPerRun: z.number().int().positive().default(10),
+    maxWords: z.number().int().positive().default(10),
+    maxPhrases: z.number().int().positive().default(10),
+    recursive: z.boolean().default(false),
     deleteAfterImport: z.boolean().default(true),
   }),
 ]);

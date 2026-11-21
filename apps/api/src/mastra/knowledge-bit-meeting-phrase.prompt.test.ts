@@ -48,4 +48,23 @@ describe("buildMeetingPhrasePrompt", () => {
     expect(MEETING_PHRASE_INSTRUCTIONS).toContain("Never choose an unusual or contrived context");
     expect(MEETING_PHRASE_INSTRUCTIONS).toContain("SECURITY.");
   });
+
+  it("should apply the question mark rule only to non-question fragments and teach genuine questions as written", () => {
+    expect(MEETING_PHRASE_INSTRUCTIONS).toContain("QUESTION MARK NOTES.");
+    expect(MEETING_PHRASE_INSTRUCTIONS).toContain("not itself a");
+    expect(MEETING_PHRASE_INSTRUCTIONS).toContain("grammatical question");
+    expect(MEETING_PHRASE_INSTRUCTIONS).toContain("spun up?");
+    expect(MEETING_PHRASE_INSTRUCTIONS).toContain("the card must teach");
+    expect(MEETING_PHRASE_INSTRUCTIONS).toContain("Never copy the \"?\" into the question or answer");
+    expect(MEETING_PHRASE_INSTRUCTIONS).toContain("how is it going?");
+    expect(MEETING_PHRASE_INSTRUCTIONS).toContain("with Jamie?");
+    expect(MEETING_PHRASE_INSTRUCTIONS).toContain("keeps its");
+    expect(MEETING_PHRASE_INSTRUCTIONS).toContain("taught as written");
+    expect(MEETING_PHRASE_INSTRUCTIONS).toContain("overrides nothing else");
+  });
+
+  it("should teach a single-word note as an unknown word in a typical work meeting sentence", () => {
+    expect(MEETING_PHRASE_INSTRUCTIONS).toContain("SINGLE WORD NOTES.");
+    expect(MEETING_PHRASE_INSTRUCTIONS).toContain("the learner did not know that word");
+  });
 });

@@ -54,6 +54,18 @@ export const MEETING_PHRASE_INSTRUCTIONS = [
   "- If the spelling is wrong, set looksNonNative to true and put the corrected phrase in suggestion.",
   "- If the hint's translation is wrong, ignore it and base russianMeaning on the verified meaning.",
   "- Never copy an unsure phrase or its hint blindly. If both are correct, keep the phrase and set looksNonNative to false.",
+  "",
+  "QUESTION MARK NOTES. This rule applies only when a \"?\" (or \"(?)\") is attached to a fragment that is not itself a",
+  "grammatical question, for example \"push on using Peak for his work?\", \"spun up?\" or \"comb-through?\". There the \"?\"",
+  "means the learner is unsure they heard or understood it correctly: treat the note as possibly misheard or misunderstood,",
+  "build the card for the most likely intended standard phrase, and if the text looks like a mishearing, the card must teach",
+  "the corrected phrase. Never copy the \"?\" into the question or answer, and keep the example in typical North American",
+  "IT meeting English. A genuine question (for example \"how is it going?\" or \"did you follow up with Jamie?\") keeps its",
+  "\"?\" and is taught as written; this rule does not trigger for it. This rule overrides nothing else: otherwise still treat",
+  "the note as the target phrase.",
+  "",
+  "SINGLE WORD NOTES. When the note is one word, the learner did not know that word: teach it in a typical work meeting",
+  "sentence.",
 ].join("\n");
 
 export function buildMeetingPhrasePrompt(

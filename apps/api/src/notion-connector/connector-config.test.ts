@@ -56,11 +56,11 @@ describe("knowledge-source connectors", () => {
     destination: { kind: "knowledge-source", subjectPath: "English" },
   };
 
-  it("should need no tag and default to 10 per run with deletion on", () => {
+  it("should need no tag and default to 10 words and 10 phrases per run, flat walk, deletion on", () => {
     const [connector] = parseConnectorConfig(JSON.stringify({ connectors: [phrases] })).connectors;
 
     expect(connector?.tag).toBeUndefined();
-    expect(connector?.destination).toMatchObject({ maxPerRun: 10, deleteAfterImport: true });
+    expect(connector?.destination).toMatchObject({ maxWords: 10, maxPhrases: 10, recursive: false, deleteAfterImport: true });
   });
 
   it("should still require a tag for other destinations", () => {
@@ -72,7 +72,13 @@ describe("knowledge-source connectors", () => {
   it("should load the repo's phrases connector even while other entries hold placeholders", () => {
     const connectors = loadKnowledgeSourceConnectors();
 
-    expect(connectors.map((connector) => connector.name)).toEqual(["english-phrases-3"]);
-    expect(connectors[0]?.destination.subjectPath).toBe("English");
+    expect(connectors.map((connector) => connector.name)).toEqual(["english-phrases-1", "english-phrases-3"]);
+    expect(connectors.map((connector) => connector.source.id)).toEqual([
+      "366dec4d-fc6e-831b-a6ee-01b878685610",
+      "2dfdec4d-fc6e-80bc-9803-c86fb9e994eb",
+    ]);
+    expect(connectors.every((connector) => connector.destination.recursive)).toBe(true);
+    expect(connectors.every((connector) => connector.destination.subjectPath === "English")).toBe(true);
+    expect(connectors.every((connector) => connector.destination.maxWords === 10 && connector.destination.maxPhrases === 10)).toBe(true);
   });
 });

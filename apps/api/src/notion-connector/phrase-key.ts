@@ -5,6 +5,11 @@ export interface PhraseBlock {
   hasChildren: boolean;
 }
 
+export interface BlocksPage {
+  blocks: PhraseBlock[];
+  nextCursor: string | null;
+}
+
 export function phraseKey(blockId: string): string {
   return `notion:${blockId}`;
 }

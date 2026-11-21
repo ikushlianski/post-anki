@@ -9,7 +9,7 @@ import {
 import type { NotionItem, NotionSource } from "@post-anki/shared";
 import { itemsFromBlocks, itemsFromDatabaseRows } from "@post-anki/core";
 import { loadEnv } from "../shared/env.js";
-import type { PhraseBlock } from "./phrase-key.js";
+import type { BlocksPage } from "./phrase-key.js";
 
 let cached: Client | undefined;
 
@@ -71,10 +71,18 @@ export async function readSourceItems(
   return itemsFromDatabaseRows(await queryDatabase(id, client));
 }
 
-export async function listPhraseBlocks(pageId: string, client = getNotionClient()): Promise<PhraseBlock[]> {
-  const blocks = await listPageBlocks(pageId, client);
+export async function listPhraseBlocksPage(
+  parentId: string,
+  cursor: string | null,
+  client = getNotionClient(),
+): Promise<BlocksPage> {
+  const response = await client.blocks.children.list({
+    block_id: parentId,
+    page_size: 100,
+    ...(cursor ? { start_cursor: cursor } : {}),
+  });
 
-  return blocks.map((block) => {
+  const blocks = response.results.filter(isFullBlock).map((block) => {
     const richText = block.type === "bulleted_list_item" ? block.bulleted_list_item.rich_text : [];
 
     return {
@@ -84,6 +92,8 @@ export async function listPhraseBlocks(pageId: string, client = getNotionClient(
       hasChildren: block.has_children,
     };
   });
+
+  return { blocks, nextCursor: response.has_more ? response.next_cursor : null };
 }
 
 export async function deleteNotionBlock(blockId: string, client = getNotionClient()): Promise<void> {

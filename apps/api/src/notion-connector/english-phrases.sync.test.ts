@@ -1,54 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  importEnglishPhrases,
-  isNotionAccessError,
-  NotionAccessError,
-  type EnglishPhrasesDeps,
-  type EnglishPhrasesOptions,
-} from "./english-phrases.sync.js";
+import { importEnglishPhrases, isNotionAccessError, NotionAccessError } from "./english-phrases.sync.js";
+import { baseOptions, bullet, makeDeps } from "./english-phrases.test-mocks.js";
 vi.mock("../shared/log.js", () => ({ log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
 import type { PhraseBlock } from "./phrase-key.js";
 
-const options: EnglishPhrasesOptions = {
-  connector: "english-phrases-3",
-  pageId: "page",
-  maxPerRun: 10,
-  deleteAfterImport: true,
-  dryRun: false,
-};
-
-function bullet(id: string, text: string): PhraseBlock {
-  return { id, type: "bulleted_list_item", text, hasChildren: false };
-}
-
-function makeDeps(blocks: PhraseBlock[]) {
-  const calls: string[] = [];
-  const filedKeys = new Set<string>();
-  const deps = {
-    listBlocks: vi.fn(async () => blocks),
-    fileNote: vi.fn(async (key: string) => {
-      calls.push(`file:${key}`);
-      const created = !filedKeys.has(key);
-
-      filedKeys.add(key);
-
-      return { sourceId: `ks-${key}`, created };
-    }),
-    logImport: vi.fn(async (entry: { notionBlockId: string }) => {
-      calls.push(`log:${entry.notionBlockId}`);
-
-      return `log-${entry.notionBlockId}`;
-    }),
-    markDeleted: vi.fn(async () => undefined),
-    deleteBlock: vi.fn(async (id: string) => {
-      calls.push(`delete:${id}`);
-    }),
-    now: () => new Date("2026-11-21T07:00:00Z"),
-  } satisfies EnglishPhrasesDeps;
-
-  return { deps, calls };
-}
+const options = baseOptions;
 
 describe("importEnglishPhrases", () => {
   it("should file, log, then delete each line in that order", async () => {
@@ -61,13 +18,13 @@ describe("importEnglishPhrases", () => {
   });
 
   it("should only take the configured number of lines per run", async () => {
-    const blocks = Array.from({ length: 5 }, (_, i) => bullet(`b${i}`, `phrase ${i}`));
+    const blocks = Array.from({ length: 5 }, (_, i) => bullet(`b${i}`, `phrase number ${i}`));
     const { deps } = makeDeps(blocks);
 
-    const result = await importEnglishPhrases(deps, { ...options, maxPerRun: 2 });
+    const result = await importEnglishPhrases(deps, { ...options, maxPhrases: 2 });
 
     expect(deps.deleteBlock).toHaveBeenCalledTimes(2);
-    expect(result).toMatchObject({ importable: 5, attempted: 2 });
+    expect(result).toMatchObject({ attempted: 2, phrases: { imported: 2 } });
   });
 
   it("should skip empty bullets and non-bullet blocks without touching them", async () => {
@@ -161,7 +118,19 @@ describe("importEnglishPhrases", () => {
 
     expect(deps.fileNote).not.toHaveBeenCalled();
     expect(deps.deleteBlock).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ dryRun: true, importable: 1, attempted: 0 });
+    expect(result).toMatchObject({ dryRun: true, importable: 1, attempted: 0, words: { imported: 1 } });
+  });
+
+  it("should count duplicates as would-delete in a dry run without filing, logging or deleting", async () => {
+    const { deps } = makeDeps([bullet("a", "old one here"), bullet("b", "fresh one here")], { "old one here": "k" });
+
+    const result = await importEnglishPhrases(deps, { ...options, dryRun: true });
+
+    expect(deps.findExisting).toHaveBeenCalled();
+    expect(deps.fileNote).not.toHaveBeenCalled();
+    expect(deps.logImport).not.toHaveBeenCalled();
+    expect(deps.deleteBlock).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ dryRun: true, duplicates: 1, importable: 1, phrases: { imported: 1 } });
   });
 
   it("should keep lines on the page when deleteAfterImport is off", async () => {

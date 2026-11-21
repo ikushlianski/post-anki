@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Client } from "@notionhq/client";
-import { readSourceItems } from "./notion.client.js";
+import { listPhraseBlocksPage, readSourceItems } from "./notion.client.js";
 
 const EDITED_AT = "2026-10-01T00:00:00.000Z";
 
@@ -81,5 +81,38 @@ describe("readSourceItems", () => {
     await expect(readSourceItems({ kind: "page", id: "not-an-id" }, stubClient({}))).rejects.toThrow(
       /Not a Notion id/,
     );
+  });
+});
+
+describe("listPhraseBlocksPage", () => {
+  it("should return one page of children with the next cursor, passing the cursor on", async () => {
+    const list = vi.fn().mockResolvedValue({
+      results: [
+        { object: "block", id: "n1", type: "bulleted_list_item", has_children: true, bulleted_list_item: { rich_text: [{ plain_text: "ads" }] } },
+        { object: "block", id: "p1", type: "child_page", has_children: true, child_page: { title: "English Phrases 2" } },
+      ],
+      has_more: true,
+      next_cursor: "c2",
+    });
+
+    const page = await listPhraseBlocksPage("parent", "c1", stubClient({ blocks: { children: { list } } }));
+
+    expect(list).toHaveBeenCalledWith(expect.objectContaining({ block_id: "parent", start_cursor: "c1" }));
+    expect(page).toEqual({
+      blocks: [
+        { id: "n1", type: "bulleted_list_item", text: "ads", hasChildren: true },
+        { id: "p1", type: "child_page", text: "", hasChildren: true },
+      ],
+      nextCursor: "c2",
+    });
+  });
+
+  it("should report no next cursor on the last page", async () => {
+    const list = vi.fn().mockResolvedValue({ results: [], has_more: false, next_cursor: null });
+
+    const page = await listPhraseBlocksPage("parent", null, stubClient({ blocks: { children: { list } } }));
+
+    expect(list.mock.calls[0]?.[0]).not.toHaveProperty("start_cursor");
+    expect(page.nextCursor).toBeNull();
   });
 });

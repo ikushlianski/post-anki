@@ -19,9 +19,15 @@
       "removeAfterImport": false
     },
     {
+      "name": "english-phrases-1",
+      "source": { "kind": "page", "id": "366dec4d-fc6e-831b-a6ee-01b878685610" },
+      "destination": { "kind": "knowledge-source", "subjectPath": "English", "maxWords": 10, "maxPhrases": 10, "recursive": true },
+      "removeAfterImport": false
+    },
+    {
       "name": "english-phrases-3",
       "source": { "kind": "page", "id": "2dfdec4d-fc6e-80bc-9803-c86fb9e994eb" },
-      "destination": { "kind": "knowledge-source", "subjectPath": "English", "maxPerRun": 10 },
+      "destination": { "kind": "knowledge-source", "subjectPath": "English", "maxWords": 10, "maxPhrases": 10, "recursive": true },
       "removeAfterImport": false
     }
   ]
