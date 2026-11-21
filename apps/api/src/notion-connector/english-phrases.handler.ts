@@ -1,4 +1,5 @@
 import type http from "node:http";
+import type { KnowledgeSourceConnector } from "@post-anki/shared";
 import { z } from "zod";
 import { sendError, sendInvalidQuery, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
@@ -15,7 +16,14 @@ import {
 import { deleteNotionBlock, listPhraseBlocks } from "./notion.client.js";
 import { insertImportLog, markImportDeleted } from "./notion-import-log.repo.js";
 
-const CONNECTOR_NAME = "english-phrases-3";
+interface ImportQuery {
+  limit?: number;
+  dryRun?: boolean;
+}
+
+export type ConnectorOutcome =
+  | { connector: string; result: EnglishPhrasesResult }
+  | { connector: string; error: string; accessDenied: boolean };
 
 const querySchema = z.object({
   limit: z.coerce.number().int().positive().optional(),
@@ -43,19 +51,14 @@ export function realEnglishPhrasesDeps(subjectId: string): EnglishPhrasesDeps {
 }
 
 export async function runEnglishPhrasesImport(
-  query: { limit?: number; dryRun?: boolean },
+  connector: KnowledgeSourceConnector,
+  query: ImportQuery,
 ): Promise<EnglishPhrasesResult> {
-  const connector = loadKnowledgeSourceConnectors().find((candidate) => candidate.name === CONNECTOR_NAME);
-
-  if (!connector || !connector.enabled) {
-    throw new Error(`Connector ${CONNECTOR_NAME} is missing or disabled`);
-  }
-
   const { subjectPath, maxPerRun, deleteAfterImport } = connector.destination;
   const parsed = parseSubjectPath(subjectPath);
 
   if ("error" in parsed) {
-    throw new Error(`Connector ${CONNECTOR_NAME} has an invalid subject path`);
+    throw new Error(`Connector ${connector.name} has an invalid subject path`);
   }
 
   const subject = await ensureSubjectPath(parsed.segments);
@@ -69,6 +72,44 @@ export async function runEnglishPhrasesImport(
   });
 }
 
+export async function runAllEnglishPhrasesImports(query: ImportQuery): Promise<ConnectorOutcome[]> {
+  const connectors = loadKnowledgeSourceConnectors().filter((connector) => connector.enabled);
+  const outcomes: ConnectorOutcome[] = [];
+
+  for (const connector of connectors) {
+    try {
+      outcomes.push({ connector: connector.name, result: await runEnglishPhrasesImport(connector, query) });
+    } catch (err) {
+      log.error({ err, connector: connector.name }, "notion_english_phrases_failed");
+      outcomes.push({
+        connector: connector.name,
+        error: err instanceof Error ? err.message : String(err),
+        accessDenied: err instanceof NotionAccessError,
+      });
+    }
+  }
+
+  return outcomes;
+}
+
+function toPublicOutcome(outcome: ConnectorOutcome): Record<string, unknown> {
+  if ("result" in outcome) {
+    return { ...outcome.result };
+  }
+
+  return { connector: outcome.connector, error: outcome.error };
+}
+
+export function failureStatus(outcomes: ConnectorOutcome[]): number {
+  const failures = outcomes.filter((outcome) => "error" in outcome);
+
+  if (failures.length === 0) {
+    return 200;
+  }
+
+  return failures.some((outcome) => "accessDenied" in outcome && outcome.accessDenied) ? 403 : 502;
+}
+
 export async function handleNotionEnglishPhrases(res: http.ServerResponse, url: URL): Promise<void> {
   const query = querySchema.safeParse(Object.fromEntries(url.searchParams));
 
@@ -79,16 +120,14 @@ export async function handleNotionEnglishPhrases(res: http.ServerResponse, url: 
   }
 
   try {
-    sendJson(res, 200, await runEnglishPhrasesImport({ limit: query.data.limit, dryRun: query.data.dryRun !== undefined }));
+    const outcomes = await runAllEnglishPhrasesImports({
+      limit: query.data.limit,
+      dryRun: query.data.dryRun !== undefined,
+    });
+
+    sendJson(res, failureStatus(outcomes), { connectors: outcomes.map(toPublicOutcome) });
   } catch (err) {
     log.error({ err }, "notion_english_phrases_failed");
-
-    if (err instanceof NotionAccessError) {
-      sendError(res, 403, "notion_access_denied", err.message);
-
-      return;
-    }
-
     sendError(res, 502, "notion_english_phrases_failed", "The import failed. Check the server logs.");
   }
 }

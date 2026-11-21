@@ -21,3 +21,9 @@
 ## Restore
 - `listRestorableImports("english-phrases-3")` (notion-import-log.repo.ts) lists rows with `deleted_at` set, oldest first, with `original_text` verbatim.
 - Restore from Notion trash within ~30 days, or re-add `original_text` as a bullet. Rows with `delete_error` were filed but not removed.
+
+## Adding another page
+- `POST /notion-english-phrases` imports every enabled knowledge-source connector in notion-connectors.json, one after another; a failing page does not stop the others (non-2xx only if a page failed, body lists every page).
+- Add an entry to notion-connectors.json: `name`, `source: {kind:'page', id:<page id>}`, `destination: {kind:'knowledge-source', subjectPath:'English', maxPerRun:10}`.
+- Share the page with the Notion integration (edit access).
+- Redeploy.
