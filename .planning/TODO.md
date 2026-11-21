@@ -86,7 +86,7 @@ updated: 2026-09-04
 - Out of scope: Chat and new AI question variants offline.
 
 ### Coding tasks
-- [ ] Web offline review closes its remaining race gaps: undo during the moment a grade finishes sending, saved-card marks lost to a pack refresh, grades parked too eagerly when the server is briefly down, and the offline store cleared on sign-out.
+- [x] Web offline review closes its remaining race gaps: undo during the moment a grade finishes sending, saved-card marks lost to a pack refresh, grades parked too eagerly when the server is briefly down, and the offline store cleared on sign-out.
 - [x] The web app works offline for review, queueing grades and syncing them when the connection returns.
 - [x] Apps store the offline pack on disk, refreshed every 6 minutes while open and when possible.
 - [x] Server offers an offline pack of cards due within a day for recently studied subjects.
@@ -106,10 +106,10 @@ updated: 2026-09-04
 - A proposed card is never saved silently: the user accepts or rejects it in the chat, and a rejection continues the discussion.
 
 ### Coding tasks
-- [ ] Cards the chat proposes are triaged in place like the triage screen: swipe right (or accept) saves the card, swipe left (or reject) keeps the thread going on what is wrong until the point is fixed and accepted or discarded.
-- [ ] The iOS and Mac apps show the improved chat with the same card tools as the web app.
-- [ ] When a card's source author is known, the chat may fetch context about that author's material to ground its explanation.
-- [ ] Chat answers come from a smarter model tier with web search and fetch available, with the model's own knowledge preferred and web context used to fill terse one-sentence sources.
+- [x] Cards the chat proposes are triaged in place like the triage screen: swipe right (or accept) saves the card, swipe left (or reject) keeps the thread going on what is wrong until the point is fixed and accepted or discarded.
+- [x] The iOS and Mac apps show the improved chat with the same card tools as the web app.
+- [x] When a card's source author is known, the chat may fetch context about that author's material to ground its explanation.
+- [x] Chat answers come from a smarter model tier with web search and fetch available, with the model's own knowledge preferred and web context used to fill terse one-sentence sources.
 
 ### Notes
 - Worked in its own Orca worktree chat-queue-card-crafting, started 2026-11-08 from this session's brief.
@@ -136,8 +136,8 @@ updated: 2026-09-04
 - Out of scope: Rewrites of working features, new paid infrastructure, anything touching money or privacy without a human call
 
 ### Coding tasks
-- [ ] Voice chat polish: keep a strong reference to the utterance being spoken on Apple, make the dictator ignore callbacks of an earlier recognition task, and stop reading underscores inside identifiers such as snake_case.
-- [ ] Marking a card known on iPhone and Mac reverses the review counts when the server says the card no longer exists, and offline bury or suspend on web does not flash the next card before restoring.
+- [x] Voice chat polish: keep a strong reference to the utterance being spoken on Apple, make the dictator ignore callbacks of an earlier recognition task, and stop reading underscores inside identifiers such as snake_case.
+- [x] Marking a card known on iPhone and Mac reverses the review counts when the server says the card no longer exists, and offline bury or suspend on web does not flash the next card before restoring.
 - [x] If saving a grade throws unexpectedly on web, the grade rolls back with the plain message instead of being lost, and a sibling card hidden after confirmation never shows a stale revealed state.
 - [x] The learner can talk to Post Anki by voice in chat, hearing replies read aloud and dictating questions.
 - [x] While reviewing, the learner can highlight part of an answer and turn it into a new card on web, iPhone and Mac.
@@ -962,8 +962,8 @@ updated: 2026-09-04
 - Out of scope: Replacing the Expo mobile app or the web app before PowerSync is proven
 
 ### Coding tasks
-- [ ] When the server rejects a chosen AI model in the Ask or Topic chat, the app resets to the default model and tells the learner, as the queue chat already does; a failed model-list fetch keeps the saved choice instead of wiping it.
-- [ ] A database test proves that a chat exchange ending in a fixed AI-failure reply does not use up one of the learner's turns, while normal and unanswered messages still do.
+- [x] When the server rejects a chosen AI model in the Ask or Topic chat, the app resets to the default model and tells the learner, as the queue chat already does; a failed model-list fetch keeps the saved choice instead of wiping it.
+- [x] A database test proves that a chat exchange ending in a fixed AI-failure reply does not use up one of the learner's turns, while normal and unanswered messages still do.
 - [x] In any chat the learner can switch the AI model at any point in the conversation from a model picker, and the next reply uses the chosen model.
 - [x] A chat in the queue never ends up empty and silent when the AI fails to answer: an empty model reply is retried once without web tools, a failed first reply keeps its prompt so it can be retried, and the learner sees a plain reason instead of a blank chat.
 - [x] In the Mac Chat queue a single click highlights a chat, a double click opens it, and each row has a Continue button on its right that opens the chat too.
@@ -1170,9 +1170,9 @@ updated: 2026-09-04
 ### Coding tasks
 - [x] The Mac app's Shuffle button for today's cards mixes the day's review in random order every time it is pressed; today it shows but does not behave correctly.
 - [x] The iPhone app shows a Shuffle button for today's cards, so the learner can mix the day's review in random order; today the button is not visible there.
-- [ ] Every review card shows the subject it belongs to, so the learner knows the context before answering.
-- [ ] The Today button groups today's cards by subject, shows the current subject, and announces the next subject with how many cards remain.
-- [ ] A Shuffle option for today's review mixes new and due cards in random order, so a session is not always new cards first.
+- [x] Every review card shows the subject it belongs to, so the learner knows the context before answering.
+- [x] The Today button groups today's cards by subject, shows the current subject, and announces the next subject with how many cards remain.
+- [x] A Shuffle option for today's review mixes new and due cards in random order, so a session is not always new cards first.
 - [ ] [blocked: user] Raise the session token cap so planned Anki-parity items can be built.
 
 ### Notes
@@ -1714,7 +1714,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: changing which model each call uses — only cost visibility and guardrails, not model selection policy
 
 ### Coding tasks
-- [ ] Every failed AI model call is written to the audit log with the operation, model, error reason and the card or chat it belongs to, so failures can be traced afterwards.
+- [x] Every failed AI model call is written to the audit log with the operation, model, error reason and the card or chat it belongs to, so failures can be traced afterwards.
 - [x] Cover skipped items in the subject and source duplicate scans with tests
 - [x] Report embedding scan counts from items actually saved, not items attempted
 - [x] Keep every chat's prompt bounded by sending only recent conversation turns
@@ -1883,48 +1883,6 @@ Each root item below is one separate autonomous session, worked sequentially —
 ### Notes
 - goal run run-20261112t120426z
 
-## a-shuffle-option-for-today-s-review-mixe
-
-### Scope
-- Priority: medium
-- A Shuffle option for today's review mixes new and due cards in random order.
-
-### Coding tasks
-- [ ] Add a shuffle_review boolean column, default false, to the admin settings schema with a migration.
-- [ ] Add shuffleReview to the shared admin-settings schemas and to the admin settings repo read and update.
-- [ ] Add a shuffleCards helper with an injectable random source to knowledge-bit-review-queue-mix.ts, with tests.
-
-### Notes
-- goal run run-20261116t231447z
-
-## the-today-button-groups-today-s-cards-by
-
-### Scope
-- Priority: medium
-- The Today button groups today's cards by subject, shows the current subject, and announces the next subject with how many cards remain.
-
-### Coding tasks
-- [ ] Group buildReviewPack cards with groupReviewCardsBySubject and loadSubjectPathLabels, attaching subjectPath to each card.
-- [ ] In knowledge-bit-review-pack.service.test.ts, assert pack cards are grouped by subject and carry subjectPath.
-- [ ] Add review-pack-store smoke test: offline 'all' scope cards keep subjectPath and server order.
-
-### Notes
-- goal run run-20261116t231652z
-
-## every-review-card-shows-the-subject-it-b
-
-### Scope
-- Priority: medium
-- Every review card shows the subject it belongs to.
-
-### Coding tasks
-- [ ] Add nullable optional subjectPath to reviewCardSchema in packages/shared knowledge-bit-review.ts.
-- [ ] Render subjectPath above the question in anki-review-card.tsx, kept visible after reveal.
-- [ ] Test anki-review-card shows subjectPath, and hides the label when subjectPath is null.
-
-### Notes
-- goal run run-20261116t231930z
-
 ## a-button-in-post-anki-that-sends-a-todo-
 
 ### Scope
@@ -1938,3 +1896,14 @@ Each root item below is one separate autonomous session, worked sequentially —
 
 ### Notes
 - goal run run-20261116t232114z
+
+## find-how-to-improve-the-application-by-a
+
+### Scope
+- Priority: medium
+- Find how to improve the application by adding new important features. List the new features worth considering, with the user problem each solves and rough size.
+
+### Coding tasks
+
+### Notes
+- goal run run-20261121t192235z
