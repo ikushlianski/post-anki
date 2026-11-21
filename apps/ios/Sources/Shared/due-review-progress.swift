@@ -18,23 +18,20 @@ extension DueReviewModel {
 
 extension DueReviewModel {
     var currentSubjectPath: String? {
-        guard let path = current?.subjectPath, !path.isEmpty else { return nil }
+        guard scope == nil, let path = current?.subjectPath, !path.isEmpty else { return nil }
 
         return path
     }
 
     var groupAnnouncement: String? {
-        guard let path = currentSubjectPath, let previous = previousSubjectPath, previous != path, !isRevealed else {
-            return nil
-        }
+        guard scope == nil else { return nil }
 
-        let inGroup = ReviewSubjectGroups.cardsLeft(in: path, current: current, queue: queue)
         let overall = remainingCounts.map { $0.new + $0.learning + $0.review } ?? (1 + queue.count)
 
-        return ReviewSubjectGroups.announcement(
-            subjectPath: path,
-            cardsInGroup: inGroup,
-            remainingOverall: max(inGroup, overall)
+        return ReviewSubjectGroups.nextAnnouncement(
+            current: current,
+            queue: queue,
+            remainingAfterCurrent: max(queue.count, overall - 1)
         )
     }
 }

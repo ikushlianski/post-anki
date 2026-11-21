@@ -4,7 +4,6 @@ import PostAnkiAPI
 struct AdvanceSnapshot {
     let card: ReviewCard
     let queue: [ReviewCard]
-    let previousSubjectPath: String?
     let wasRevealed: Bool
     let shownAt: ContinuousClock.Instant
     let requestId: String
@@ -25,7 +24,6 @@ extension DueReviewModel {
         let snapshot = AdvanceSnapshot(
             card: card,
             queue: before,
-            previousSubjectPath: previousSubjectPath,
             wasRevealed: isRevealed,
             shownAt: shownAt,
             requestId: cardRequestId
@@ -42,7 +40,6 @@ extension DueReviewModel {
 
         queue = snapshot.queue + added
         present(snapshot.card)
-        previousSubjectPath = snapshot.previousSubjectPath
         isRevealed = snapshot.wasRevealed
         shownAt = snapshot.shownAt
         cardRequestId = snapshot.requestId

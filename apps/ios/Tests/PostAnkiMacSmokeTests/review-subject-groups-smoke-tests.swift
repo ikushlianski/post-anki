@@ -2,7 +2,7 @@ import PostAnkiAPI
 import Testing
 
 extension SmokeTests {
-    @Suite("Today review goes subject by subject")
+    @Suite("Today review announces the next subject")
     struct ReviewSubjectGroupsSmokeTests {
         private func card(_ id: String, _ path: String?) -> ReviewCard {
             ReviewCard(
@@ -19,18 +19,41 @@ extension SmokeTests {
             )
         }
 
-        @Test("should count the cards left in the current subject group only")
-        func countsGroup() {
-            let queue = [card("b", "Sales"), card("c", "Swift")]
+        @Test("should announce the next subject and cards left when the next card changes subject")
+        func announcesChange() {
+            let text = ReviewSubjectGroups.nextAnnouncement(
+                current: card("a", "Sales"),
+                queue: [card("b", "Swift"), card("c", "Swift")],
+                remainingAfterCurrent: 2
+            )
 
-            #expect(ReviewSubjectGroups.cardsLeft(in: "Sales", current: card("a", "Sales"), queue: queue) == 2)
+            #expect(text == "Next: Swift · 2 left")
         }
 
-        @Test("should announce the next subject with its card count and the total left")
-        func announces() {
-            let text = ReviewSubjectGroups.announcement(subjectPath: "Swift", cardsInGroup: 3, remainingOverall: 8)
+        @Test("should stay silent while the next card is in the same subject")
+        func silentSameSubject() {
+            let text = ReviewSubjectGroups.nextAnnouncement(
+                current: card("a", "Sales"),
+                queue: [card("b", "Sales"), card("c", "Swift")],
+                remainingAfterCurrent: 2
+            )
 
-            #expect(text == "Next subject: Swift · 3 cards here, 8 cards left in total")
+            #expect(text == nil)
+        }
+
+        @Test("should follow the shuffled queue order, not the original one")
+        func followsQueueOrder() {
+            let current = card("a", "Sales")
+            let shuffled = [card("c", "Swift"), card("b", "Sales")]
+
+            #expect(ReviewSubjectGroups.nextAnnouncement(current: current, queue: shuffled, remainingAfterCurrent: 2) == "Next: Swift · 2 left")
+            #expect(ReviewSubjectGroups.nextAnnouncement(current: current, queue: shuffled.reversed(), remainingAfterCurrent: 2) == nil)
+        }
+
+        @Test("should stay silent when the queue is empty or the next card has no subject")
+        func silentWithoutSubject() {
+            #expect(ReviewSubjectGroups.nextAnnouncement(current: card("a", "Sales"), queue: [], remainingAfterCurrent: 0) == nil)
+            #expect(ReviewSubjectGroups.nextAnnouncement(current: card("a", "Sales"), queue: [card("b", nil)], remainingAfterCurrent: 1) == nil)
         }
     }
 }

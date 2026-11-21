@@ -22,7 +22,6 @@ final class DueReviewModel {
 
     var state: LoadState = .loading
     var current: ReviewCard?
-    var previousSubjectPath: String?
     var chatCard: ReviewCard?
     var movePickerCard: ReviewCard?
     var makeCardCard: ReviewCard?
@@ -139,7 +138,6 @@ final class DueReviewModel {
     }
 
     func present(_ card: ReviewCard) {
-        previousSubjectPath = current?.subjectPath
         current = card
         isRevealed = false
         gradeError = nil
