@@ -31,6 +31,7 @@ export interface RejectedProposal {
   seq: number
   index: number
   front: string
+  feedback: string | null
 }
 
 export function useChatProposals(bitId: string, { onDecided, onRejected }: Options) {
@@ -48,6 +49,7 @@ export function useChatProposals(bitId: string, { onDecided, onRejected }: Optio
       seq: number,
       proposal: ChatQueueProposal,
       decision: ProposalDecision,
+      feedback: string | null = null,
     ) => {
       const key = keyOf(lineId, proposal.index)
 
@@ -75,7 +77,7 @@ export function useChatProposals(bitId: string, { onDecided, onRejected }: Optio
           if (decision === 'accept') {
             notifyPendingReviewChanged()
           } else {
-            onRejected({ seq, index: proposal.index, front: proposal.front })
+            onRejected({ seq, index: proposal.index, front: proposal.front, feedback })
           }
         } else {
           set({ state: 'error', message: chatQueueFailureMessage(outcome.failure) })

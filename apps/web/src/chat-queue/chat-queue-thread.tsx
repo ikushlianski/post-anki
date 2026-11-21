@@ -61,8 +61,12 @@ export function ChatQueueThread({ item, now, onBack, onResolved, onSnoozeChanged
   const { sendWithId } = thread;
   const handleProposalRejected = useCallback(
     async (rejected: RejectedProposal) => {
+      if (rejected.feedback === null) {
+        return
+      }
+
       const sent = await sendWithId(
-        rejectedProposalMessage(rejected.front),
+        rejectedProposalMessage(rejected.front, rejected.feedback),
         rejectedProposalMessageId(item.id, rejected),
       );
 
@@ -164,8 +168,8 @@ export function ChatQueueThread({ item, now, onBack, onResolved, onSnoozeChanged
                   seq={line.seq}
                   proposals={line.proposals}
                   statusOf={proposals.statusOf}
-                  onDecide={(lineId, lineSeq, proposal, decision) =>
-                    void proposals.decide(lineId, lineSeq, proposal, decision)
+                  onDecide={(lineId, lineSeq, proposal, decision, feedback) =>
+                    void proposals.decide(lineId, lineSeq, proposal, decision, feedback)
                   }
                 />
               ) : null}

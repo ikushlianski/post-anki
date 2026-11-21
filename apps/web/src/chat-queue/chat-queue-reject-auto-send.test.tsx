@@ -75,15 +75,18 @@ describe('rejecting a proposed card', () => {
     } as never)
     renderThread()
 
-    const button = await screen.findByTestId('chat-queue-proposal-reject-0')
-    await userEvent.dblClick(button)
+    await userEvent.click(await screen.findByTestId('chat-queue-proposal-reject-0'))
+    await userEvent.type(screen.getByLabelText('What is wrong with this card'), 'too vague')
+
+    const send = screen.getByTestId('chat-queue-proposal-reject-send-0')
+    await userEvent.dblClick(send)
 
     expect(await screen.findByText('Revised')).not.toBeNull()
     expect(sendChatQueueMessage).toHaveBeenCalledTimes(1)
     expect(sendChatQueueMessage).toHaveBeenCalledWith({
       data: {
         bitId: 'a',
-        message: { clientMessageId: 'reject:a:2:0', message: 'I rejected your proposed card: What is X?.' },
+        message: { clientMessageId: 'reject:a:2:0', message: 'I rejected your proposed card: What is X?. What is wrong: too vague' },
       },
     })
   })
@@ -93,9 +96,37 @@ describe('rejecting a proposed card', () => {
     renderThread()
 
     await userEvent.click(await screen.findByTestId('chat-queue-proposal-reject-0'))
+    await userEvent.type(screen.getByLabelText('What is wrong with this card'), 'too vague')
+    await userEvent.click(screen.getByTestId('chat-queue-proposal-reject-send-0'))
 
     await waitFor(() => expect(rejectChatQueueProposal).toHaveBeenCalledTimes(1))
     expect(sendChatQueueMessage).not.toHaveBeenCalled()
+  })
+
+  it('should reject without starting a follow-up when the learner discards the card', async () => {
+    vi.mocked(getChatQueueThread).mockResolvedValue(thread())
+    renderThread()
+
+    await userEvent.click(await screen.findByTestId('chat-queue-proposal-reject-0'))
+    await userEvent.click(screen.getByTestId('chat-queue-proposal-discard-0'))
+
+    await waitFor(() => expect(rejectChatQueueProposal).toHaveBeenCalledTimes(1))
+    expect(sendChatQueueMessage).not.toHaveBeenCalled()
+    expect(await screen.findByTestId('chat-queue-proposal-rejected-0')).not.toBeNull()
+  })
+
+  it('should let the learner pick a quick reason and go back without rejecting', async () => {
+    vi.mocked(getChatQueueThread).mockResolvedValue(thread())
+    renderThread()
+
+    await userEvent.click(await screen.findByTestId('chat-queue-proposal-reject-0'))
+    expect((screen.getByTestId('chat-queue-proposal-reject-send-0') as HTMLButtonElement).disabled).toBe(true)
+    await userEvent.click(screen.getByTestId('chat-queue-proposal-reason-0-wrong_language'))
+    expect((screen.getByTestId('chat-queue-proposal-reject-send-0') as HTMLButtonElement).disabled).toBe(false)
+    await userEvent.click(screen.getByTestId('chat-queue-proposal-reject-cancel-0'))
+
+    expect(rejectChatQueueProposal).not.toHaveBeenCalled()
+    expect(screen.getByTestId('chat-queue-proposal-accept-0')).not.toBeNull()
   })
 
   it('should not send a second message while a turn is already in flight', async () => {

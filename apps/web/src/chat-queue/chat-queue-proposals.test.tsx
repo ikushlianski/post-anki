@@ -25,7 +25,8 @@ function Harness({ seq, proposals = initial }: { seq: number | undefined; propos
       seq={seq}
       proposals={proposals}
       statusOf={state.statusOf}
-      onDecide={(lineId, lineSeq, proposal, decision) => void state.decide(lineId, lineSeq, proposal, decision)}
+      onDecide={(lineId, lineSeq, proposal, decision, feedback) =>
+        void state.decide(lineId, lineSeq, proposal, decision, feedback)}
     />
   )
 }
@@ -78,27 +79,35 @@ describe('ChatQueueProposals', () => {
     expect(notifyPendingReviewChanged).toHaveBeenCalledTimes(1)
   })
 
-  it('should reject with one call on a left swipe and tell the thread to ask what is wrong', async () => {
+  it('should open the what-is-wrong step on a left swipe and reject only once feedback is sent', async () => {
     vi.mocked(rejectChatQueueProposal).mockResolvedValue({ ok: true, data: { ok: true, status: 'rejected' } })
 
     render(<Harness seq={2} />)
     swipe(screen.getByTestId('chat-queue-proposal-1'), 300, 150)
 
+    expect(rejectChatQueueProposal).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('chat-queue-proposal-reason-1-wrong_language'))
+    fireEvent.click(screen.getByTestId('chat-queue-proposal-reject-send-1'))
+
     await waitFor(() => expect(onRejected).toHaveBeenCalledTimes(1))
+    expect(onRejected).toHaveBeenCalledWith(expect.objectContaining({ index: 1 }))
+    expect(onRejected.mock.calls[0]![0].feedback.length).toBeGreaterThan(0)
     expect(rejectChatQueueProposal).toHaveBeenCalledWith({ data: { bitId: 'b1', seq: 2, index: 1 } })
     expect(acceptChatQueueProposal).not.toHaveBeenCalled()
     expect(notifyPendingReviewChanged).not.toHaveBeenCalled()
   })
 
-  it('should make the same calls from the Accept and Reject buttons', async () => {
+  it('should accept from the button and reject with a discard from the reject step', async () => {
     vi.mocked(acceptChatQueueProposal).mockResolvedValue({ ok: true, data: { ok: true, status: 'accepted' } })
     vi.mocked(rejectChatQueueProposal).mockResolvedValue({ ok: true, data: { ok: true, status: 'rejected' } })
 
     render(<Harness seq={2} />)
     fireEvent.click(screen.getByTestId('chat-queue-proposal-accept-0'))
     fireEvent.click(screen.getByTestId('chat-queue-proposal-reject-1'))
+    fireEvent.click(screen.getByTestId('chat-queue-proposal-discard-1'))
 
     await waitFor(() => expect(onDecided).toHaveBeenCalledTimes(2))
+    expect(onRejected).toHaveBeenCalledWith(expect.objectContaining({ feedback: null }))
     expect(acceptChatQueueProposal).toHaveBeenCalledWith({ data: { bitId: 'b1', seq: 2, index: 0 } })
     expect(rejectChatQueueProposal).toHaveBeenCalledWith({ data: { bitId: 'b1', seq: 2, index: 1 } })
   })

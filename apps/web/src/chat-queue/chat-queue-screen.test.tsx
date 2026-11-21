@@ -298,8 +298,18 @@ describe('ChatQueueScreen', () => {
     await openThread()
 
     await userEvent.click(await screen.findByTestId('chat-queue-proposal-reject-0'))
+    expect(rejectChatQueueProposal).not.toHaveBeenCalled()
+    await userEvent.type(screen.getByLabelText('What is wrong with this card'), 'too vague')
+    await userEvent.click(screen.getByTestId('chat-queue-proposal-reject-send-0'))
 
-    expect(rejectChatQueueProposal).toHaveBeenCalledWith({ data: { bitId: 'a', seq: 2, index: 0 } })
+    await waitFor(() => expect(rejectChatQueueProposal).toHaveBeenCalledWith({ data: { bitId: 'a', seq: 2, index: 0 } }))
+    expect(sendChatQueueMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          message: expect.objectContaining({ message: expect.stringContaining('What is wrong: too vague') }),
+        }),
+      }),
+    )
     expect(await screen.findByText('Revised')).not.toBeNull()
     expect(screen.queryByTestId('chat-queue-reject-hint')).toBeNull()
     expect(screen.getByTestId('chat-queue-proposal-rejected-0')).not.toBeNull()

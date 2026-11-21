@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChatQueueProposal } from '@post-anki/shared'
 
 import {
@@ -6,6 +6,7 @@ import {
   SECONDARY_BUTTON_CLASS,
 } from '../knowledge-bit/knowledge-bit-review-classes'
 import type { ProposalDecision, ProposalStatus } from './use-chat-proposals'
+import { ChatQueueProposalRejectPanel } from './chat-queue-proposal-reject-panel'
 import { useHorizontalSwipe } from './use-horizontal-swipe'
 
 interface Props {
@@ -18,6 +19,7 @@ interface Props {
     seq: number,
     proposal: ChatQueueProposal,
     decision: ProposalDecision,
+    feedback?: string | null,
   ) => void
 }
 
@@ -33,12 +35,26 @@ function ProposalCard({ lineId, seq, proposal, status, onDecide }: CardProps) {
   const { index } = proposal
   const pending = proposal.status === 'pending'
   const busy = seq === undefined || status.state === 'saving'
+  const [rejecting, setRejecting] = useState(false)
   const decide = (decision: ProposalDecision) => {
+    if (seq === undefined || !pending) {
+      return
+    }
+
+    if (decision === 'reject') {
+      setRejecting(true)
+
+      return
+    }
+
+    onDecide(lineId, seq, proposal, decision)
+  }
+  const sendRejection = (feedback: string | null) => {
     if (seq !== undefined && pending) {
-      onDecide(lineId, seq, proposal, decision)
+      onDecide(lineId, seq, proposal, 'reject', feedback)
     }
   }
-  const swipe = useHorizontalSwipe({ enabled: pending && !busy, onSwipe: decide })
+  const swipe = useHorizontalSwipe({ enabled: pending && !busy && !rejecting, onSwipe: decide })
   const kindLabel = proposal.kind === 'update' ? 'Update to this card' : 'New card'
   const decidedRef = useRef<HTMLParagraphElement>(null)
   const wasPending = useRef(pending)
@@ -70,7 +86,15 @@ function ProposalCard({ lineId, seq, proposal, status, onDecide }: CardProps) {
       {proposal.reason ? (
         <p className="text-xs text-neutral-500 whitespace-pre-wrap">{proposal.reason}</p>
       ) : null}
-      {pending ? (
+      {pending && rejecting ? (
+        <ChatQueueProposalRejectPanel
+          index={index}
+          disabled={busy}
+          onSend={sendRejection}
+          onDiscard={() => sendRejection(null)}
+          onCancel={() => setRejecting(false)}
+        />
+      ) : pending ? (
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
