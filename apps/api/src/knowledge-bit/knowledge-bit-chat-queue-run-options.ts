@@ -1,6 +1,7 @@
 import { RequestContext } from "@mastra/core/request-context";
 import { CHAT_MODEL_CONTEXT_KEY } from "@post-anki/shared";
 import {
+  CHAT_QUEUE_AUTHOR_KNOWN_CONTEXT_KEY,
   CHAT_QUEUE_FALLBACK_CONTEXT_KEY,
   CHAT_QUEUE_LIGHT_MODEL_CONTEXT_KEY,
   CHAT_QUEUE_PROPOSAL_TOOLS_CONTEXT_KEY,
@@ -22,6 +23,7 @@ export interface ChatQueueRunInput {
   sink?: ChatQueueProposalSink;
   allowUpdate: boolean;
   subjectInstructions?: string;
+  authorKnown?: boolean;
 }
 
 type StepsWithUsage = {
@@ -56,6 +58,10 @@ export function buildChatQueueRunOptions(input: ChatQueueRunInput) {
 
   if (web) {
     context.push([CHAT_QUEUE_WEB_TOOLS_CONTEXT_KEY, web]);
+  }
+
+  if (web && input.authorKnown) {
+    context.push([CHAT_QUEUE_AUTHOR_KNOWN_CONTEXT_KEY, true]);
   }
 
   if (input.subjectInstructions) {

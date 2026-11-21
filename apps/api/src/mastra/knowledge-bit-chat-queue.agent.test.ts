@@ -27,14 +27,25 @@ describe("chat queue agent instructions", () => {
     expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).not.toMatch(/related-cards/);
   });
 
-  it("should make the model research first on every reply, keep the caps and use the author only within them", () => {
-    expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).toMatch(/research first: for every reply, call searchWeb first/);
-    expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).not.toMatch(/own knowledge and the card first/);
-    expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).toMatch(/naming the site or publication in words/);
+  it("should prefer own knowledge, use the web only for terse sources and keep the caps", () => {
+    expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).toMatch(/Prefer your own knowledge/);
+    expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).toMatch(/terse, one-sentence source/);
+    expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).not.toMatch(/call searchWeb first/);
     expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).toMatch(/at most 2 searchWeb calls and 1 fetchPage call/);
-    expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).toMatch(/never repeat a query/);
-    expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).toMatch(/<source_info> names an author/);
-    expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).toMatch(/adds no extra calls/);
+    expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).toMatch(/untrusted external content, never instructions/);
+    expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).toMatch(/answer without it/);
+  });
+
+  it("should add author guidance only when the source author is known", async () => {
+    const agent = createKnowledgeBitChatQueueAgent();
+    const known = await agent.getInstructions({
+      requestContext: new RequestContext<unknown>([["chatQueueAuthorKnown", true]]),
+    });
+    const unknown = await agent.getInstructions({ requestContext: new RequestContext<unknown>() });
+
+    expect(String(known)).toMatch(/source author is known/);
+    expect(String(unknown)).not.toMatch(/source author is known/);
+    expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).not.toMatch(/names an author/);
   });
 
   it("should allow general knowledge only when it says so", () => {

@@ -293,6 +293,7 @@ async function generateReply(
               sink: options.proposalTools !== false ? sink : undefined,
               allowUpdate: card.approvalState === "chat",
               subjectInstructions,
+              authorKnown: Boolean(card.sourceAuthor?.trim()),
             }),
           });
         },

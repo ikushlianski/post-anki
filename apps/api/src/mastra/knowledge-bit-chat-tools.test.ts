@@ -25,11 +25,12 @@ describe("searchWebFor", () => {
 
     const result = await searchWebFor({ query: "current TCP RFC" }, deps);
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: true,
-      text: "current guidance",
+      untrustedExternalContent: "current guidance",
       citations: ["https://example.com/real-source"],
     });
+    expect(result).toHaveProperty("notice", expect.stringMatching(/untrusted external web content/));
   });
 
   it("passes the caller's query straight through to the search dependency", async () => {
@@ -38,6 +39,23 @@ describe("searchWebFor", () => {
     await searchWebFor({ query: "recent RFC updates" }, deps);
 
     expect(deps.searchWeb).toHaveBeenCalledWith("recent RFC updates");
+  });
+});
+
+describe("tool failure tolerance", () => {
+  it("should report a failed search as a refusal instead of throwing", async () => {
+    const deps = makeDeps({ searchWeb: vi.fn().mockRejectedValue(new Error("boom")) });
+
+    await expect(searchWebFor({ query: "x" }, deps)).resolves.toEqual({ ok: false, refusal: "search_failed" });
+  });
+
+  it("should report a throwing page fetch as fetch_failed instead of throwing", async () => {
+    const deps = makeDeps({ fetchPage: vi.fn().mockRejectedValue(new Error("timeout")) });
+
+    await expect(fetchPageFor({ url: "https://example.com/a" }, deps)).resolves.toEqual({
+      ok: false,
+      refusal: "fetch_failed",
+    });
   });
 });
 
@@ -70,13 +88,11 @@ describe("fetchPageFor", () => {
 });
 
 describe("createKnowledgeBitChatTools", () => {
-  it("should describe the web tools as a routine first step only for research-first chats", () => {
-    const standard = createKnowledgeBitChatTools(makeDeps());
-    const research = createKnowledgeBitChatTools(makeDeps(), { researchFirst: true });
+  it("should describe the web tools as a last resort after own knowledge, never a routine first step", () => {
+    const tools = createKnowledgeBitChatTools(makeDeps());
 
-    expect(standard.searchWeb.description).toMatch(/never a routine first step/);
-    expect(research.searchWeb.description).toMatch(/Run it first on every reply/);
-    expect(research.searchWeb.description).not.toMatch(/never a routine first step/);
-    expect(Object.keys(research)).toEqual(Object.keys(standard));
+    expect(tools.searchWeb.description).toMatch(/own knowledge/);
+    expect(tools.searchWeb.description).toMatch(/never a routine first step/);
+    expect(Object.keys(tools)).toEqual(["searchWeb", "fetchPage"]);
   });
 });

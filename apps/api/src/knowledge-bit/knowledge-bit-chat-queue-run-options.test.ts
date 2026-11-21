@@ -31,6 +31,18 @@ const webTools = {
   fetchPage: vi.fn(),
 };
 
+describe("buildChatQueueRunOptions author context", () => {
+  it("should flag a known author only when web tools are present", () => {
+    const withWeb = buildChatQueueRunOptions({ fallback: false, webTools, allowUpdate: false, authorKnown: true });
+    const noAuthor = buildChatQueueRunOptions({ fallback: false, webTools, allowUpdate: false });
+    const fallback = buildChatQueueRunOptions({ fallback: true, webTools, allowUpdate: false, authorKnown: true });
+
+    expect(withWeb.requestContext?.get("chatQueueAuthorKnown")).toBe(true);
+    expect(noAuthor.requestContext?.get("chatQueueAuthorKnown")).toBeUndefined();
+    expect(fallback.requestContext?.get("chatQueueAuthorKnown")).toBeUndefined();
+  });
+});
+
 describe("buildChatQueueRunOptions", () => {
   it("should allow search, fetch and proposal steps on the primary attempt", () => {
     const options = buildChatQueueRunOptions({
