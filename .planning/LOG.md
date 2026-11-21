@@ -1210,6 +1210,11 @@ directly. See the handoff report delivered to the user for the full scenario-lev
 - [x] Surface the new token-usage columns on the admin observability page
 - [x] Extend llm_call_events recording to the ~17 other agent.generate call sites with none
 - [x] Capture real token usage on llm_call_events for its 3 existing call sites
+- 2026-11-21: Every failed AI model call is written to the audit log with the operation, model, error reason and the card or chat it belongs to, so failures can be traced afterwards.
+- 2026-11-21: Cover skipped items in the subject and source duplicate scans with tests
+- 2026-11-21: Report embedding scan counts from items actually saved, not items attempted
+- 2026-11-21: Keep every chat's prompt bounded by sending only recent conversation turns
+- 2026-11-21: Stop one oversized text from failing every embedding batch it lands in
 
 ## discovery-and-navigation
 
@@ -1615,6 +1620,11 @@ directly. See the handoff report delivered to the user for the full scenario-lev
 - 2026-11-14: Write cards in parallel and show how many are ready
 - 2026-11-14: Detected items must stand alone, with no dangling this or that
 - 2026-11-14: Compare the five models side by side on the user's Russian text
+- 2026-11-21: The Mac app's Shuffle button for today's cards mixes the day's review in random order every time it is pressed; today it shows but does not behave correctly.
+- 2026-11-21: The iPhone app shows a Shuffle button for today's cards, so the learner can mix the day's review in random order; today the button is not visible there.
+- 2026-11-21: Every review card shows the subject it belongs to, so the learner knows the context before answering.
+- 2026-11-21: The Today button groups today's cards by subject, shows the current subject, and announces the next subject with how many cards remain.
+- 2026-11-21: A Shuffle option for today's review mixes new and due cards in random order, so a session is not always new cards first.
 
 ## native-apple-apps
 
@@ -1657,6 +1667,15 @@ directly. See the handoff report delivered to the user for the full scenario-lev
 - 2026-11-14: The native app's config, ports and README point at this repo's API, not the old repo.
 - 2026-11-14: A short note compares PowerSync with Electric for native sync and records the chosen path.
 - 2026-11-14: One table syncs from dev Postgres to the Swift app via PowerSync and shows offline.
+- 2026-11-21: When the server rejects a chosen AI model in the Ask or Topic chat, the app resets to the default model and tells the learner, as the queue chat already does; a failed model-list fetch keeps the saved choice instead of wiping it.
+- 2026-11-21: A database test proves that a chat exchange ending in a fixed AI-failure reply does not use up one of the learner's turns, while normal and unanswered messages still do.
+- 2026-11-21: In any chat the learner can switch the AI model at any point in the conversation from a model picker, and the next reply uses the chosen model.
+- 2026-11-21: A chat in the queue never ends up empty and silent when the AI fails to answer: an empty model reply is retried once without web tools, a failed first reply keeps its prompt so it can be retried, and the learner sees a plain reason instead of a blank chat.
+- 2026-11-21: In the Mac Chat queue a single click highlights a chat, a double click opens it, and each row has a Continue button on its right that opens the chat too.
+- 2026-11-21: In a Mac chat the learner can select text in the assistant's answer and choose Make cards from the right-click menu, which proposes cards in the chat. Approved cards go straight into the matching subject's deck, skipping triage.
+- 2026-11-21: Messages inside a chat in the Mac app are drawn as Telegram-style bubbles: the learner's messages right-aligned in an accent colour, the assistant's left-aligned in a neutral colour, with rounded corners and a small gap between them.
+- 2026-11-21: Each chat row in the Mac Chat queue shows a checkbox so one chat can be selected with a single click, and Cmd-click and Shift-click range selection still work alongside it.
+- 2026-11-21: The Mac app's chat list lets the learner select several chats at once and apply a bulk action to them, such as deleting all the selected chats. Bulk delete asks for confirmation first, since it cannot be undone.
 
 ## add-a-post-deploy-smoke-test-that-checks
 
@@ -1676,6 +1695,11 @@ directly. See the handoff report delivered to the user for the full scenario-lev
 - 2026-11-14: Each subject gets an optional chat instruction that opens every chat; sub-subjects inherit it.
 - 2026-11-14: Data migration writes a tailored chat instruction for every existing subject and sub-subject.
 - 2026-11-14: Data migration adds a B2B sales sub-subject under Sales, with its own chat instruction.
+- 2026-11-21: Typed reject reasons return to the message box when the follow-up fails, on web, iPhone and Mac.
+- 2026-11-21: Cards the chat proposes are triaged in place like the triage screen: swipe right (or accept) saves the card, swipe left (or reject) keeps the thread going on what is wrong until the point is fixed and accepted or discarded.
+- 2026-11-21: The iOS and Mac apps show the improved chat with the same card tools as the web app.
+- 2026-11-21: When a card's source author is known, the chat may fetch context about that author's material to ground its explanation.
+- 2026-11-21: Chat answers come from a smarter model tier with web search and fetch available, with the model's own knowledge preferred and web context used to fill terse one-sentence sources.
 
 ## knowledge-retention
 
@@ -1700,3 +1724,477 @@ directly. See the handoff report delivered to the user for the full scenario-lev
 - 2026-11-16: One review session can show several variations of the same underlying card, scheduled as one card.
 - 2026-11-16: Triage still shows a flagged duplicate, marked as such, with its similar cards listed.
 - 2026-11-16: Every newly ingested card is checked for near-duplicates in batches, including automated ingestion.
+
+## offline-review
+
+- 2026-11-21: Web offline review closes its remaining race gaps: undo during the moment a grade finishes sending, saved-card marks lost to a pack refresh, grades parked too eagerly when the server is briefly down, and the offline store cleared on sign-out.
+- 2026-11-21: The web app works offline for review, queueing grades and syncing them when the connection returns.
+- 2026-11-21: Apps store the offline pack on disk, refreshed every 6 minutes while open and when possible.
+- 2026-11-21: Server offers an offline pack of cards due within a day for recently studied subjects.
+- 2026-11-21: Review opens the stored pack when offline and keeps grades on the device with their review time.
+- 2026-11-21: Offline grades sync when back online, applied at their real review time without double counting.
+
+## useful-new-features
+
+- 2026-11-21: Voice chat polish: keep a strong reference to the utterance being spoken on Apple, make the dictator ignore callbacks of an earlier recognition task, and stop reading underscores inside identifiers such as snake_case.
+- 2026-11-21: Marking a card known on iPhone and Mac reverses the review counts when the server says the card no longer exists, and offline bury or suspend on web does not flash the next card before restoring.
+- 2026-11-21: If saving a grade throws unexpectedly on web, the grade rolls back with the plain message instead of being lost, and a sibling card hidden after confirmation never shows a stale revealed state.
+- 2026-11-21: The learner can talk to Post Anki by voice in chat, hearing replies read aloud and dictating questions.
+- 2026-11-21: While reviewing, the learner can highlight part of an answer and turn it into a new card on web, iPhone and Mac.
+- 2026-11-21: A tool lets the learner send a working session or an AI explanation into Post Anki as a knowledge source, so it becomes cards.
+- 2026-11-21: A card's review status updates on screen the moment the learner grades it, before the server confirms, and rolls back with a plain message if saving fails.
+- 2026-11-21: The learner can share a single card with another person from web, iPhone and Mac.
+- 2026-11-21: Settings has a way to copy a card's id, so the learner can quote it when debugging.
+- 2026-11-21: The 'I know this' button moves to the sides of the review screen, and the duplicate 'I know it' buttons above the answer buttons are removed.
+- 2026-11-21: During review the learner can move the current card to a different deck in one or two clicks, without leaving the review.
+- 2026-11-21: Each card can carry an optional personal note from the learner, shown and editable on the card on web, iPhone and Mac.
+- 2026-11-21: Grading and moving a card feels instant: every review action other than the four grade buttons saves in the background without making the learner wait.
+- 2026-11-21: Triage on every device: change an item's subject, or create a subject or subsubject on the spot.
+- 2026-11-21: Add knowledge text field and send button stand out clearly from the page background.
+- 2026-11-21: Treat imported text files as hostile: reject malformed content, strip browser-runnable markup, fence text from prompt instructions.
+- 2026-11-21: Add knowledge accepts a dropped or picked text file and runs the batch import flow on it.
+- 2026-11-21: iPhone Move card sheet says subjects could not load, not that none exist.
+- 2026-11-21: Web Probe next gap says it failed to load instead of claiming every gap is covered.
+- 2026-11-21: Global card chat, suspended cards and daily push routes have error and fallback tests.
+- 2026-11-21: iPhone search says a topic could not load when its fetch failed, not removed.
+- 2026-11-21: iPhone search says a course could not load when the course list fetch failed.
+- 2026-11-21: Learning list and role template errors on web read as plain sentences, not raw codes.
+- 2026-11-21: Q&A chat, study chat, probe and domain recommendation routes have error-status tests.
+- 2026-11-21: iPhone Learning list and Rejected cards say when their subject list failed to load.
+- 2026-11-21: Subject suggestion, study material and decide routes have error-status tests.
+- 2026-11-21: Practice, subject priority, Socratic and probe session routes have error-status tests.
+- 2026-11-21: iPhone study material generation and domain recommendation accept say when they time out or fail.
+- 2026-11-21: iPhone item detail opens the right editor and says when notes or cards failed to load.
+- 2026-11-21: Extension Add subject explains failures in words, blocks double clicks, and flags unloaded parent list.
+- 2026-11-21: Stale Telegram quiz buttons have tests proving the quiz-ended reply shows.
+- 2026-11-21: Feedback, subject category, study forecast and library refetch routes have error-case tests.
+- 2026-11-21: iPhone Chat tab badge hides its number when the count refresh failed.
+- 2026-11-21: iOS inbox, review-subject and hardest-card rows are announced as buttons by VoiceOver.
+- 2026-11-21: iOS README tabs, sign-in and Mac setup, local-dev spend cap and API intro match the code.
+- 2026-11-21: iOS domain mapping and new-course screens show a message when their lookups fail.
+- 2026-11-21: Course refocus and node comment routes have tests, and refocus logs through the structured logger.
+- 2026-11-21: Every API route answers 413 for an oversized request body, not only knowledge-source create.
+- 2026-11-21: Failed accept or reject on a domain recommendation shows an error message.
+- 2026-11-21: Milestones page shows a load error with Retry instead of the empty message.
+- 2026-11-21: Study-plan dates, liveness score clamping and Notion rich-text joining have direct tests.
+- 2026-11-21: Subject rename, node comments, learning links, courses and sources enforce sensible length limits.
+- 2026-11-21: Manual Generate cards does not wait for the whole compile when queueing fails.
+- 2026-11-21: A failed claim or loader query does not hide card counts or fail the whole source.
+- 2026-11-21: Gap, note, tag, question and answer text boxes have names for screen readers.
+- 2026-11-21: Stats range switching ignores stale replies and the due forecast offers Retry on failure.
+- 2026-11-21: A failed header search shows an error, and meaning search offers Retry for every error.
+- 2026-11-21: The web chat-queue count badge shows it is stale when its refresh fails.
+- 2026-11-21: The Telegram webhook rejects oversized request bodies instead of buffering them.
+- 2026-11-21: /pause with 0 or a word replies with the days used or asks again.
+- 2026-11-21: The /chat list never cuts an emoji in half and says how many cards are snoozed.
+- 2026-11-21: The bot Home empty-state message includes the web link, like /start.
+- 2026-11-21: A failed Pause tap on the daily digest no longer replaces the question message.
+- 2026-11-21: Tapping an old quiz button or Regenerate on a stale quiz says it expired.
+- 2026-11-21: The extension keep-or-clear decision has a test for every failure status.
+- 2026-11-21: The extension error toast for a retryable failure tells users to click the toolbar to retry.
+- 2026-11-21: A rate-limited extension capture is kept for retry instead of lost.
+- 2026-11-21: Deleting or merging a subject that has a Notion source no longer fails.
+- 2026-11-21: Check connection says whether the Notion token is bad or Notion is unreachable.
+- 2026-11-21: Phrase import ignores one over-long line instead of rejecting the whole batch.
+- 2026-11-21: Pasting the same text twice in one batch add is caught as a duplicate.
+- 2026-11-21: Large pasted text with Cyrillic is not corrupted at network chunk boundaries.
+- 2026-11-21: Web and iPhone word the last Notion run result the same plain way.
+- 2026-11-21: Web Notion sources page makes each page address a clickable link like iPhone.
+- 2026-11-21: Web and iPhone Notion source rows show when each source runs next.
+- 2026-11-21: A Notion run result says how many new phrases still wait after the per-run limit.
+- 2026-11-21: Notion pages longer than 500 blocks warn that later phrases were never read.
+- 2026-11-21: A database error while closing a Notion run no longer leaves it stuck.
+- 2026-11-21: Each failure code a Notion run can record has a test.
+- 2026-11-21: A failed Notion run tells the user why it failed on web and iPhone.
+- 2026-11-21: Web review panel moves question polling into its own hook and stays under 300 lines.
+- 2026-11-21: iPhone Knowledge subject filter and Move sheet show full subject paths, and Move disables parent subjects.
+- 2026-11-21: iPhone and Mac Triage and Review show the AI-suggested phrase with an AI badge beside the original.
+- 2026-11-21: Deploy docs and API README name the real health path, current secrets and the daily spend guard.
+- 2026-11-21: Web review labels the phrase the user wrote, not the AI-preferred chunk, as Your phrase.
+- 2026-11-21: Web subject page shows a breadcrumb of parent subjects, and its back link goes to Subjects.
+- 2026-11-21: Sources page has a Retry button, a subject-paths-unavailable note, and screen-reader labels.
+- 2026-11-21: Sources page library rows say whether the link downloaded, failed or is not fetched yet.
+- 2026-11-21: A repeated phrase marked ??? later in an import still flags the stored phrase as unsure.
+- 2026-11-21: Telegram subject menu shows nested subjects with their full path labels.
+- 2026-11-21: iPhone chat subject filter includes parent subjects and matches their sub-subjects.
+- 2026-11-21: Web chat and inbox subject filters include parent subjects and match their sub-subjects.
+- 2026-11-21: iPhone Review tab badge counts each due card once, not once per nested level.
+- 2026-11-21: iPhone and Mac scoped review stops at a next-due state when nothing is due.
+- 2026-11-21: Web scoped review ends with a next-due screen when nothing is due, with a Study ahead option.
+- 2026-11-21: Only three or more question marks flag a phrase unsure, with an end-to-end test.
+- 2026-11-21: Extension shows token rejected or missing clearly, and drops cached subjects on a 401.
+- 2026-11-21: Extension menu and options list nested subjects at every depth with parent paths.
+- 2026-11-21: Chat queue, Inbox and global search show the parent path for nested subjects.
+- 2026-11-21: Sources page groups by full subject path and shows Notion last-run results on each row.
+- 2026-11-21: Cards graded Easy never come back in the same review session, on web and iPhone.
+- 2026-11-21: Phrases marked with ??? are flagged unsure in the prompt and the model verifies spelling and translation.
+- 2026-11-21: Sources page lists sources by subject, including Notion English Phrases and Me Agent book notes.
+- 2026-11-21: Mac dev build uses the same PA icon with an orange DEV band.
+- 2026-11-21: Native Triage and review cards offer a Copy all action for every text part.
+- 2026-11-21: Web review card offers a Copy all action that copies every text part of the card.
+- 2026-11-21: Web review panel and review api files are prettier-clean after the pending total change.
+- 2026-11-21: Chat thread state settle test asserts the exact resulting lines instead of a loose check.
+- 2026-11-21: Web chat reject hook gets its own unit test covering the resolve, failure and skip-reason paths.
+- 2026-11-21: Phrase split failure toast shows a readable message instead of the raw API code.
+- 2026-11-21: Web rejected cards screen splits its row and filter pieces into sibling files, each under 300 lines.
+- 2026-11-21: iOS Subjects load failure shows the bracketed error text and the connection address.
+- 2026-11-21: Web phrase split shows its result in the existing inbox toast with the card count.
+- 2026-11-21: Knowledge-bit repo splits into read and write modules behind a barrel, each under 300 lines.
+- 2026-11-21: Learning list approval orchestrator extracts its step helpers so the file stays under 300 lines.
+- 2026-11-21: Guarded fetch splits policy checks from the fetch wrapper so each file stays under 300 lines.
+- 2026-11-21: Web chat thread hook extracts its message reducers so the hook file stays under 300 lines.
+- 2026-11-21: Knowledge-bit source item validation splits its rule checks into a separate module under 300 lines.
+- 2026-11-21: Curriculum domain mapping repo splits into read and write modules so each file stays under 300 lines.
+- 2026-11-21: Learning path repo splits into read and write modules so each file stays under 300 lines.
+- 2026-11-21: Tag repo splits into read and write modules so each file stays under 300 lines.
+- 2026-11-21: Web triage undecided count dedupes resolved ids so a card in two sets is subtracted once.
+- 2026-11-21: Knowledge-bit feedback repo splits model-evidence and grading queries into their own module under 300 lines.
+- 2026-11-21: MCP list_decks test fake database supports the card count join so the test passes again.
+- 2026-11-21: Web triage counter uses the server pending total, so it stays right past 200 cards.
+- 2026-11-21: Phrase split repo helpers get an integration test proving a split phrase yields one card per context.
+- 2026-11-21: Pending list integration tests get their own file, keeping the approval test file under 300 lines.
+- 2026-11-21: Mac inbox window smoke tests split into list and triage files so each stays under 300 lines.
+- 2026-11-21: Web Subjects list shows a Kind badge for non-default kinds, matching the Mac and iOS apps.
+- 2026-11-21: Learning-intent migration test checks only rows it created so leftover e2e data cannot fail it.
+- 2026-11-21: iOS focus triage view extracts key handling and overlays so the file stays under 300 lines.
+- 2026-11-21: Web triage focus card extracts its variant list so the file stays under 300 lines.
+- 2026-11-21: Subject repo splits into read, write and tree modules so each file stays under 300 lines.
+- 2026-11-21: Mac kind badge helper drops the unused Category mapping and names only kinds the server sends.
+- 2026-11-21: Web browser rows keep truncating long questions after the Context line was added above them.
+- 2026-11-21: Pending list query moves out of the approval repo so each file stays under 300 lines.
+- 2026-11-21: Web Subjects card counts come from the same API roll-up as the native apps so numbers match.
+- 2026-11-21: iOS cursor picks the last card by server order, not string order, so paging stays correct.
+- 2026-11-21: Mac card triage and inbox list use the cursor window so Mac works past 200 pending cards.
+- 2026-11-21: Pending cards get a created_at plus id index so cursor paging stays fast as the inbox grows.
+- 2026-11-21: iOS Manage Subjects rows show the kind badge like the Mac table so language subjects stand out.
+- 2026-11-21: Web phrase situation split can be run from the card detail panel for one phrase card.
+- 2026-11-21: Mac Subjects table shows a Kind badge again so categories and subjects are told apart.
+- 2026-11-21: Native Triage top-up uses a cursor so lists longer than 200 pending cards can be worked through.
+- 2026-11-21: Web Subjects page shows the card count per subject using the API field.
+- 2026-11-21: Pending card list API returns a total so native Triage shows an exact remaining count.
+- 2026-11-21: Subject card counts include cards in child subjects so a parent subject shows its whole tree.
+- 2026-11-21: iOS Subjects list shows the card count per subject using the API field.
+- 2026-11-21: Mac Triage inbox loads 20 cards and tops up on demand like the phone does.
+- 2026-11-21: Splitting a phrase card into situation variants refreshes its embedding so duplicate checks stay accurate.
+- 2026-11-21: API knowledge-bit review route tests pass again, two cases fail today on the response shape.
+- 2026-11-21: Web suspended and browser lists show the Context line above the question when present.
+- 2026-11-21: iOS Triage accepts a hardware keyboard: digits toggle, Return keeps, X drops, Z undoes, like the Mac.
+- 2026-11-21: iOS Review collapses the New, Learning, Due legend into an info popover instead of a permanent row.
+- 2026-11-21: iOS Home hides the last-week comparison when last week was zero and uses one progress accent.
+- 2026-11-21: iOS Notion source row shows a plain status word, wraps the URL and explains the Remove toggle.
+- 2026-11-21: iOS Chat and Inbox empty states describe the same swipe direction and Triage corner icons get labels.
+- 2026-11-21: iOS Add screen has a real input placeholder and a readable Submit bar when disabled.
+- 2026-11-21: iOS review grade buttons show the next interval under each label and have stronger contrast.
+- 2026-11-21: Web triage focus card shows the original fact and its source above the question variants.
+- 2026-11-21: Mac inbox is titled Knowledge Inbox and both empty states use the same Ingest wording.
+- 2026-11-21: Mac icon-only toolbar buttons on Knowledge, Subjects and Review get tooltips.
+- 2026-11-21: Mac Admin settings drops the Test toggle row and shows the real version number.
+- 2026-11-21: Mac Subjects table replaces the constant Kind and Courses columns with item counts.
+- 2026-11-21: Mac Review shows a progress counter and the subject above the question.
+- 2026-11-21: Mac Review has a visible Show answer button and shows the 1-4 key on each grade button.
+- 2026-11-21: Mac knowledge item detail shows Status and Subject values and keeps a right margin.
+- 2026-11-21: Mac sidebar no longer collapses and crops its labels when the Knowledge page is open.
+- 2026-11-21: Web triage landing makes Start triage primary and Approve all ready secondary with a count.
+- 2026-11-21: Web triage focus header shows card 3 of 12 progress and a labelled Leave button.
+- 2026-11-21: Web nav has one Statistics entry, a Notion sources icon, and Inbox renamed Set aside.
+- 2026-11-21: Web Admin settings loses its placeholder toggle text and links to Notion sources from the token setting.
+- 2026-11-21: Web sign-in shows the product name in a centered card and the button just says Sign in.
+- 2026-11-21: Web Inbox rows have one primary Back to triage button, Discard and the rest are secondary.
+- 2026-11-21: Mac Settings scrolls as one long page with section headers, no picker and separate panes.
+- 2026-11-21: Mac Triage Left and Right arrows do nothing, only Return approves a card and X rejects it.
+- 2026-11-21: Mac Settings is a page in the main window from the sidebar, not a separate window.
+- 2026-11-21: Native Triage starts from a subject list with pending counts, Triage all is secondary.
+- 2026-11-21: Native Triage shows each card as a card with large front, large back and optional examples.
+- 2026-11-21: Native apps sign in with email and password and get a token that does not expire.
+- 2026-11-21: Native Triage preloads the next 15-20 cards and saves each decision in the background.
+- 2026-11-21: Native review preloads the next 20 cards, refilling near the end, so card changes are instant.
+- 2026-11-21: Native app review grade buttons (Hard, Good, Easy) are larger and easier to tap.
+- 2026-11-21: Review tab shows card maturity counts per subject and a maturity bar for all subjects.
+- 2026-11-21: Review tab subject list stops showing a false load error on a cancelled request.
+- 2026-11-21: iPhone Progress and web Stats show card maturity: percent and count of mature, learning and new cards.
+- 2026-11-21: Domain review failure, status filters, doc scan 404 and double-resolved suggestions have controller tests.
+- 2026-11-21: Domain-node depth edits and merges have tests for bad input, missing node and cycle refusal.
+- 2026-11-21: Curriculum settings panel loading its domain map no longer leaves an unhandled error when the request fails.
+- 2026-11-21: Starting a study session or opening a learning-path step shows a failure when the request throws.
+- 2026-11-21: A study session whose next-question load or end request throws stops spinning and lets the learner retry.
+- 2026-11-21: Learning list, learning path, library and note actions re-enable and show an error when the request throws.
+- 2026-11-21: A failed subject create shows an error, keeps the typed values and re-enables the Add button.
+- 2026-11-21: Subject model tier, curriculum placement and domain-node merge show a failure and re-enable instead of freezing.
+- 2026-11-21: The clear-all-knowledge confirm input and its buttons are at least 44px tall on a phone.
+- 2026-11-21: Admin settings tier buttons and number inputs are at least 44px tall on a phone.
+- 2026-11-21: The chat-card controller tests load and run without a database URL.
+- 2026-11-21: A failed topic or module comment save keeps the typed text and shows no success flash.
+- 2026-11-21: The API type check passes: the chat-queue outcomes statistics route is registered in the route name list.
+- 2026-11-21: Telegram daily push claims the Chat reminder slot after sending, and a repeat trigger does not double-send.
+- 2026-11-21: Lecture and card regeneration replace old content in one transaction, so a failure keeps the old content.
+- 2026-11-21: Probe attempt writes and quiz-session creation each run in one transaction.
+- 2026-11-21: A Socratic answer cannot be submitted twice or into a finished session.
+- 2026-11-21: Knowledge extraction chunk helpers (unseen statements, empty chunks, betterOf) have direct tests.
+- 2026-11-21: Curriculum editor forms and Compare models show failures instead of freezing or showing empty history.
+- 2026-11-21: Decide, probe and Socratic screens show an error and keep the learner's text when a request fails.
+- 2026-11-21: Stale generating lectures and study materials are swept to failed, and failed lecture writes are reported.
+- 2026-11-21: 502 replies give a generic message to the client and log the real error.
+- 2026-11-21: Deleting a topic or module also removes its archetype state, study materials and Socratic history.
+- 2026-11-21: Remaining iPhone and Mac count strings (Progress, CourseEdit, SourceRegeneration) use singular for one.
+- 2026-11-21: Extension and bot architecture docs match the current manifest permissions and commands.
+- 2026-11-21: e2e-local covers Add knowledge draft and link error, Anki review shortcuts, tab title, skip link and search.
+- 2026-11-21: Telegram quiz has Skip and End quiz buttons.
+- 2026-11-21: Telegram digest adds streak and triage-waiting lines, and carries Pause and Open buttons.
+- 2026-11-21: Extension options explain wrong token, blocked origin and API down separately, and Enter saves.
+- 2026-11-21: Phone-layout check covers Inbox, Chat, Rejected, Stats, Tags and Profile.
+- 2026-11-21: Web course cards table, Stats tables and feedback buttons fit a 390px phone with 44px tap targets.
+- 2026-11-21: iPhone global search shows load errors, review-subject expand button is labelled and 44pt, and counts use singular.
+- 2026-11-21: Abandoning a completed learning path keeps it completed.
+- 2026-11-21: Study session creation rejects bad dates and huge durations with 400.
+- 2026-11-21: Tags can be renamed and deleted from the Tags page, and the API refuses duplicate names.
+- 2026-11-21: Card, answer, title, name and note text inputs have generous length caps that return 400.
+- 2026-11-21: Bot answers expired button presses without failing, and still handles the press.
+- 2026-11-21: Web tag merge failure shows an error without freezing, and learning-path load errors say what went wrong.
+- 2026-11-21: Web review question wraps long text, and Done for today next-due text reuses the tested formatter.
+- 2026-11-21: Extension keeps the selection when sending fails and offers Retry.
+- 2026-11-21: iPhone Chat search and Home models have tests, and docs explain database backup and restore.
+- 2026-11-21: Telegram /find searches cards and subjects and replies with the top matches.
+- 2026-11-21: Ending a finished study session is refused, answers count atomically, and saving a recommendation is one transaction.
+- 2026-11-21: Notes search, open-questions list and content library list have limits, and the library skips downloaded text.
+- 2026-11-21: Home top subjects and tag mastery are computed in SQL with a 30-day window, not in memory.
+- 2026-11-21: Web sends the user to sign in when a call returns 401, and API calls time out.
+- 2026-11-21: Web has a Skip to content link as the first focusable element.
+- 2026-11-21: Web tab titles name the page, and Session summary hides zero rows.
+- 2026-11-21: Subject and tag names are trimmed and capped at 120 characters, and API JSON is no-store.
+- 2026-11-21: Bot and extension API calls time out with a friendly reply, and Rejected text cuts are emoji-safe.
+- 2026-11-21: Web card source links use safeHref, and key form inputs have accessible names.
+- 2026-11-21: Web phone menu closes on navigation and Escape, and has a Close button.
+- 2026-11-21: iPhone Rejected, Search and Review-subjects models have smoke tests, and web and shared packages have real READMEs.
+- 2026-11-21: Bot shuts down cleanly on SIGTERM: finishes in-flight updates, closes the database pool, then exits.
+- 2026-11-21: New-cards-per-day label is tied to its input, and topic and module delete text names the cards lost.
+- 2026-11-21: iPhone forecast bars have accessibility labels and bin days in the device time zone.
+- 2026-11-21: Web subject-section.tsx and topic-row.tsx are split below 600 lines with no behaviour change.
+- 2026-11-21: iPhone Progress shows a next-7-days due forecast.
+- 2026-11-21: Extension options reload the subject list after saving, and iPhone All items offers Clear filters when empty.
+- 2026-11-21: Cards, note, add-goal and duplicate-suggestion controllers have tests, plus review, gap and learning-list schema tests.
+- 2026-11-21: Review-grade and streak controllers have tests, and AI-spend stats rejects an invalid time zone with 400.
+- 2026-11-21: Web Profile loads in parallel and a failed load shows an alert with Try again.
+- 2026-11-21: Web All cards empty filter result offers Clear filters, and paged lists never show a card twice.
+- 2026-11-21: Telegram cards-due and streak use the saved time zone, and bot secrets are compared in constant time.
+- 2026-11-21: Telegram /start and /study reply with an error line when the API is down.
+- 2026-11-21: iPhone Settings shows messages at the top, announces them, and starts with an empty email.
+- 2026-11-21: Extension has a web app address setting and explains too-large, rate-limited and truncated captures.
+- 2026-11-21: Telegram quiz end screens offer New quiz and Home, and repeated taps no longer error.
+- 2026-11-21: Web shares one plural and browserTimeZone helper instead of per-file copies.
+- 2026-11-21: Module and learning-path controllers, and probe-session and home shared schemas, have tests.
+- 2026-11-21: API requests carry an x-request-id echoed in 500 bodies and logs, with one done line per request.
+- 2026-11-21: Web dialogs restore focus to their opener on close, and seven loading messages are announced.
+- 2026-11-21: A brand-new web account sees one Start here card on Home instead of five empty cards.
+- 2026-11-21: Telegram quiz hands multiple-answer questions to the web and shows why the answer is right.
+- 2026-11-21: Web curriculum actions recover from failed requests with an error line, and deletes state what is removed.
+- 2026-11-21: iPhone Add shows offline and sign-in messages, and VoiceOver review actions are Again, Hard, Good, Easy.
+- 2026-11-21: Docs: bot README with commands, API error codes section, and a top-level README with a docs index.
+- 2026-11-21: Telegram /start welcomes new users and guides those with no subjects to add a note.
+- 2026-11-21: API query errors use the same message shape as body errors, and the account controller has tests.
+- 2026-11-21: A very large paste returns the friendly 50,000-character refusal, and search lists exact matches first.
+- 2026-11-21: Web Inbox Discard uses the inline confirm instead of the browser dialog.
+- 2026-11-21: iPhone sign-out clears queued grades, answers, caches, drafts and last-studied, with a test.
+- 2026-11-21: Extraction that stops at the 40-card cap tells the user the rest was not read.
+- 2026-11-21: Web Review, Add and Stats errors are announced, and a failed Stats range offers Retry.
+- 2026-11-21: e2e specs cover Chat bulk move, export, shortcuts help, thread reply and the paused state.
+- 2026-11-21: iPhone asks badge permission only when cards are due, and refreshes the badge after reviewing.
+- 2026-11-21: Web Subjects errors are announced, empty Subjects links to create, search closes on Escape, Cmd+Enter submits Add.
+- 2026-11-21: Telegram bot ignores edited messages so editing a sent note does not add it again.
+- 2026-11-21: Inbox cards can be sent to Chat from the web Inbox row.
+- 2026-11-21: Web anki-review-screen.tsx is split below 300 lines with no behaviour change.
+- 2026-11-21: Web Download my cards shows an inline error when the export fails.
+- 2026-11-21: The 50,000 character source limit has one shared definition.
+- 2026-11-21: LLM call log caps stored error text and keeps the card id on every call.
+- 2026-11-21: e2e specs cover the Inbox screen, reject reasons on Rejected, and the stats reject-reason sections.
+- 2026-11-21: Web Anki review has a ? shortcuts help, and Suspended, Overview and Browser loading text is announced.
+- 2026-11-21: Extraction stopped by the daily AI budget says it resumes after midnight UTC and is not retried.
+- 2026-11-21: Web shows an offline banner and review grading retries wait until the connection is back.
+- 2026-11-21: API streak, home, weekly digest card and review-due-count endpoints have controller tests.
+- 2026-11-21: API browser list and Rejected list have indexes matching their sort and filter, via generated migration.
+- 2026-11-21: API clamps study-session consistency windowDays and has controller tests for study-session and stats.
+- 2026-11-21: iPhone Progress shows a last 30 days reviews-per-day chart from the learning-stats endpoint.
+- 2026-11-21: iPhone knowledge item screen supports pull to refresh, and Subjects profile button has a VoiceOver label.
+- 2026-11-21: iPhone Knowledge and Inbox lists tell offline from sign-in problems, with one shared helper.
+- 2026-11-21: iPhone Review empty state says when the next card is due.
+- 2026-11-21: iPhone Review gives a haptic when a card is graded, stronger on Again.
+- 2026-11-21: iPhone Add has a Paste button that fills a copied link.
+- 2026-11-21: iPhone Add keeps typed text if the app is closed, using the existing unsent-draft store.
+- 2026-11-21: iPhone app icon badge shows the number of cards due.
+- 2026-11-21: Bot daily digest and a /streak command show flashcards due, streak and recent accuracy.
+- 2026-11-21: Bot /pause and /resume stop and restart the daily reminders.
+- 2026-11-21: Bot uses the caption of a photo or forwarded message as the note to process.
+- 2026-11-21: Web Stats page shows the due-next-7-days forecast and review done screen shows the streak.
+- 2026-11-21: Web browser tab title shows the number of cards due.
+- 2026-11-21: Web header search ignores stale responses and opens with slash or Cmd+K.
+- 2026-11-21: Web global search no-results offers Add this as knowledge with the query prefilled.
+- 2026-11-21: Web Add knowledge link block shows an inline error for non-http links and blocks submit.
+- 2026-11-21: Web Add knowledge keeps typed text across reload and navigation until it is submitted.
+- 2026-11-21: Web Chat export, quick snooze, thread and make-card hooks have tests.
+- 2026-11-21: Web Rejected page says when the whole list is shown, after a filter or search.
+- 2026-11-21: iPhone Chat message search shows a notice when results were cut at 20.
+- 2026-11-21: Web Chat message search shows a notice when results were cut at 20.
+- 2026-11-21: Stale-cards summary and Chat outcomes waiting counts join knowledge_sources like the list.
+- 2026-11-21: iPhone Move all to Inbox announces how many cards moved.
+- 2026-11-21: iPhone Chat and Inbox 200 notice updates after a card leaves the list.
+- 2026-11-21: Chat and Inbox totals ignore cards the list cannot show, so the 200 notice is never false.
+- 2026-11-21: API Chat queue snooze, move, send-message and export handlers have controller tests.
+- 2026-11-21: iPhone weekly digest card shows an error line with retry when the request fails.
+- 2026-11-21: Chat message search says when results were cut at 20 (API hasMore, web and iPhone notice).
+- 2026-11-21: Bot /digest replies with a friendly line when the API is unreachable, with a test.
+- 2026-11-21: Web loading and error text on Inbox, digest and stats sections is announced to screen readers.
+- 2026-11-21: Web Chat and Inbox 200 notice updates after a card leaves the list.
+- 2026-11-21: iPhone Progress tab shows reject reasons, nothing-extracted and Chat outcomes sections.
+- 2026-11-21: iPhone Chat and Inbox lists say when only the first 200 cards are shown.
+- 2026-11-21: iPhone Rejected rows show the note the user typed when rejecting.
+- 2026-11-21: Bot /chat and /inbox say when only the first 200 cards are counted.
+- 2026-11-21: Bot /rejected lines include the note the user typed when rejecting.
+- 2026-11-21: iPhone Inbox has search and a swipe to send a card to Chat.
+- 2026-11-21: iPhone Rejected list can restore several selected cards at once.
+- 2026-11-21: Web Chat and Inbox lists say when only the first 200 cards are shown.
+- 2026-11-21: Web Rejected rows show the note the user typed when rejecting.
+- 2026-11-21: Bot /inbox shows how many cards wait in the Inbox with a link to it.
+- 2026-11-21: Bot handler test: an unknown command with a pending answer is treated as the answer.
+- 2026-11-21: Web Inbox has search and a subject filter.
+- 2026-11-21: iPhone gives haptic feedback on triage swipe decisions.
+- 2026-11-21: iPhone announces to VoiceOver after Restore, Snooze, Send to Chat and Move to Inbox.
+- 2026-11-21: iPhone Chat queue has a subject filter.
+- 2026-11-21: iPhone Rejected list has a subject filter.
+- 2026-11-21: iPhone Rejected rows show the date rejected.
+- 2026-11-21: Web Rejected page shows how many cards match the current search and filters.
+- 2026-11-21: Web Chat and Rejected loading text is announced by screen readers.
+- 2026-11-21: Bot /digest links to the Rejected page when it lists reject reasons.
+- 2026-11-21: Bot /chat header also states how many cards are snoozed.
+- 2026-11-21: Bot /chat and /rejected reply with a friendly line when the API is unreachable.
+- 2026-11-21: Bot registers its commands so Telegram shows the command menu.
+- 2026-11-21: Bot /rejected says how many more rejected cards exist beyond the five shown.
+- 2026-11-21: Bot replies "Unknown command, see /help" to a mistyped slash command.
+- 2026-11-21: iPhone Rejected list can send a card straight to Chat instead of restoring it.
+- 2026-11-21: e2e spec: a rejected decision is sent to Chat from the triage decisions list.
+- 2026-11-21: Rejected page can send a card straight to Chat instead of restoring it to pending.
+- 2026-11-21: Statistics shows what became of cards sent to Chat: accepted, rejected, still waiting.
+- 2026-11-21: iPhone triage decisions list lets a rejected or inbox card be sent to Chat afterwards.
+- 2026-11-21: Triage decisions list lets a rejected or inbox card be sent to Chat afterwards.
+- 2026-11-21: iPhone Chat replies can be copied with a long press.
+- 2026-11-21: iPhone keeps an unsent Chat draft per card when leaving the thread, like the web does.
+- 2026-11-21: Triage card keys are ignored while the shortcuts help is open.
+- 2026-11-21: Web triage focus view lists its keyboard shortcuts on the question-mark key.
+- 2026-11-21: iPhone Chat list and count refresh when the app returns to the foreground.
+- 2026-11-21: Web focus refresh keeps a snooze change made while the refresh was in flight.
+- 2026-11-21: Web Chat queue list and sidebar count refresh when the tab regains focus.
+- 2026-11-21: Telegram /chat lines show the card's subject name.
+- 2026-11-21: iPhone Chat sort order is remembered between launches.
+- 2026-11-21: E2E: Chat queue header counts and oldest wait match seeded cards, snooze updates them.
+- 2026-11-21: iPhone daily-goal refresh logic moves into the package with stale and failure tests.
+- 2026-11-21: Web s key shows an error when the snooze request fails.
+- 2026-11-21: Test that a reload during iPhone Move all to Inbox never brings moved cards back.
+- 2026-11-21: iPhone stale Chat filter offers Move all to Inbox after a confirmation.
+- 2026-11-21: Web Chat queue counts a card with an expired snooze as waiting.
+- 2026-11-21: iPhone Chat list header shows how many cards are waiting and how many are snoozed.
+- 2026-11-21: Web Chat queue header shows how many cards are waiting and how many are snoozed.
+- 2026-11-21: Telegram /help lists every bot command with a one-line description.
+- 2026-11-21: Telegram /rejected accepts a search word to filter rejected cards.
+- 2026-11-21: iPhone Rejected list gets a search box matching the web one.
+- 2026-11-21: Telegram /chat header states how many Chat cards are waiting in total.
+- 2026-11-21: iPhone Chat list header states how long the oldest card has waited.
+- 2026-11-21: Web Chat queue header states how long the oldest card has waited.
+- 2026-11-21: Telegram /rejected shows a one-line count per reject reason.
+- 2026-11-21: iPhone Rejected list: show a card count on each reject reason chip.
+- 2026-11-21: Rejected page: show how many cards sit under each reject reason filter.
+- 2026-11-21: iPhone review screen shows the server streak beside the daily goal.
+- 2026-11-21: iPhone review screen shows today's daily goal progress.
+- 2026-11-21: Web review done screen shows the server streak, not the local counter.
+- 2026-11-21: Web subject review done screen shows the subject's study forecast.
+- 2026-11-21: Telegram /chat accepts a page number to see cards beyond the first 10.
+- 2026-11-21: iPhone Chat list: filter chip showing only cards waiting over 14 days.
+- 2026-11-21: Web Chat queue: s key snoozes the highlighted card, listed in help.
+- 2026-11-21: iPhone Chat Inbox swipe: block double taps and add model unit tests.
+- 2026-11-21: Web Chat queue: i key moves the highlighted card to Inbox, listed in help.
+- 2026-11-21: Web Chat queue: sort toggle between oldest and newest waiting, remembered per browser.
+- 2026-11-21: iPhone Chat list: swipe a card to move it to Inbox.
+- 2026-11-21: Triage keys e2e: clean up partial seeds and triage-session rows, isolate pending count.
+- 2026-11-21: Split chat-queue-screen.tsx under 250 lines with no behavior change.
+- 2026-11-21: Playwright smoke: triage C and I keys move a card to Chat queue and Inbox.
+- 2026-11-21: Telegram /chat shows how long each card has waited.
+- 2026-11-21: Web Chat queue: one-click select of cards waiting over 14 days for bulk Inbox move.
+- 2026-11-21: Check query plans for the Rejected list and Chat search, and add indexes if scans are slow.
+- 2026-11-21: Run the axe accessibility check on the Rejected page and Chat search results.
+- 2026-11-21: Test the iPhone Chat thread retry flow end to end with a stubbed client.
+- 2026-11-21: Add a Playwright smoke test for Rejected page restore and Chat message search.
+- 2026-11-21: Update the triage chat doc with search, retry, source links, bulk restore and retention.
+- 2026-11-21: Add Retry answer to the iPhone Chat thread.
+- 2026-11-21: Test that bulk move to Inbox runs at most three requests at once.
+- 2026-11-21: Add Retry answer in the web Chat thread: drop the last reply and ask again.
+- 2026-11-21: Show the source note title on each iPhone Rejected card row.
+- 2026-11-21: Show the source note title in the iPhone Chat thread header.
+- 2026-11-21: Show the source note title on each web Rejected card row, linked to the note.
+- 2026-11-21: Show the source note title as a link in the web Chat thread header.
+- 2026-11-21: Show change versus last week next to each top reject reason in the weekly digest.
+- 2026-11-21: Add Extract anyway on a note that returned nothing, asking for at least one card.
+- 2026-11-21: Add a search box over Chat thread messages to the iPhone Chat tab.
+- 2026-11-21: Search across all Chat thread messages from the web Chat page.
+- 2026-11-21: Restore several rejected cards at once from the web Rejected page.
+- 2026-11-21: Fix the Add knowledge button contrast and remove its axe exclusion.
+- 2026-11-21: Filter the web Rejected cards page by subject.
+- 2026-11-21: Show AI card proposals with a Save button in the iPhone Chat thread, like web.
+- 2026-11-21: Drop bulk-selected ids from the Chat selection when their cards leave the queue.
+- 2026-11-21: Make web triage Chat about this key send the card to the Chat queue, not Inbox.
+- 2026-11-21: Make the Telegram /chat reply link each card to its own thread.
+- 2026-11-21: Guard the iOS chat export and share code with os(iOS) checks so the Mac target compiles.
+- 2026-11-21: Delete Chat threads of cards already accepted or rejected, 30 days after the decision.
+- 2026-11-21: Offer Snooze in the iPhone Chat thread screen.
+- 2026-11-21: Let the Telegram Chat reminder gate survive restarts by storing the last sent date.
+- 2026-11-21: Show the weekly Chat summary line on the iPhone Review tab digest card.
+- 2026-11-21: Add a one-line weekly Chat summary to the Telegram digest: cards chatted about and turns used.
+- 2026-11-21: Delete Chat threads of cards that were approved, rejected or deleted outside the Chat flow.
+- 2026-11-21: Tag Chat reply traces with card id, turn number and outcome in the existing tracing setup.
+- 2026-11-21: Show a Chat turns-left meter in the web thread header and warn at one turn left.
+- 2026-11-21: Allow deleting the last Chat exchange on iPhone, using the same endpoint.
+- 2026-11-21: Let users delete the last Chat exchange to get the used turn back.
+- 2026-11-21: Show the extraction summary line on the iPhone Add screen too, using the same status outcome.
+- 2026-11-21: Show a short extraction summary after adding a note: cards created, or nothing worth keeping.
+- 2026-11-21: Add bulk select on the web Chat list to move several cards to Inbox at once.
+- 2026-11-21: Add a keyboard shortcuts help overlay (press ?) to the web Chat page.
+- 2026-11-21: Show waiting days on iPhone Chat rows and sort the iPhone Chat list oldest first.
+- 2026-11-21: Show how many days each Chat card has waited, and sort the web Chat list oldest first.
+- 2026-11-21: Add Telegram /rejected command listing the latest rejected cards with their reasons.
+- 2026-11-21: Add text search to the web Rejected cards page, combined with the reason filter.
+- 2026-11-21: Let a rejected card be restored from the iPhone Rejected list.
+- 2026-11-21: Let a rejected card be restored to the approval queue from the Rejected cards page.
+- 2026-11-21: Show the Rejected cards list on iPhone, with a reason filter, reachable from the Review tab.
+- 2026-11-21: Return top reject reasons in the weekly digest and link each to the Rejected cards page.
+- 2026-11-21: Add a Rejected cards page filterable by reject reason, backed by an API filter.
+- 2026-11-21: Refresh the sidebar Chat badge after snooze and unsnooze actions, using a lightweight count request.
+- 2026-11-21: Show waiting Chat card count as a badge on the web sidebar Chat link.
+- 2026-11-21: Add an automated accessibility check to the Chat page smoke test and fix violations.
+- 2026-11-21: Keep an unsent Chat message draft per card so it survives a page reload.
+- 2026-11-21: Add a Copy button on assistant replies in the web Chat thread.
+- 2026-11-21: Add a Playwright smoke test for the web Chat page list, filter, snooze and thread.
+- 2026-11-21: Document the Chat queue, reject reasons and nothing-extracted behavior in the user docs.
+- 2026-11-21: Show today's Chat AI usage and cost cap status on the admin settings page.
+- 2026-11-21: Share a subject's Chat conversations as Markdown from the iPhone Chat tab.
+- 2026-11-21: Add a Telegram /digest command replying with the weekly digest numbers.
+- 2026-11-21: Add a Telegram /chat command listing the oldest five waiting Chat cards with links.
+- 2026-11-21: Add j/k/Enter keyboard shortcuts to the web Chat list.
+- 2026-11-21: Show the weekly digest numbers on the iPhone Review tab.
+- 2026-11-21: Warn on the web Add screen when pasted text is very short and may extract nothing.
+- 2026-11-21: Offer Snooze and Unsnooze inside the web Chat thread view.
+- 2026-11-21: Show reject rate per subject on the statistics page to spot weak subjects.
+- 2026-11-21: Split detect-knowledge-bits.orchestrator.ts under 300 lines with no behavior change.
+- 2026-11-21: Show snoozed state and a Snooze action on the iPhone Chat tab cards.
+- 2026-11-21: Show nothing-extracted rate per week on the extraction statistics page.
+- 2026-11-21: Let the user export all Chat conversations of a subject as one Markdown file.
+- 2026-11-21: Add a Chat card search box and subject filter on the web Chat page.
+- 2026-11-21: Show a weekly digest card on the web home page: cards accepted, rejected, reviewed and Chat backlog.
+- 2026-11-21: Let the user snooze a Chat card for N days so it leaves the reminder count.
+- 2026-11-21: Remind the user in the Telegram bot about Chat cards waiting over three days.
+- 2026-11-21: Add a web Chat queue page to discuss cards parked from triage.
+- 2026-11-21: Show a reject-reason trend per week on the statistics page to see whether card quality improves.
+- 2026-11-21: Add detail level and hinting controls to the iOS subject Study options screen.
+- 2026-11-21: Let the user turn a useful Chat reply into a new card for the same subject.
+- 2026-11-21: Add a Chat queue count badge to the iPhone Home screen, refreshed after each swipe.
+- 2026-11-21: Show a Reject reasons breakdown on the statistics page so the user sees why cards get rejected.
+- 2026-11-21: Let each subject store its detail level and hinting on/off, applied when generating and reviewing cards.
+- 2026-11-21: Make the regeneration status report nothing-extracted notes instead of done, so every client agrees.
+- 2026-11-21: Show the Chat queue in the Mac Knowledge view with count badge, matching iPhone.
+- 2026-11-21: Web anki-review-done test fails on weekends because it expects the word tomorrow for a Monday due date.
+- 2026-11-21: API subject list returns a card count per subject for the Subjects screens.
