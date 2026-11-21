@@ -146,4 +146,61 @@ describe('rejecting a proposed card', () => {
 
     expect(sendChatQueueMessage).toHaveBeenCalledTimes(1)
   })
+
+  async function rejectWhileReplying(typed: string) {
+    vi.mocked(getChatQueueThread).mockResolvedValue(thread())
+    vi.mocked(sendChatQueueMessage).mockReturnValue(new Promise(() => undefined) as never)
+    renderThread()
+
+    const composer = await screen.findByLabelText('Ask about this card')
+
+    await userEvent.type(composer, 'hello')
+    await userEvent.click(screen.getByTestId('chat-queue-send'))
+    await waitFor(() => expect(sendChatQueueMessage).toHaveBeenCalledTimes(1))
+
+    if (typed) {
+      await userEvent.type(composer, typed)
+    }
+
+    await userEvent.click(screen.getByTestId('chat-queue-proposal-reject-0'))
+    await userEvent.type(screen.getByLabelText('What is wrong with this card'), 'too vague')
+    await userEvent.click(screen.getByTestId('chat-queue-proposal-reject-send-0'))
+    await waitFor(() => expect(rejectChatQueueProposal).toHaveBeenCalledTimes(1))
+
+    return composer as HTMLTextAreaElement
+  }
+
+  it('should keep the reason in the composer when the follow-up cannot be sent', async () => {
+    const composer = await rejectWhileReplying('')
+
+    await waitFor(() =>
+      expect(composer.value).toBe('I rejected your proposed card: What is X?. What is wrong: too vague'),
+    )
+  })
+
+  it('should keep what the learner already typed and add the reason after it', async () => {
+    const composer = await rejectWhileReplying('my note')
+
+    await waitFor(() =>
+      expect(composer.value).toBe(
+        'my note\n\nI rejected your proposed card: What is X?. What is wrong: too vague',
+      ),
+    )
+  })
+
+  it('should leave the composer empty when the follow-up is sent', async () => {
+    vi.mocked(getChatQueueThread).mockResolvedValue(thread())
+    vi.mocked(sendChatQueueMessage).mockResolvedValue({
+      ok: true,
+      data: { reply: 'Revised', replySeq: 4, turnsLeft: 4, capReached: false },
+    } as never)
+    renderThread()
+
+    await userEvent.click(await screen.findByTestId('chat-queue-proposal-reject-0'))
+    await userEvent.type(screen.getByLabelText('What is wrong with this card'), 'too vague')
+    await userEvent.click(screen.getByTestId('chat-queue-proposal-reject-send-0'))
+
+    expect(await screen.findByText('Revised')).not.toBeNull()
+    expect((screen.getByLabelText('Ask about this card') as HTMLTextAreaElement).value).toBe('')
+  })
 })

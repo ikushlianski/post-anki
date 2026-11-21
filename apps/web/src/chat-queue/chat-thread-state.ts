@@ -55,6 +55,10 @@ export function restoreDraft(previous: string, text: string, keepDraft: boolean)
   return keepDraft && previous.trim() ? `${text}\n\n${previous}` : text
 }
 
+export function appendToDraft(previous: string, text: string): string {
+  return previous.trim() ? `${previous}\n\n${text}` : text
+}
+
 export async function settle<T>(
   call: () => Promise<ChatQueueOutcome<T>>,
 ): Promise<ChatQueueOutcome<T>> {

@@ -58,24 +58,23 @@ export function ChatQueueThread({ item, now, onBack, onResolved, onSnoozeChanged
   const lineCount = useRef(0);
   const [rejectedAt, setRejectedAt] = useState<number | null>(null);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
-  const { sendWithId } = thread;
+  const { sendWithId, appendDraft } = thread;
   const handleProposalRejected = useCallback(
     async (rejected: RejectedProposal) => {
       if (rejected.feedback === null) {
         return
       }
 
-      const sent = await sendWithId(
-        rejectedProposalMessage(rejected.front, rejected.feedback),
-        rejectedProposalMessageId(item.id, rejected),
-      );
+      const text = rejectedProposalMessage(rejected.front, rejected.feedback);
+      const sent = await sendWithId(text, rejectedProposalMessageId(item.id, rejected));
 
       if (!sent) {
+        appendDraft(text);
         setRejectedAt(lineCount.current);
         composer.current?.focus();
       }
     },
-    [item.id, sendWithId],
+    [item.id, sendWithId, appendDraft],
   );
   const proposals = useChatProposals(item.id, {
     onDecided: thread.applyDecision,

@@ -94,6 +94,43 @@ extension SmokeTests {
             #expect(model.composerFocusRequests == 1)
         }
 
+        @Test("should keep the rejection text in the composer when it cannot be sent")
+        func unsentGoesToDraft() async {
+            let (model, session) = await make([:])
+            defer { session.end() }
+
+            model.capReached = true
+            await model.decide(seq: 2, index: 0, decision: .reject, feedback: "too vague")
+            await model.rejectAnnouncement?.value
+
+            #expect(model.draft == "I rejected your proposed card: Q?. What is wrong: too vague")
+        }
+
+        @Test("should keep what the learner typed and put the rejection text after it")
+        func unsentKeepsTypedDraft() async {
+            let (model, session) = await make([:])
+            defer { session.end() }
+
+            model.draft = "my note"
+            model.capReached = true
+            await model.decide(seq: 2, index: 0, decision: .reject, feedback: "too vague")
+            await model.rejectAnnouncement?.value
+
+            #expect(model.draft == "my note\n\nI rejected your proposed card: Q?. What is wrong: too vague")
+        }
+
+        @Test("should leave the composer untouched when the rejection message is sent")
+        func sentLeavesDraft() async {
+            let (model, session) = await make(["POST \(threadPath)": .json(200, reply)])
+            defer { session.end() }
+
+            model.draft = "my note"
+            await model.decide(seq: 2, index: 0, decision: .reject, feedback: "too vague")
+            await model.rejectAnnouncement?.value
+
+            #expect(model.draft == "my note")
+        }
+
         @Test("should send nothing and show the composer hint when the budget is paused")
         func pausedFallsBack() async {
             let (model, session) = await make([:])

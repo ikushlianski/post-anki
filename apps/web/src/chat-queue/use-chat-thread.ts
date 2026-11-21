@@ -21,6 +21,7 @@ import {
 import { clearChatDraft, loadChatDraft } from './chat-queue-draft-storage'
 import {
   dropLastExchange,
+  appendToDraft,
   restoreDraft,
   settle,
   toChatLines,
@@ -278,11 +279,18 @@ export function useChatThread(item: ChatQueueKnowledgeBit, onResolved: (id: stri
     [],
   )
 
+  const appendDraft = useCallback(
+    (text: string) =>
+      setDraft((prev) => appendToDraft(prev, text).slice(0, CHAT_QUEUE_MAX_MESSAGE_CHARS)),
+    [],
+  )
+
   return {
     lines,
     applyDecision,
     draft,
     changeDraft,
+    appendDraft,
     turnsLeft,
     limitReached,
     loading,

@@ -2,9 +2,14 @@ import PostAnkiAPI
 
 extension ChatQueueThreadModel {
     func announceRejection(seq: Int, index: Int, front: String, feedback: String? = nil) async {
+        let alreadyHandled = rejectMessageIds.contains("reject:\(item.id):\(seq):\(index)")
         let sent = await sendRejectMessage(seq: seq, index: index, front: front, feedback: feedback)
 
         if !sent {
+            if !alreadyHandled {
+                keepInDraft(ChatQueueProposalRejectFeedback.message(front: front, feedback: feedback))
+            }
+
             awaitsRejectExplanation = true
             composerFocusRequests += 1
         }
@@ -44,5 +49,11 @@ extension ChatQueueThreadModel {
         await drainFollowUps()
 
         return true
+    }
+
+    private func keepInDraft(_ text: String) {
+        let typed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        draft = typed.isEmpty ? text : "\(draft)\n\n\(text)"
     }
 }
