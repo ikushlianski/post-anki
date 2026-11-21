@@ -46,6 +46,8 @@ extension DueReviewModel {
             await revertKnownCount(card, rollingBack: advanced)
         } catch {
             if KnowledgeManageError.isGone(error) {
+                if advanced != nil { await uncountKnown(card) }
+
                 skippedVariantIds.insert(card.variantId)
 
                 if advanced == nil { await showNext() }

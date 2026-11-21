@@ -73,6 +73,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  vi.restoreAllMocks()
 })
 
 describe.each([
@@ -124,6 +125,19 @@ describe.each([
 
     expect(result.current.current?.variantId).toBe('variant-1')
     expect(result.current.actions.error).toBe('control_failed')
+  })
+
+  it(`should keep the card on screen without a flash when the ${kind} is tried offline`, async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+
+    const { result } = harness()
+
+    await act(() => result.current.actions.control(kind))
+
+    expect(result.current.current?.variantId).toBe('variant-1')
+    expect(result.current.state.undo).toEqual([])
+    expect(result.current.actions.error).toBe('control_failed')
+    expect(mockedSchedule).not.toHaveBeenCalled()
   })
 
   it(`should send the ${kind} only once when triggered twice quickly`, async () => {

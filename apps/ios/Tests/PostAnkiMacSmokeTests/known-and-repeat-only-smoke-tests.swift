@@ -94,6 +94,25 @@ extension SmokeTests {
             #expect(model.reviewedCount == 1)
         }
 
+        @Test("should not count a card as reviewed when the server says it no longer exists")
+        func knownGoneUncounts() async {
+            var gone = routes()
+
+            gone["/knowledge-bits/reviews/known"] = .json(404, #"{"error":"not_found"}"#)
+
+            let session = FakeServerSession(gone)
+            defer { session.end() }
+            let model = DueReviewModel(repeatOnly: false, retryDelay: nil)
+
+            await model.load()
+            await model.markCurrentKnown()
+
+            #expect(model.reviewedCount == 0)
+            #expect(model.gradedNewCount == 0)
+            #expect(model.current?.variantId == "v02")
+            #expect(model.notice == "That card is no longer available")
+        }
+
         @Test("should bring the card back when the known action is undone")
         func knownUndo() async {
             let session = FakeServerSession(routes())

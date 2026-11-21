@@ -109,6 +109,12 @@ export function useReviewBackgroundActions(input: Input) {
         return
       }
 
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        setError('control_failed')
+
+        return
+      }
+
       let failure = 'control_failed'
 
       const saved = await runOptimistic({ type: 'acted', entry: { kind, card: current, stamp }, now: Date.now() }, async () => {

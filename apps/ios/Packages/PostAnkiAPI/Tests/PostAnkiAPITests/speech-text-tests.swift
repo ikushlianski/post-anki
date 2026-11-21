@@ -15,6 +15,12 @@ struct SpeechTextTests {
         #expect(SpeechTextCleaner.clean(text) == "Title. bold and soft. see the docs")
     }
 
+    @Test("should read snake_case identifiers without underscores and keep italics working")
+    func underscores() {
+        #expect(SpeechTextCleaner.clean("Call get_user_by_id and my_var_name now") == "Call get user by id and my var name now")
+        #expect(SpeechTextCleaner.clean("This is _very_ clear and __bold__ too") == "This is very clear and bold too")
+    }
+
     @Test("should skip code blocks and bare urls so they are not read out")
     func code() {
         let text = "Run this:\n```ts\nconst a = 1\n```\nThen visit https://example.com now"

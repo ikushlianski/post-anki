@@ -6,6 +6,7 @@ final class SystemSpeechSpeaker: NSObject, SpeechSpeaking, AVSpeechSynthesizerDe
     private let synthesizer = AVSpeechSynthesizer()
     private var onFinish: (@MainActor () -> Void)?
     private var current: ObjectIdentifier?
+    private var currentUtterance: AVSpeechUtterance?
 
     override init() {
         super.init()
@@ -22,6 +23,7 @@ final class SystemSpeechSpeaker: NSObject, SpeechSpeaking, AVSpeechSynthesizerDe
         let utterance = AVSpeechUtterance(string: text)
 
         current = ObjectIdentifier(utterance)
+        currentUtterance = utterance
 
         utterance.voice = AVSpeechSynthesisVoice(language: Locale.current.identifier.replacingOccurrences(of: "_", with: "-"))
             ?? AVSpeechSynthesisVoice(language: AVSpeechSynthesisVoice.currentLanguageCode())
@@ -31,6 +33,7 @@ final class SystemSpeechSpeaker: NSObject, SpeechSpeaking, AVSpeechSynthesizerDe
     func stop() {
         onFinish = nil
         current = nil
+        currentUtterance = nil
         synthesizer.stopSpeaking(at: .immediate)
     }
 
@@ -50,6 +53,7 @@ final class SystemSpeechSpeaker: NSObject, SpeechSpeaking, AVSpeechSynthesizerDe
         guard id == current else { return }
 
         current = nil
+        currentUtterance = nil
 
         let callback = onFinish
 

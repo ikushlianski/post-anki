@@ -23,6 +23,7 @@ final class SystemSpeechDictator: SpeechDictating {
     private var task: SFSpeechRecognitionTask?
     private var onFinish: (@MainActor (DictationFailure?) -> Void)?
     private var generation = 0
+    private var taskSerial = 0
     private let hooks: SpeechDictatorHooks?
 
     init(hooks: SpeechDictatorHooks? = nil) {
@@ -85,8 +86,12 @@ final class SystemSpeechDictator: SpeechDictating {
         self.engine = engine
         self.box = box
         self.onFinish = onFinish
+        taskSerial += 1
+
+        let serial = taskSerial
+
         task = Self.recognize(with: recognizer, box: box) { [weak self] text, isFinal, failed in
-            guard let self else { return }
+            guard let self, self.taskSerial == serial else { return }
 
             if let text { onText(text) }
             if isFinal || failed { self.finish(failed ? .interrupted : nil) }
@@ -119,6 +124,7 @@ final class SystemSpeechDictator: SpeechDictating {
     }
 
     private func teardown() {
+        taskSerial += 1
         engine?.stop()
         engine?.inputNode.removeTap(onBus: 0)
         box?.request.endAudio()
