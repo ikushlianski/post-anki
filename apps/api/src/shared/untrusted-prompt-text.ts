@@ -30,10 +30,23 @@ const PROMPT_TAG_NAMES = [
   "focus",
   "excerpt",
   "cards",
+  "known_cards",
+  "known_card",
+  "note",
 ];
 
 const PROMPT_TAG_PATTERN = new RegExp(`<(\\s*/?\\s*(?:${PROMPT_TAG_NAMES.join("|")})(?![\\p{L}\\p{N}_]))`, "giu");
 
 export function escapePromptTags(text: string): string {
   return text.replace(PROMPT_TAG_PATTERN, "<\\$1");
+}
+
+export function sanitizeUntrustedLine(text: string, maxChars: number): string {
+  const flat = text
+    .replace(/<[^>]*>/g, " ")
+    .replace(/[<>]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return escapePromptTags(flat.slice(0, maxChars)).trim();
 }

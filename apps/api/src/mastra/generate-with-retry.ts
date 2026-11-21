@@ -2,6 +2,7 @@ import pRetry from "p-retry";
 import { log } from "../shared/log.js";
 import { assertLlmBudgetAvailable, estimateCostUsd, recordLlmSpend } from "../shared/spend-guard.js";
 import { recordLlmCallEvent } from "../llm-call-events/llm-call-events.repo.js";
+import { auditFieldsFor, type LlmCallAudit } from "../llm-call-events/llm-call-audit.js";
 
 // Every real network/model call to an LLM agent across the codebase should
 // go through one of the two wrappers below so every call lands a row in
@@ -53,6 +54,7 @@ type GenerateCallOptions = {
   knowledgeBitId?: string | null;
   // false: a provider 429 is rethrown at once so a caller-side engine can wait and retry it.
   retryRateLimit?: boolean;
+  audit?: LlmCallAudit;
 };
 
 export function isRateLimitError(err: unknown): boolean {
@@ -131,6 +133,12 @@ export async function generateWithRetry<T extends GenerateResultWithUsage>(
       promptTokens: null,
       completionTokens: null,
       totalTokens: null,
+      ...auditFieldsFor(
+        options.audit,
+        options.modelId ?? null,
+        { promptTokens: null, completionTokens: null },
+        false,
+      ),
     });
 
     throw err;
@@ -149,6 +157,7 @@ export async function generateWithRetry<T extends GenerateResultWithUsage>(
     success: true,
     errorMessage: null,
     ...tokenCost,
+    ...auditFieldsFor(options.audit, options.modelId ?? null, tokenCost, true),
   });
 
   return result;
@@ -189,6 +198,12 @@ export async function recordGenerateCall<T extends GenerateResultWithUsage>(
       promptTokens: null,
       completionTokens: null,
       totalTokens: null,
+      ...auditFieldsFor(
+        options.audit,
+        options.modelId ?? null,
+        { promptTokens: null, completionTokens: null },
+        false,
+      ),
     });
 
     throw err;
@@ -207,6 +222,7 @@ export async function recordGenerateCall<T extends GenerateResultWithUsage>(
     success: true,
     errorMessage: null,
     ...tokenCost,
+    ...auditFieldsFor(options.audit, options.modelId ?? null, tokenCost, true),
   });
 
   return result;

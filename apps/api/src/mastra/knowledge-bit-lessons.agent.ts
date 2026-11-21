@@ -77,8 +77,10 @@ export function buildKnowledgeBitLessonsPrompt(
   feedbackBlock = "",
   detailLevel?: DetailLevel,
   focus: readonly string[] = [],
+  knownCardsBlock = "",
 ): string {
   const feedbackLines = feedbackBlock ? [feedbackBlock] : [];
+  const knownLines = knownCardsBlock ? [knownCardsBlock] : [];
   const detailLine = detailLevelPromptLine(detailLevel);
   const detailLines = detailLine ? [detailLine] : [];
   const focusLines =
@@ -89,6 +91,7 @@ export function buildKnowledgeBitLessonsPrompt(
   return [
     ...buildLanguageHeaderLines(buildSourceLanguageLine(chunk), strictLanguage),
     ...feedbackLines,
+    ...knownLines,
     ...detailLines,
     "<learning_intent>",
     escapePromptTags(learningIntent.trim().slice(0, LEARNING_INTENT_MAX_CHARS)),

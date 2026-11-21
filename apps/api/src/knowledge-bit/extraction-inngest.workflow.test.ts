@@ -165,6 +165,47 @@ describe("extractionInngestFunction follow-up passes", () => {
   });
 });
 
+describe("extractionInngestFunction known cards", () => {
+  const execute = (steps: { id: string; handler: () => unknown }[]) => {
+    const t = new InngestTestEngine({ function: extractionInngestFunction });
+
+    return t.execute({
+      events: [{ name: EXTRACTION_EVENT_NAME, data: { sourceId: "ks_1", run: 1, regeneration: false } }],
+      steps: [
+        { id: "claim", handler: () => SNAPSHOT },
+        { id: "plan", handler: () => ({ status: "ready", chunkCount: 1, firstOrdinal: 0 }) },
+        ...steps,
+        { id: "finish", handler: () => ({ status: "detected", inserted: 0, failureReason: null }) },
+      ],
+    });
+  };
+
+  it("should hand the remembered block to the chunk step without resolving it again", async () => {
+    const { chunkStep } = await import("./durable-extraction.steps.js");
+    const { getKnowledgeSourceRawText } = await import("./knowledge-bit.repo.js");
+
+    vi.mocked(getKnowledgeSourceRawText).mockClear();
+    vi.mocked(chunkStep).mockClear();
+    vi.mocked(chunkStep).mockResolvedValueOnce({ valid: [], flagged: [], deliberateEmpty: true });
+
+    await execute([{ id: "known-0", handler: () => "BLOCK" }]);
+
+    expect(chunkStep).toHaveBeenCalledWith(SNAPSHOT, 0, expect.anything(), { knownCardsBlock: "BLOCK" });
+    expect(getKnowledgeSourceRawText).not.toHaveBeenCalled();
+  });
+
+  it("should leave the chunk step options unchanged when the known-cards step is empty", async () => {
+    const { chunkStep } = await import("./durable-extraction.steps.js");
+
+    vi.mocked(chunkStep).mockClear();
+    vi.mocked(chunkStep).mockResolvedValueOnce({ valid: [], flagged: [], deliberateEmpty: true });
+
+    await execute([{ id: "known-0", handler: () => "" }]);
+
+    expect(chunkStep).toHaveBeenCalledWith(SNAPSHOT, 0, expect.anything(), {});
+  });
+});
+
 describe("extractionInngestFunction model calls", () => {
   it("should ask the model wrapper not to retry a 429 so only the engine waits and retries", async () => {
     const { claimStep } = await import("./durable-extraction.steps.js");

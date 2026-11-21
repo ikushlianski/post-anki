@@ -24,6 +24,8 @@ export function capErrorMessage(message: string | null): string | null {
   return message === null ? null : message.slice(0, LLM_ERROR_MESSAGE_MAX_CHARS);
 }
 
+export type LlmCallOutcome = "ok" | "failed" | "skipped_cap" | "skipped_breaker";
+
 export interface LlmCallEventInput {
   curriculumId: string | null;
   op: string;
@@ -31,6 +33,11 @@ export interface LlmCallEventInput {
   modelId?: string | null;
   purpose?: "cards" | "chat" | "other";
   knowledgeBitId?: string | null;
+  knowledgeSourceId?: string | null;
+  costUsd?: number | null;
+  outcome?: LlmCallOutcome | null;
+  runId?: string | null;
+  clusterId?: string | null;
   durationMs: number;
   success: boolean;
   errorMessage: string | null;
@@ -58,6 +65,11 @@ export async function recordLlmCallEvent(input: LlmCallEventInput): Promise<void
         modelId: input.modelId ?? null,
         purpose: input.purpose ?? purposeForAgent(input.agentKey),
         knowledgeBitId: input.knowledgeBitId ?? null,
+        knowledgeSourceId: input.knowledgeSourceId ?? null,
+        costUsd: input.costUsd === null || input.costUsd === undefined ? null : input.costUsd.toFixed(6),
+        outcome: input.outcome ?? null,
+        runId: input.runId ?? null,
+        clusterId: input.clusterId ?? null,
         durationMs: input.durationMs,
         success: input.success,
         errorMessage: capErrorMessage(input.errorMessage),

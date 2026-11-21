@@ -64,6 +64,7 @@ export async function listApprovedBitsForEmbedding(
 
 export interface ActiveVariantForEmbedding {
   id: string;
+  knowledgeBitId: string;
   prompt: string;
   answer: string;
   embeddingHash: string | null;
@@ -81,6 +82,7 @@ export async function listActiveVariantsForBitsEmbedding(
   return db
     .select({
       id: knowledgeBitQuestionVariants.id,
+      knowledgeBitId: knowledgeBitQuestionVariants.knowledgeBitId,
       prompt: knowledgeBitQuestionVariants.prompt,
       answer: knowledgeBitQuestionVariants.answer,
       embeddingHash: knowledgeBitQuestionVariants.embeddingHash,

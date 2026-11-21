@@ -266,3 +266,49 @@ describe("generateWithRetry rate-limit handling", () => {
     expect(isRateLimitError(new Error("x"))).toBe(false);
   });
 });
+
+describe("generateWithRetry audit", () => {
+  beforeEach(() => {
+    recordLlmCallEventMock.mockReset();
+  });
+
+  it("should record price, outcome and source for a call that asks for auditing", async () => {
+    const result = { usage: { inputTokens: 1_000_000, outputTokens: 0, totalTokens: 1_000_000 } };
+
+    await generateWithRetry("known_cards_judge", null, "knownCardsJudge", async () => result, {
+      modelId: "openrouter/deepseek/deepseek-v4-flash",
+      audit: { knowledgeSourceId: "src1" },
+    });
+
+    expect(recordLlmCallEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: "ok", costUsd: 0.3, knowledgeSourceId: "src1" }),
+    );
+  });
+
+  it("should record a failed outcome with the source when every attempt fails", async () => {
+    await expect(
+      recordGenerateCall(
+        "known_cards_judge",
+        null,
+        "knownCardsJudge",
+        async () => {
+          throw new Error("boom");
+        },
+        { audit: { knowledgeSourceId: "src1" } },
+      ),
+    ).rejects.toThrow("boom");
+
+    expect(recordLlmCallEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: "failed", success: false, knowledgeSourceId: "src1" }),
+    );
+  });
+
+  it("should leave outcome and cost out for callers that do not ask for auditing", async () => {
+    await generateWithRetry("op", null, "agent", async () => ({ usage: { totalTokens: 1 } }));
+
+    const [event] = recordLlmCallEventMock.mock.calls[0]!;
+
+    expect(event).not.toHaveProperty("outcome");
+    expect(event).not.toHaveProperty("costUsd");
+  });
+});

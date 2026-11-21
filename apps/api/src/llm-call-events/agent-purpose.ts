@@ -26,6 +26,7 @@ const PURPOSE_BY_AGENT: Record<string, LlmPurpose> = {
   knowledgeSourceSubjectChecker: "cards",
   subjectAssignmentEscalation: "cards",
   cardDedupEscalation: "cards",
+  knownCardsJudge: "cards",
   subjectCreation: "cards",
   subjectSuggestionGrader: "cards",
   siblingDiscovery: "cards",

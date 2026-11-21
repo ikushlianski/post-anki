@@ -271,3 +271,48 @@ describe("embedTexts", () => {
     expect(spy).toHaveBeenCalledTimes(3);
   });
 });
+
+describe("embedTexts audit", () => {
+  beforeEach(() => {
+    envOverrides = {};
+    recordLlmCallEventMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("should record the purpose op, model, price and source for an audited call", async () => {
+    mockFetchOnce({
+      data: [{ index: 0, embedding: [0.1] }],
+      usage: { prompt_tokens: 1_000_000, total_tokens: 1_000_000 },
+    });
+
+    const { embedTexts } = await import("./embeddings-client.js");
+
+    await embedTexts([{ id: "a", text: "hello" }], { op: "known_cards_embed", knowledgeSourceId: "src1" });
+
+    expect(recordLlmCallEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        op: "known_cards_embed",
+        modelId: "openai/text-embedding-3-small",
+        outcome: "ok",
+        costUsd: 0.02,
+        knowledgeSourceId: "src1",
+      }),
+    );
+  });
+
+  it("should keep the default op and add no ledger fields when no audit is given", async () => {
+    mockFetchOnce({ data: [{ index: 0, embedding: [0.1] }], usage: { prompt_tokens: 3, total_tokens: 3 } });
+
+    const { embedTexts } = await import("./embeddings-client.js");
+
+    await embedTexts([{ id: "a", text: "hello" }]);
+
+    const [event] = recordLlmCallEventMock.mock.calls[0]!;
+
+    expect(event.op).toBe("embedTexts");
+    expect(event).not.toHaveProperty("outcome");
+  });
+});

@@ -30,7 +30,7 @@ import {
   EXTRACTION_THROTTLE,
 } from "./extraction-inngest.limits.js";
 import { pipelineKickRequestedEvent } from "./pipeline-kick-inngest.events.js";
-import { chunkInsertStep, finishCountsStep } from "./extraction-inngest.steps.js";
+import { chunkInsertStep, finishCountsStep, knownCardsStep } from "./extraction-inngest.steps.js";
 
 const FUNCTION_CANCELLED_EVENT = "inngest/function.cancelled";
 const cancelledRunSchema = z.object({ run_id: z.string().min(1) });
@@ -112,9 +112,11 @@ export const extractionInngestFunction = inngest.createFunction(
 
       for (let index = 0; index < plan.chunkCount; index += 1) {
         try {
+          const knownCardsBlock = await step.run(`known-${index}`, () => knownCardsStep(claimed, index, deps));
+          const chunkExtras = knownCardsBlock ? { ...extras, knownCardsBlock } : extras;
           const counts = await step.run(`chunk-${index}`, async () => {
             try {
-              return await chunkInsertStep(claimed, index, plan.firstOrdinal, accepted, deps, extras);
+              return await chunkInsertStep(claimed, index, plan.firstOrdinal, accepted, deps, chunkExtras);
             } catch (err) {
               throw toChunkError(err);
             }

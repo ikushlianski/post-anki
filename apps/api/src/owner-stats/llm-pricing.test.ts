@@ -1,6 +1,6 @@
 import { KNOWLEDGE_ITEM_MODELS } from "@post-anki/shared";
 import { describe, expect, it } from "vitest";
-import { PRICE_HISTORY, costUsd, priceFor, resolveModelId } from "./llm-pricing.js";
+import { PRICE_HISTORY, computeCallCostUsd, costUsd, priceFor, resolveModelId } from "./llm-pricing.js";
 
 describe("priceFor", () => {
   it("should reuse the shared model catalogue price so the settings screen and spend agree", () => {
@@ -41,5 +41,22 @@ describe("resolveModelId", () => {
     expect(resolveModelId("m", "articleSummary")).toBe("m");
     expect(resolveModelId(null, "articleSummary")).toBe("openrouter/deepseek/deepseek-v4-flash");
     expect(resolveModelId(null, "studyChat")).toBeNull();
+  });
+});
+
+describe("computeCallCostUsd", () => {
+  it("should price embedding input at the listed embedding rate", () => {
+    expect(computeCallCostUsd("openai/text-embedding-3-small", 1_000_000, 0)).toBeCloseTo(0.02, 8);
+  });
+
+  it("should price the known-cards judge model through its default model id", () => {
+    expect(resolveModelId(null, "knownCardsJudge")).toBe("openrouter/deepseek/deepseek-v4-flash");
+    expect(computeCallCostUsd("openrouter/deepseek/deepseek-v4-flash", 1200, 300)).toBeCloseTo(0.00045, 8);
+  });
+
+  it("should return null when the model or the token counts are unknown", () => {
+    expect(computeCallCostUsd(null, 10, 10)).toBeNull();
+    expect(computeCallCostUsd("unknown/model", 10, 10)).toBeNull();
+    expect(computeCallCostUsd("openai/text-embedding-3-small", null, null)).toBeNull();
   });
 });

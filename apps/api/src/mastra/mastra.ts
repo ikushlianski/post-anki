@@ -53,6 +53,7 @@ import { createSubjectCheckerAgent } from "./knowledge-source-subject-checker.ag
 import { createLongPasteSplitterAgent } from "./long-paste-splitter.agent.js";
 import { createSubjectAssignmentEscalationAgent } from "./subject-assignment-escalation.agent.js";
 import { createCardDedupEscalationAgent } from "./card-dedup-escalation.agent.js";
+import { createKnownCardsJudgeAgent } from "./known-cards-judge.agent.js";
 import { createCardRewordingAgent } from "./card-rewording.agent.js";
 import { createSubjectCreationAgent } from "./subject-creation.agent.js";
 
@@ -109,6 +110,7 @@ export const AGENT_KEYS = {
   subjectAssignmentEscalation: "subjectAssignmentEscalation",
   cardDedupEscalation: "cardDedupEscalation",
   cardRewording: "cardRewording",
+  knownCardsJudge: "knownCardsJudge",
   subjectCreation: "subjectCreation",
 } as const;
 
@@ -210,6 +212,7 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.subjectAssignmentEscalation]: createSubjectAssignmentEscalationAgent(),
         [AGENT_KEYS.cardDedupEscalation]: createCardDedupEscalationAgent(),
         [AGENT_KEYS.cardRewording]: createCardRewordingAgent(),
+        [AGENT_KEYS.knownCardsJudge]: createKnownCardsJudgeAgent(),
         [AGENT_KEYS.subjectCreation]: createSubjectCreationAgent(),
       },
       ...(observability ? { observability } : {}),

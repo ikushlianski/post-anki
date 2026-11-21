@@ -9,6 +9,7 @@ export interface WriteOptions {
   modelId?: string;
   strictLanguage?: boolean;
   feedbackBlock?: string;
+  knownCardsBlock?: string;
   styleNotesBlock?: string;
   learningIntent?: string;
   detailLevel?: DetailLevel;
@@ -36,6 +37,7 @@ export interface GenerateItemsDeps {
   markNothingExtracted?: (id: string, claimedAt: Date) => Promise<boolean>;
   markFailed: (id: string, reason: string, claimedAt: Date) => Promise<boolean>;
   loadFeedbackBlock: (subjectId: string | null) => Promise<string>;
+  loadKnownCards?: (chunk: string, context: { knowledgeSourceId: string; chunkIndex: number }) => Promise<string>;
   loadStyleNotesBlock?: (subjectId: string | null) => Promise<string>;
   loadLearningIntent?: LearningIntentLoader;
   loadSubjectKind?: (subjectId: string | null) => Promise<SubjectKind>;

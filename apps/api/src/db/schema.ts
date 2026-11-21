@@ -1014,8 +1014,16 @@ export const llmCallEvents = pgTable("llm_call_events", {
   modelId: text("model_id"),
   purpose: text("purpose"),
   knowledgeBitId: text("knowledge_bit_id"),
+  knowledgeSourceId: text("knowledge_source_id"),
+  costUsd: numeric("cost_usd", { precision: 12, scale: 6 }),
+  outcome: text("outcome"),
+  runId: text("run_id"),
+  clusterId: text("cluster_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [index("llm_call_events_created_at_idx").on(t.createdAt)]);
+}, (t) => [
+  index("llm_call_events_created_at_idx").on(t.createdAt),
+  index("llm_call_events_op_created_at_idx").on(t.op, t.createdAt),
+]);
 
 export const llmDailySpend = pgTable("llm_daily_spend", {
   day: text("day").primaryKey(),

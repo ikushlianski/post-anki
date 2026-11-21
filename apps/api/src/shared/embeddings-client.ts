@@ -3,6 +3,7 @@ import { loadEnv, type Env } from "./env.js";
 import { log } from "./log.js";
 import { assertLlmBudgetAvailable, estimateCostUsd, recordLlmSpend } from "./spend-guard.js";
 import { recordLlmCallEvent } from "../llm-call-events/llm-call-events.repo.js";
+import { auditFieldsFor, type LlmCallAudit } from "../llm-call-events/llm-call-audit.js";
 
 const EMBEDDINGS_AGENT_KEY = "openrouterEmbeddings";
 
@@ -147,6 +148,44 @@ async function safeRecordEmbeddingsCallEvent(
   }
 }
 
+export interface EmbedAudit extends LlmCallAudit {
+  op: string;
+}
+
+interface EmbeddingsEventOutcome {
+  startedAt: number;
+  success: boolean;
+  errorMessage: string | null;
+  promptTokens: number | null;
+  totalTokens: number | null;
+}
+
+async function recordEmbeddingsEvent(
+  audit: EmbedAudit | undefined,
+  outcome: EmbeddingsEventOutcome,
+): Promise<void> {
+  const modelId = audit ? loadEnv().EMBEDDING_MODEL : null;
+
+  await safeRecordEmbeddingsCallEvent({
+    curriculumId: null,
+    op: audit?.op ?? "embedTexts",
+    agentKey: EMBEDDINGS_AGENT_KEY,
+    ...(modelId ? { modelId } : {}),
+    durationMs: Date.now() - outcome.startedAt,
+    success: outcome.success,
+    errorMessage: outcome.errorMessage,
+    promptTokens: outcome.promptTokens,
+    completionTokens: null,
+    totalTokens: outcome.totalTokens,
+    ...auditFieldsFor(
+      audit,
+      modelId,
+      { promptTokens: outcome.promptTokens, completionTokens: 0 },
+      outcome.success,
+    ),
+  });
+}
+
 function errorMessageOf(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
@@ -156,6 +195,7 @@ async function embedEachSeparately(
   input: string[],
   startedAt: number,
   batchError: unknown,
+  audit?: EmbedAudit,
 ): Promise<EmbeddedTextResult[]> {
   const results: EmbeddedTextResult[] = [];
   let promptTokens = 0;
@@ -173,15 +213,11 @@ async function embedEachSeparately(
         { id: item.id, err: errorMessageOf(err) },
         "embeddings_client_item_skipped",
       );
-      await safeRecordEmbeddingsCallEvent({
-        curriculumId: null,
-        op: "embedTexts",
-        agentKey: EMBEDDINGS_AGENT_KEY,
-        durationMs: Date.now() - startedAt,
+      await recordEmbeddingsEvent(audit, {
+        startedAt,
         success: false,
         errorMessage: `item ${item.id}: ${errorMessageOf(err)}`,
         promptTokens: null,
-        completionTokens: null,
         totalTokens: null,
       });
     }
@@ -191,15 +227,11 @@ async function embedEachSeparately(
     throw batchError;
   }
 
-  await safeRecordEmbeddingsCallEvent({
-    curriculumId: null,
-    op: "embedTexts",
-    agentKey: EMBEDDINGS_AGENT_KEY,
-    durationMs: Date.now() - startedAt,
+  await recordEmbeddingsEvent(audit, {
+    startedAt,
     success: true,
     errorMessage: null,
     promptTokens: promptTokens || null,
-    completionTokens: null,
     totalTokens: totalTokens || null,
   });
 
@@ -212,6 +244,7 @@ async function embedEachSeparately(
 // the returned array then holds only the items that succeeded.
 export async function embedTexts(
   items: EmbedTextsItem[],
+  audit?: EmbedAudit,
 ): Promise<EmbeddedTextResult[]> {
   if (items.length === 0) {
     return [];
@@ -243,33 +276,25 @@ export async function embedTexts(
     });
   } catch (err) {
     if (items.length > 1 && isRejectedInputError(err)) {
-      return embedEachSeparately(items, input, startedAt, err);
+      return embedEachSeparately(items, input, startedAt, err, audit);
     }
 
-    await safeRecordEmbeddingsCallEvent({
-      curriculumId: null,
-      op: "embedTexts",
-      agentKey: EMBEDDINGS_AGENT_KEY,
-      durationMs: Date.now() - startedAt,
+    await recordEmbeddingsEvent(audit, {
+      startedAt,
       success: false,
       errorMessage: errorMessageOf(err),
       promptTokens: null,
-      completionTokens: null,
       totalTokens: null,
     });
 
     throw err;
   }
 
-  await safeRecordEmbeddingsCallEvent({
-    curriculumId: null,
-    op: "embedTexts",
-    agentKey: EMBEDDINGS_AGENT_KEY,
-    durationMs: Date.now() - startedAt,
+  await recordEmbeddingsEvent(audit, {
+    startedAt,
     success: true,
     errorMessage: null,
     promptTokens: result.usage?.prompt_tokens ?? null,
-    completionTokens: null,
     totalTokens: result.usage?.total_tokens ?? null,
   });
 

@@ -63,6 +63,7 @@ export interface RunMeetingPhraseOptions {
   retryRateLimit?: boolean;
   onUsage?: (usage: ReportedUsage) => void;
   englishSubject?: boolean;
+  knownCardsBlock?: string;
 }
 
 export async function runMeetingPhraseCard(
@@ -81,6 +82,7 @@ export async function runMeetingPhraseCard(
     escapePromptTags(source.phrase),
     source.hint ? escapePromptTags(source.hint) : null,
     source.unsure,
+    options.knownCardsBlock,
   );
   const requestContext = new RequestContext([["knowledgeItemModelId", modelId]]);
   let failure = "";

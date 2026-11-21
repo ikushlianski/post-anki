@@ -24,6 +24,7 @@ const { embedApprovedKnowledgeBits, findSimilarApprovedKnowledgeBits } = await i
 const bit = { id: "b1", body: "Fact body", embeddingHash: null, embeddedAt: null };
 const variant = {
   id: "v1",
+  knowledgeBitId: "b1",
   prompt: "Q?",
   answer: "A",
   embeddingHash: null,

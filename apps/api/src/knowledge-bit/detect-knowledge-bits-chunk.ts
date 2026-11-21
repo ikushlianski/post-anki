@@ -10,6 +10,7 @@ import {
   type LessonDraft,
   type SourceItemBatchValidation,
 } from "./knowledge-bit-source-item-validation.js";
+import { loadKnownCardsSafely } from "./known-cards-chunk-context.js";
 import { runFusion } from "./knowledge-bit-fusion-extraction.js";
 import type { GenerateItemsDeps, RunState, WriteOptions } from "./detect-knowledge-bits.types.js";
 
@@ -207,7 +208,9 @@ export async function processChunk(
     return;
   }
 
-  const { valid, flagged, deliberateEmpty, gapText } = await writeAndValidate(chunk, options, deps);
+  const knownCardsBlock = await loadKnownCardsSafely(chunk, { knowledgeSourceId: source.id, chunkIndex: index }, deps);
+  const chunkOptions = knownCardsBlock ? { ...options, knownCardsBlock } : options;
+  const { valid, flagged, deliberateEmpty, gapText } = await writeAndValidate(chunk, chunkOptions, deps);
 
   if (gapText) {
     state.gapByChunk.set(index, gapText);

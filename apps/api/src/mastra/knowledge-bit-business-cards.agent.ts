@@ -79,7 +79,7 @@ const LANGUAGE_MARKER = "Card language:";
 
 export function buildBusinessCardsPrompt(
   chunk: string,
-  options: { strictLanguage?: boolean; feedbackBlock?: string; styleNotesBlock?: string; learningIntent?: string; detailLevel?: DetailLevel; forceAtLeastOne?: boolean } = {},
+  options: { strictLanguage?: boolean; feedbackBlock?: string; knownCardsBlock?: string; styleNotesBlock?: string; learningIntent?: string; detailLevel?: DetailLevel; forceAtLeastOne?: boolean } = {},
 ): string {
   const intent = options.learningIntent?.trim().slice(0, LEARNING_INTENT_MAX_CHARS) ?? "";
   const values: Record<string, string> = {
@@ -92,7 +92,7 @@ export function buildBusinessCardsPrompt(
     /\{(output_language|metadata|max_cards|text)\}/g,
     (_match, key: string) => values[key] ?? "",
   );
-  const extras = [options.feedbackBlock, detailLevelPromptLine(options.detailLevel)].filter((block): block is string => Boolean(block));
+  const extras = [options.feedbackBlock, options.knownCardsBlock, detailLevelPromptLine(options.detailLevel)].filter((block): block is string => Boolean(block));
   const styleBlock = options.styleNotesBlock?.trim() ?? "";
   const marker = template.indexOf(LANGUAGE_MARKER);
   const body =
@@ -218,6 +218,7 @@ export interface RunBusinessCardsOptions {
   modelId?: string;
   strictLanguage?: boolean;
   feedbackBlock?: string;
+  knownCardsBlock?: string;
   styleNotesBlock?: string;
   learningIntent?: string;
   detailLevel?: DetailLevel;

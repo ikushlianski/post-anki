@@ -24,6 +24,7 @@ export const PRICE_HISTORY: Record<string, PriceEntry[]> = {
   ...SHARED_HISTORY,
   "openrouter/deepseek/deepseek-v4-flash": [{ effectiveFrom: EPOCH, in: 0.3, out: 0.3 }],
   "openrouter/deepseek/deepseek-v4-pro": [{ effectiveFrom: EPOCH, in: 2, out: 2 }],
+  "openai/text-embedding-3-small": [{ effectiveFrom: EPOCH, in: 0.02, out: 0 }],
 };
 
 export const AGENT_DEFAULT_MODEL: Record<string, string> = {
@@ -37,6 +38,7 @@ export const AGENT_DEFAULT_MODEL: Record<string, string> = {
   cardStyleNotesDistiller: "openrouter/deepseek/deepseek-v4-flash",
   knowledgeSourceSubjectChecker: "openrouter/deepseek/deepseek-v4-flash",
   cardDedupEscalation: "openrouter/deepseek/deepseek-v4-flash",
+  knownCardsJudge: "openrouter/deepseek/deepseek-v4-flash",
   subjectAssignmentEscalation: "openrouter/openai/gpt-4o-mini",
 };
 
@@ -61,4 +63,19 @@ export function priceFor(modelId: string, at: Date): ModelPrice | null {
 
 export function costUsd(price: ModelPrice, promptTokens: number, completionTokens: number): number {
   return (promptTokens * price.inputPerMillion + completionTokens * price.outputPerMillion) / 1e6;
+}
+
+export function computeCallCostUsd(
+  modelId: string | null,
+  promptTokens: number | null,
+  completionTokens: number | null,
+  at: Date = new Date(),
+): number | null {
+  if (!modelId || (promptTokens === null && completionTokens === null)) {
+    return null;
+  }
+
+  const price = priceFor(modelId, at);
+
+  return price ? costUsd(price, promptTokens ?? 0, completionTokens ?? 0) : null;
 }

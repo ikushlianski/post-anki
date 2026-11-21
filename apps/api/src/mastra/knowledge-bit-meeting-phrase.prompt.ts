@@ -68,10 +68,14 @@ export const MEETING_PHRASE_INSTRUCTIONS = [
   "sentence.",
 ].join("\n");
 
+const KNOWN_CARDS_PHRASE_RULE =
+  "For this phrase note the card must still contain the phrase word for word. Vary the situation or register around it, never swap the phrase for another one.";
+
 export function buildMeetingPhrasePrompt(
   escapedPhrase: string,
   escapedHint: string | null,
   unsure: boolean,
+  knownCardsBlock = "",
 ): string {
   return [
     "<phrase>",
@@ -79,5 +83,6 @@ export function buildMeetingPhrasePrompt(
     "</phrase>",
     ...(escapedHint ? ["<hint>", escapedHint, "</hint>"] : []),
     ...(unsure ? ["The learner is unsure about this phrase: verify its spelling and the hint's translation, and correct them in your output."] : []),
+    ...(knownCardsBlock ? [knownCardsBlock, KNOWN_CARDS_PHRASE_RULE] : []),
   ].join("\n");
 }

@@ -1,3 +1,4 @@
+import { log } from "../shared/log.js";
 import {
   countUnseenStatements,
   MAX_ITEMS_PER_CHUNK,
@@ -12,6 +13,8 @@ import {
   type DurableSourceSnapshot,
   type DurableStepDeps,
 } from "./durable-extraction.steps.js";
+import { planChunk } from "./durable-extraction.chunk-plan.js";
+import { loadKnownCardsSafely } from "./known-cards-chunk-context.js";
 import { openAskAiChatSafely, replyAskAiChatSafely } from "./ask-ai-extraction.js";
 import { selectFlaggedLessons } from "./knowledge-bit-flagged-lesson.js";
 import { normalizeStatement, selectNewItems } from "./knowledge-bit-source-item-validation.js";
@@ -22,6 +25,26 @@ export interface ChunkCounts {
   deliberateEmpty?: boolean;
   capped?: boolean;
   gapText?: string;
+}
+
+export async function knownCardsStep(
+  snapshot: DurableSourceSnapshot,
+  index: number,
+  deps: DurableStepDeps,
+): Promise<string> {
+  try {
+    const planned = await planChunk(snapshot.id, index, deps);
+
+    if (planned.status !== "ready") {
+      return "";
+    }
+
+    return await loadKnownCardsSafely(planned.entry.chunk, { knowledgeSourceId: snapshot.id, chunkIndex: index }, deps);
+  } catch (err) {
+    log.warn({ err, knowledgeSourceId: snapshot.id }, "known_cards_step_failed");
+
+    return "";
+  }
 }
 
 export async function chunkInsertStep(

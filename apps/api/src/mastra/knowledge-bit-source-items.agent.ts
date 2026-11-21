@@ -153,13 +153,16 @@ export function buildKnowledgeBitCardsPrompt(
   strictLanguage = false,
   feedbackBlock = "",
   styleNotesBlock = "",
+  knownCardsBlock = "",
 ): string {
   const feedbackLines = feedbackBlock ? [feedbackBlock] : [];
+  const knownLines = knownCardsBlock ? [knownCardsBlock] : [];
   const styleLines = styleNotesBlock ? [styleNotesBlock] : [];
 
   return [
     ...buildLanguageHeaderLines(buildSourceLanguageLine(languageSource), strictLanguage),
     ...feedbackLines,
+    ...knownLines,
     ...styleLines,
     "<lessons>",
     ...lessons.map(lessonBlock),
@@ -171,6 +174,7 @@ export interface RunKnowledgeBitSourceItemsOptions {
   modelId?: string;
   strictLanguage?: boolean;
   feedbackBlock?: string;
+  knownCardsBlock?: string;
   styleNotesBlock?: string;
   learningIntent?: string;
   detailLevel?: DetailLevel;
@@ -276,6 +280,7 @@ export async function runKnowledgeBitSourceItems(
       options.feedbackBlock,
       options.detailLevel,
       focusExcerpts(chunk, focus),
+      options.knownCardsBlock,
     ),
     ...(options.forceAtLeastOne ? [FORCE_AT_LEAST_ONE_LESSON_SUFFIX] : []),
   ].join("\n");
@@ -336,6 +341,7 @@ export async function runKnowledgeBitSourceItems(
     options.strictLanguage,
     options.feedbackBlock,
     options.styleNotesBlock,
+    options.knownCardsBlock,
   );
   const cardsResult = await generateWithRetry(
     "knowledge_bit_lesson_cards",

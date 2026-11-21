@@ -7,7 +7,7 @@ vi.mock("./knowledge-bit.repo.js", () => ({}));
 vi.mock("./knowledge-bit-feedback.repo.js", () => ({ loadRecentFeedbackForExtraction: vi.fn() }));
 vi.mock("./knowledge-bit-source-items.repo.js", () => ({}));
 
-const { chunkInsertStep, finishCountsStep } = await import("./extraction-inngest.steps.js");
+const { chunkInsertStep, finishCountsStep, knownCardsStep } = await import("./extraction-inngest.steps.js");
 const { toSnapshot } = await import("./durable-extraction.steps.js");
 const { RU_EXAMPLE_ITEMS, RU_SOURCE_TEXT } = await import("./knowledge-bit-source-items.test-mocks.js");
 
@@ -128,5 +128,33 @@ describe("finishCountsStep with the cap reached", () => {
     expect(outcome).toEqual({ status: "detected", inserted: 40, failureReason: null });
     expect(markItemCapReached).toHaveBeenCalledWith("ks_1", CLAIMED_AT);
     expect(d.markDetected).not.toHaveBeenCalled();
+  });
+});
+
+describe("knownCardsStep", () => {
+  it("should resolve the block for the planned chunk of the source", async () => {
+    const loadKnownCards = vi.fn().mockResolvedValue("BLOCK");
+    const d = deps({ loadKnownCards });
+
+    expect(await knownCardsStep(snapshot, 0, d)).toBe("BLOCK");
+    expect(loadKnownCards).toHaveBeenCalledWith(expect.any(String), { knowledgeSourceId: "ks_1", chunkIndex: 0 });
+  });
+
+  it("should return an empty block when the lookup fails so the chunk is written as before", async () => {
+    const d = deps({ loadKnownCards: vi.fn().mockRejectedValue(new Error("boom")) });
+
+    expect(await knownCardsStep(snapshot, 0, d)).toBe("");
+  });
+
+  it("should return an empty block and skip the lookup when the chunk cannot be planned", async () => {
+    const loadKnownCards = vi.fn();
+    const d = deps({ loadKnownCards, loadRawText: vi.fn().mockRejectedValue(new Error("db down")) });
+
+    expect(await knownCardsStep(snapshot, 0, d)).toBe("");
+    expect(loadKnownCards).not.toHaveBeenCalled();
+  });
+
+  it("should return an empty block when no lookup is configured", async () => {
+    expect(await knownCardsStep(snapshot, 0, deps())).toBe("");
   });
 });

@@ -27,6 +27,7 @@ import { chunkSourceTextWithOffsets, SOURCE_CHUNK_MAX_CHARS } from "./knowledge-
 import { planFocusedChunks } from "./knowledge-bit-focus.js";
 import { normalizeStatement } from "./knowledge-bit-source-item-validation.js";
 import { getSourceInsertState, insertSourceItemsForChunk } from "./knowledge-bit-source-items.repo.js";
+import { resolveKnownCardsBlock } from "../known-cards/known-cards.orchestrator.js";
 import { processChunk } from "./detect-knowledge-bits-chunk.js";
 import { firstGapByChunk, openAskAiChatSafely, replyAskAiChatSafely } from "./ask-ai-extraction.js";
 import type {
@@ -70,6 +71,7 @@ export function defaultGenerateItemsDeps(): GenerateItemsDeps {
     loadFeedbackBlock: async (subjectId) =>
       buildReviewerFeedbackBlock(await loadRecentFeedbackForExtraction(subjectId)),
     loadStyleNotesBlock,
+    loadKnownCards: resolveKnownCardsBlock,
     loadLearningIntent: resolveKnowledgeBitLearningIntent,
     loadSubjectKind: resolveSubjectKind,
     loadIsEnglishSubject: resolveIsEnglishSubject,

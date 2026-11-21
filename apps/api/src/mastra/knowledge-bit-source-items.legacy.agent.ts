@@ -108,6 +108,7 @@ export function buildKnowledgeBitSourceItemsPrompt(
   feedbackBlock = "",
   styleNotesBlock = "",
   targetPhrases: readonly string[] = [],
+  knownCardsBlock = "",
 ): string {
   const languageLine = buildSourceLanguageLine(chunk);
   const lines = strictLanguage
@@ -120,6 +121,7 @@ export function buildKnowledgeBitSourceItemsPrompt(
 
   const feedbackLines = feedbackBlock ? [feedbackBlock] : [];
   const styleLines = styleNotesBlock ? [styleNotesBlock] : [];
+  const knownLines = knownCardsBlock ? [knownCardsBlock] : [];
 
   const accentLines =
     targetPhrases.length > 0
@@ -130,7 +132,7 @@ export function buildKnowledgeBitSourceItemsPrompt(
         ]
       : [];
 
-  return [...lines, ...feedbackLines, ...styleLines, ...accentLines, "<source>", escapeSourceText(chunk), "</source>"].join("\n");
+  return [...lines, ...feedbackLines, ...knownLines, ...styleLines, ...accentLines, "<source>", escapeSourceText(chunk), "</source>"].join("\n");
 }
 
 export const knowledgeBitSourceItemsResultSchema = z.object({
@@ -167,6 +169,7 @@ export interface RunLegacyKnowledgeBitSourceItemsOptions {
   feedbackBlock?: string;
   styleNotesBlock?: string;
   targetPhrases?: string[];
+  knownCardsBlock?: string;
   abortSignal?: AbortSignal;
   retryRateLimit?: boolean;
   onUsage?: (usage: ReportedUsage) => void;
@@ -183,6 +186,7 @@ export async function runLegacyKnowledgeBitSourceItems(
     options.feedbackBlock,
     options.styleNotesBlock,
     options.targetPhrases,
+    options.knownCardsBlock,
   );
   const knowledgeItemModelId = options.modelId ?? (await getKnowledgeItemModelId());
   const requestContext = new RequestContext([["knowledgeItemModelId", knowledgeItemModelId]]);
