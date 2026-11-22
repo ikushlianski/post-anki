@@ -4,7 +4,7 @@
   "sessionId": "789fb143-5846-42fa-9df4-8925096e3e3e",
   "startedAt": "2026-11-21T19:14:25Z",
   "stopBoundHours": 10,
-  "status": "running",
+  "status": "stopped",
   "activeDirections": [
     "every-review-card-shows-the-subject-it-b",
     "the-today-button-groups-today-s-cards-by",
@@ -22,5 +22,6 @@
   "lastBlockAt": "2026-11-21T20:06:29.197Z",
   "pendingSkillReload": [],
   "lastWakeupArmedAt": "2026-11-21T19:15:47.189Z",
-  "lastHeartbeatAt": "2026-11-21T19:22:33.811Z"
+  "lastHeartbeatAt": "2026-11-21T19:22:33.811Z",
+  "stoppedReason": "hard-ceiling"
 }

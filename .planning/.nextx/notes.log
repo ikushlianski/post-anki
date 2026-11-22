@@ -2147,3 +2147,4 @@
 2026-11-21T20:07:34.728Z time-bound gate hit its own retry cap (7) — 9h7m remain of 10h floor. Ending the turn here rather than hanging — this was not a legitimate stop condition. a wakeup was armed 0h52m ago and should still be pending.
 2026-11-21T20:07:42.027Z time-bound gate hit its own retry cap (7) — 9h7m remain of 10h floor. Ending the turn here rather than hanging — this was not a legitimate stop condition. a wakeup was armed 0h52m ago and should still be pending.
 2026-11-21T20:07:59.712Z time-bound gate hit its own retry cap (7) — 9h6m remain of 10h floor. Ending the turn here rather than hanging — this was not a legitimate stop condition. a wakeup was armed 0h52m ago and should still be pending.
+2026-11-22T11:14:21.356Z time-bound gate: hard ceiling (15h) reached at 16h0m elapsed — ending regardless of backlog state. The 10h bound was a floor, not this stop. Persisting status "stopped" so a resumed session doesn't re-hit this same check.
