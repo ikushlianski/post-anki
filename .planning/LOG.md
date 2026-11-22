@@ -2198,3 +2198,7 @@ directly. See the handoff report delivered to the user for the full scenario-lev
 - 2026-11-21: Show the Chat queue in the Mac Knowledge view with count badge, matching iPhone.
 - 2026-11-21: Web anki-review-done test fails on weekends because it expects the word tomorrow for a Monday due date.
 - 2026-11-21: API subject list returns a card count per subject for the Subjects screens.
+- 2026-11-22: Mac Quick Action sends selected text from any app to Post Anki, token read from Keychain
+- 2026-11-22: Today on iPhone and Mac: subject list with checkboxes and cards, offline pack honours the day skip
+- 2026-11-22: Today on web: subject list with checkboxes and expandable cards, unchecking skips the subject today
+- 2026-11-22: Today: skip a subject for the day (API table, endpoints, queue, counts and pack honour it)

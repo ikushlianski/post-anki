@@ -126,9 +126,6 @@ updated: 2026-09-04
 - Out of scope: Rewrites of working features, new paid infrastructure, anything touching money or privacy without a human call
 
 ### Coding tasks
-- [ ] Today on iPhone and Mac: subject list with checkboxes and cards, offline pack honours the day skip
-- [ ] Today on web: subject list with checkboxes and expandable cards, unchecking skips the subject today
-- [ ] Today: skip a subject for the day (API table, endpoints, queue, counts and pack honour it)
 - [ ] [blocked: user] Decide on tighter rows in the Mac knowledge list, which needs a custom list.
 - [ ] [blocked: user] Decide whether Copy all stays on cards or the older no-selection item wins.
 - [ ] [blocked: user] Choose the single card word and whether the overview merges into the browser.
