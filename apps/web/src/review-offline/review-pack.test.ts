@@ -125,4 +125,27 @@ describe('review pack', () => {
 
     expect(saved && packToReviewCards(saved, []).cards.map((card) => card.variantId)).toEqual(['variant-2'])
   })
+
+  describe('subject day skips', () => {
+    const today = new Date(2026, 10, 22, 12)
+    const cards = [makeCard('1', { subjectId: 'math' }), makeCard('2', { subjectId: 'art' }), makeCard('3')]
+    const withSkips = (dayKey: string) => ({
+      ...stored(cards),
+      pack: { ...makePack(cards), dayKey, skippedSubjectIds: ['math'] },
+    })
+
+    it('should hide cards of a subject skipped today when studying from saved cards', () => {
+      const cards = packToReviewCards(withSkips('2026-11-22'), [], today).cards
+
+      expect(cards.map((card) => card.variantId)).toEqual(['variant-2', 'variant-3'])
+    })
+
+    it('should count only the cards that remain after skipping', () => {
+      expect(packToReviewCards(withSkips('2026-11-22'), [], today).counts.review).toBe(2)
+    })
+
+    it('should ignore the skip list once the local day has changed', () => {
+      expect(packToReviewCards(withSkips('2026-11-21'), [], today).cards).toHaveLength(3)
+    })
+  })
 })

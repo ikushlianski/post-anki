@@ -8,8 +8,9 @@ import {
 import { deriveSubjectDayLimit } from "../study-plan/study-plan-allowance.js";
 import { readPlanDayCounts } from "../study-plan/study-plan-day.repo.js";
 import { readStudyPlanClock } from "../study-plan/study-plan-today.js";
+import { listSkippedSubjects } from "../subject-day-skip/subject-day-skip.repo.js";
 import { learnAheadUntil } from "./knowledge-bit-review-queue-learning.repo.js";
-import { pickedVariants, type Picked } from "./knowledge-bit-review-queue-picked.repo.js";
+import { excludeSubjectsCondition, pickedVariants, type Picked } from "./knowledge-bit-review-queue-picked.repo.js";
 import type { KnowledgeBitReviewQueueClock } from "./knowledge-bit-review-queue.repo.js";
 import {
   countNewCardsReviewedTodayBySubject,
@@ -143,7 +144,8 @@ export async function readNewRemainingToday(
   clock: KnowledgeBitReviewQueueClock,
   db: DbExecutor,
 ): Promise<{ remaining: number; dayEndsAt: Date }> {
-  const picked = pickedVariants(undefined, clock.now, db);
+  const skipped = await listSkippedSubjects(clock, db);
+  const picked = pickedVariants(excludeSubjectsCondition(skipped.subjectIds), clock.now, db);
   const [allowance, freshBySubject] = await Promise.all([
     readNewCardAllowance(clock, db),
     readFreshBySubject(picked, db),

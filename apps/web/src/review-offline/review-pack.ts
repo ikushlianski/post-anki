@@ -21,12 +21,31 @@ export function isPackFresh(stored: StoredPack, now = Date.now()): boolean {
   return Number.isFinite(savedAt) && now - savedAt <= PACK_MAX_AGE_MS && savedAt <= now + 60_000
 }
 
-export function packToReviewCards(stored: StoredPack, grades: QueuedGrade[]): ReviewCardsResponse {
+export function localDayKey(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
+export function skippedSubjectsFor(pack: ReviewPack, now: Date): ReadonlySet<string> {
+  return pack.dayKey === localDayKey(now) ? new Set(pack.skippedSubjectIds) : new Set()
+}
+
+export function packToReviewCards(
+  stored: StoredPack,
+  grades: QueuedGrade[],
+  now = new Date(),
+): ReviewCardsResponse {
+  const skipped = skippedSubjectsFor(stored.pack, now)
   const marks = stored.gradedSince
   const markedVariants = new Set(marks.map((mark) => mark.variantId))
   const markedBits = new Set(marks.map((mark) => mark.bitId))
   const unmarked = stored.pack.cards.filter(
-    (card) => !markedVariants.has(card.variantId) && !markedBits.has(card.knowledgeBitId),
+    (card) =>
+      !markedVariants.has(card.variantId) &&
+      !markedBits.has(card.knowledgeBitId) &&
+      !(card.subjectId && skipped.has(card.subjectId)),
   )
   const cards: ReviewCard[] = withoutQueuedGrades(unmarked, grades)
   const counts = { new: 0, learning: 0, review: 0 }

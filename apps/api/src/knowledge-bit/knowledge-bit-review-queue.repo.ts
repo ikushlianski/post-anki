@@ -5,11 +5,12 @@ import type {
   ReviewCounts,
 } from "@post-anki/shared";
 import { collectSubjectSubtreeIds, type SubjectHierarchyRow } from "@post-anki/core";
-import type { SQL } from "drizzle-orm";
+import { and, type SQL } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { subjects } from "../db/schema.js";
 import { getMixNewWithDue } from "../admin-settings/admin-settings.repo.js";
 import { loadStudyOptionsResolver } from "../subject-study-options/subject-study-options-resolver.js";
+import { listSkippedSubjects } from "../subject-day-skip/subject-day-skip.repo.js";
 import { getLocalDayWindow } from "./knowledge-bit-review.repo.js";
 import { readStudyPlanClock } from "../study-plan/study-plan-today.js";
 import { toScheduleOptions } from "./knowledge-bit-schedule-options.js";
@@ -18,7 +19,7 @@ import { interleaveNewWithSeen } from "./knowledge-bit-review-queue-mix.js";
 import { readDailyReviewLimit } from "./knowledge-bit-review-queue-daily-limit.repo.js";
 import { listParentMixCards } from "./knowledge-bit-review-queue-parent-mix.repo.js";
 import { listLearnAheadRows } from "./knowledge-bit-review-queue-learning.repo.js";
-import { pickedVariants, scopeCondition } from "./knowledge-bit-review-queue-picked.repo.js";
+import { excludeSubjectsCondition, pickedVariants, scopeCondition } from "./knowledge-bit-review-queue-picked.repo.js";
 import {
   listPickedNewCards,
   listScopedCards,
@@ -134,7 +135,8 @@ export async function getKnowledgeBitReviewQueue(
   const excludeNew = clock.excludeNew === true;
   const subjectScope = filter?.subjectId ? await resolveSubjectScope(filter.subjectId, db) : undefined;
   const scope = scopeCondition(filter, db, subjectScope?.ids ?? clock.pack?.subjectIds);
-  const picked = pickedVariants(scope, now, db);
+  const skipped = scope && !clock.pack ? null : await listSkippedSubjects(clock, db);
+  const picked = pickedVariants(and(scope, excludeSubjectsCondition(skipped?.subjectIds ?? [])), now, db);
   const [resolver, planClock] = await Promise.all([
     loadStudyOptionsResolver(db),
     readStudyPlanClock(now, db),

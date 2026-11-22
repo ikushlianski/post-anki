@@ -2,6 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import type { SubjectReviewDueCounts } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { subjects } from "../db/schema.js";
+import { listSkippedSubjects } from "../subject-day-skip/subject-day-skip.repo.js";
 import { loadStudyOptionsResolver } from "../subject-study-options/subject-study-options-resolver.js";
 import { readDailyReviewLimit } from "./knowledge-bit-review-queue-daily-limit.repo.js";
 import {
@@ -37,7 +38,7 @@ export async function getSubjectReviewDueCounts(
   const stepPhase = sql`${picked.phase} in ('learning', 'relearning')`;
   const resolver = await loadStudyOptionsResolver(db);
 
-  const [bitRows, subjectRows, allowance, reviewAllowance, daily] = await Promise.all([
+  const [bitRows, subjectRows, allowance, reviewAllowance, daily, skippedToday] = await Promise.all([
     db
       .select({
         subjectId: subjectOfBit,
@@ -53,7 +54,9 @@ export async function getSubjectReviewDueCounts(
     readNewCardAllowance(clock, db, resolver),
     readReviewAllowance(clock, db, resolver),
     readDailyReviewLimit(clock, db),
+    listSkippedSubjects(clock, db),
   ]);
+  const skipped = new Set(skippedToday.subjectIds);
 
   const knownSubjectIds = new Set(subjectRows.map((subject) => subject.id));
   const directBySubject = new Map<string, CappedBucket>();
@@ -92,6 +95,7 @@ export async function getSubjectReviewDueCounts(
       dueCount: total.due,
       newCount: total.fresh,
       ...toFields(total),
+      skipped: skipped.has(subject.id),
       limits: {
         newCardsPerDay: effective.newCardsPerDay,
         maxReviewsPerDay: effective.maxReviewsPerDay,
@@ -102,7 +106,9 @@ export async function getSubjectReviewDueCounts(
   const unsortedTotal = sumBuckets(unsortedBuckets);
   const { remaining } = summariseNewCardAllowance(
     allowance,
-    bitRows.map((row) => ({ subjectId: row.subjectId, fresh: row.newCount })),
+    bitRows
+      .filter((row) => row.subjectId === null || !skipped.has(row.subjectId))
+      .map((row) => ({ subjectId: row.subjectId, fresh: row.newCount })),
   );
 
   return {

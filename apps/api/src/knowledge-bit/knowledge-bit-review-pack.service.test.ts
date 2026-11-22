@@ -3,9 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const listActiveSubjectIds = vi.hoisted(() => vi.fn());
 const listAlternates = vi.hoisted(() => vi.fn());
 const getKnowledgeBitReviewQueue = vi.hoisted(() => vi.fn());
+const listSkippedSubjects = vi.hoisted(() => vi.fn());
 
 vi.mock("./knowledge-bit-review-pack.repo.js", () => ({ listActiveSubjectIds, listAlternates }));
 vi.mock("./knowledge-bit-review-queue.repo.js", () => ({ getKnowledgeBitReviewQueue }));
+vi.mock("../subject-day-skip/subject-day-skip.repo.js", () => ({ listSkippedSubjects }));
 vi.mock("../subject-study-options/subject-study-options-resolver.js", () => ({
   loadStudyOptionsResolver: vi.fn(async () => ({ resolvePlan: vi.fn() })),
 }));
@@ -30,6 +32,8 @@ beforeEach(() => {
   listAlternates.mockReset();
   getKnowledgeBitReviewQueue.mockReset();
   listAlternates.mockResolvedValue(new Map());
+  listSkippedSubjects.mockReset();
+  listSkippedSubjects.mockResolvedValue({ dayKey: "2026-11-10", subjectIds: [] });
 });
 
 describe("buildReviewPack", () => {
@@ -41,6 +45,18 @@ describe("buildReviewPack", () => {
     expect(pack.cards).toEqual([]);
     expect(pack.truncated).toBe(false);
     expect(getKnowledgeBitReviewQueue).not.toHaveBeenCalled();
+  });
+
+  it("should report the local day and skipped subjects, and not pack a skipped subject", async () => {
+    listActiveSubjectIds.mockResolvedValue(["s1", "s2"]);
+    listSkippedSubjects.mockResolvedValue({ dayKey: "2026-11-10", subjectIds: ["s2"] });
+    getKnowledgeBitReviewQueue.mockResolvedValue({ cards: [card("a")] });
+
+    const pack = await buildReviewPack("UTC", NOW);
+
+    expect(pack.dayKey).toBe("2026-11-10");
+    expect(pack.skippedSubjectIds).toEqual(["s2"]);
+    expect(getKnowledgeBitReviewQueue.mock.calls[0]![2].pack.subjectIds).toEqual(["s1"]);
   });
 
   it("should look back exactly 3 days to find the studied subjects", async () => {

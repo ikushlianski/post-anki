@@ -92,6 +92,8 @@ export const reviewPackSchema = z.object({
   generatedAt: z.string(),
   dueBefore: z.string(),
   truncated: z.boolean(),
+  dayKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  skippedSubjectIds: z.array(z.string()),
   cards: z.array(reviewPackCardSchema),
 });
 

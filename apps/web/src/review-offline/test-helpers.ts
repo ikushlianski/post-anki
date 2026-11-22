@@ -31,6 +31,8 @@ export function makePack(cards: ReviewCard[]): ReviewPack {
     generatedAt: '2026-11-19T08:00:00.000Z',
     dueBefore: '2026-11-20T08:00:00.000Z',
     truncated: false,
+    dayKey: '2026-11-19',
+    skippedSubjectIds: [],
     cards: cards.map((card) => ({ ...card, alternates: [] })),
   }
 }

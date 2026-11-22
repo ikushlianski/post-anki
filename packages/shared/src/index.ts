@@ -127,3 +127,4 @@ export * from "./meeting-phrase";
 export * from "./target-phrases";
 export * from "./reworded-draft";
 export * from "./knowledge-source-highlights";
+export * from "./subject-day-skips";

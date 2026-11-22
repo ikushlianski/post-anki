@@ -39,6 +39,11 @@ import { handleGetChatQueueOutcomesStatistics } from "./chat-queue-outcomes-stat
 import { handleGetRejectReasonsStatistics } from "./reject-reasons-statistics/reject-reasons-statistics.controller.js";
 import { handleGetOwnerStatsLearning } from "./owner-stats/learning.controller.js";
 import { handleGetAiSpend } from "./owner-stats/ai-spend.controller.js";
+import {
+  handleListSubjectDaySkips,
+  handleSkipSubjectForDay,
+  handleUnskipSubjectForDay,
+} from "./subject-day-skip/subject-day-skip.controller.js";
 import { handleListSubjectReviewDueCounts } from "./knowledge-bit/subject-review-due-counts.controller.js";
 import { handleGradeKnowledgeBitVariantAnswer } from "./knowledge-bit/grade-knowledge-bit-variant-answer.controller.js";
 import { handleListNextKnowledgeBitQuestionVariants } from "./knowledge-bit/list-next-knowledge-bit-question-variants.controller.js";
@@ -772,6 +777,12 @@ async function route(
       return handleListRejectedKnowledgeBits(res, url.search);
     case "listSubjectReviewDueCounts":
       return handleListSubjectReviewDueCounts(res, url.search);
+    case "listSubjectDaySkips":
+      return handleListSubjectDaySkips(res, url.search);
+    case "skipSubjectForDay":
+      return handleSkipSubjectForDay(res, id, url.search);
+    case "unskipSubjectForDay":
+      return handleUnskipSubjectForDay(res, id, url.search);
     case "recordKnowledgeBitReview":
       return handleRecordKnowledgeBitReview(req, res);
     case "recordKnownKnowledgeBitReview":

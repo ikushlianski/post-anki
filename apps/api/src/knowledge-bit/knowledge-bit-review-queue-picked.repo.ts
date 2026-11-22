@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import type { DbExecutor } from "../db/client.js";
 import {
   curricula,
@@ -52,6 +52,14 @@ export function scopeCondition(
   }
 
   return undefined;
+}
+
+export function excludeSubjectsCondition(subjectIds: string[]): SQL | undefined {
+  if (subjectIds.length === 0) {
+    return undefined;
+  }
+
+  return or(isNull(cardSubjectIdSql), notInArray(cardSubjectIdSql, subjectIds));
 }
 
 export const rewordedOnlyWhenDifficult = (now: Date) =>

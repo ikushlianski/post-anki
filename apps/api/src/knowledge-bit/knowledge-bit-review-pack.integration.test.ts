@@ -170,4 +170,21 @@ describe("buildReviewPack (real Postgres)", () => {
     expect(card?.alternates).toHaveLength(2);
     expect(card?.alternates.map((alternate) => alternate.variantId)).not.toContain(card?.variantId);
   });
+
+  it("should carry skippedSubjectIds and leave a skipped subject's cards out of the pack", async () => {
+    const skipped = await seedSubject();
+    const kept = await seedSubject();
+    const skippedCard = await seedCard(skipped, { dueInHours: -1, reviewedHoursAgo: 2 });
+    const keptCard = await seedCard(kept, { dueInHours: -1, reviewedHoursAgo: 2 });
+
+    await client.query(`INSERT INTO subject_day_skips (subject_id, day_key) VALUES ($1, '2090-03-10')`, [skipped]);
+
+    const pack = await buildReviewPack("UTC", NOW);
+    const ids = pack.cards.map((card) => card.variantId);
+
+    expect(pack.dayKey).toBe("2090-03-10");
+    expect(pack.skippedSubjectIds).toContain(skipped);
+    expect(ids).toContain(keptCard.variantId);
+    expect(ids).not.toContain(skippedCard.variantId);
+  });
 });

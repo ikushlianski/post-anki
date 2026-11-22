@@ -2,6 +2,7 @@ import { loadStudyOptionsResolver } from "../subject-study-options/subject-study
 import { readStudyPlanClock } from "../study-plan/study-plan-today.js";
 import { toScheduleOptions } from "./knowledge-bit-schedule-options.js";
 import { getKnowledgeBitReviewQueue, type KnowledgeBitReviewCardRow } from "./knowledge-bit-review-queue.repo.js";
+import { listSkippedSubjects } from "../subject-day-skip/subject-day-skip.repo.js";
 import { loadSubjectPathLabels } from "../subject/subject-path-labels.js";
 import { groupReviewCardsBySubject, type GroupedReviewCardRow } from "./knowledge-bit-review-subject-groups.js";
 import { listActiveSubjectIds, listAlternates } from "./knowledge-bit-review-pack.repo.js";
@@ -18,18 +19,27 @@ export interface ReviewPackPayload {
   generatedAt: string;
   dueBefore: string;
   truncated: boolean;
+  dayKey: string;
+  skippedSubjectIds: string[];
   cards: ReviewPackCardRow[];
 }
 
 export async function buildReviewPack(tz: string, now: Date): Promise<ReviewPackPayload> {
   const dueCutoff = new Date(now.getTime() + PACK_DUE_HORIZON_MS);
+  const [skipped, activeSubjectIds] = await Promise.all([
+    listSkippedSubjects({ tz, now }),
+    listActiveSubjectIds(new Date(now.getTime() - PACK_ACTIVE_WINDOW_MS)),
+  ]);
   const empty = {
     generatedAt: now.toISOString(),
     dueBefore: dueCutoff.toISOString(),
     truncated: false,
+    dayKey: skipped.dayKey,
+    skippedSubjectIds: skipped.subjectIds,
     cards: [],
   };
-  const subjectIds = await listActiveSubjectIds(new Date(now.getTime() - PACK_ACTIVE_WINDOW_MS));
+  const skippedSet = new Set(skipped.subjectIds);
+  const subjectIds = activeSubjectIds.filter((id) => !skippedSet.has(id));
 
   if (subjectIds.length === 0) {
     return empty;

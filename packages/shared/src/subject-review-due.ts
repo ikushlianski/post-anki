@@ -21,6 +21,7 @@ export const subjectReviewDueCountSchema = z.object({
   dueCount: z.number().int().min(0),
   newCount: z.number().int().min(0),
   ...todayCountFields,
+  skipped: z.boolean().default(false),
   limits: subjectReviewDueLimitsSchema.nullable().default(null),
 });
 

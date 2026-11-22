@@ -22,6 +22,7 @@ import { HomeStreakCard } from '../motivation/streak-card'
 import { WeeklyDigestCard } from '../home/weekly-digest-card'
 import { WeeklySummaryCard } from '../motivation/weekly-summary-card'
 import { HomeStudyGoals } from '../study-goal/home-study-goals'
+import { TodaySubjects } from '../subject-day-skip/today-subjects'
 
 export interface DashboardViewProps {
   curricula: Curriculum[]
@@ -90,6 +91,8 @@ export function DashboardView({
           <WeeklyDigestCard />
 
           <WeeklySummaryCard />
+
+          <TodaySubjects subjects={subjects} />
 
           <BusiestSubjects subjects={subjects} counts={subjectDueCounts} />
         </>

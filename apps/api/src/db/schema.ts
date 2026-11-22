@@ -18,6 +18,7 @@ import {
   vector,
   halfvec,
   pgView,
+  date,
 } from "drizzle-orm/pg-core";
 
 export const EMBEDDING_DIMENSIONS = 1536;
@@ -69,6 +70,18 @@ export const subjects = pgTable("subjects", {
 (table) => [
   index("subjects_embedding_vec_hnsw_idx").using("hnsw", table.embeddingVec.op("vector_cosine_ops")),
 ],
+);
+
+export const subjectDaySkips = pgTable(
+  "subject_day_skips",
+  {
+    subjectId: text("subject_id")
+      .notNull()
+      .references(() => subjects.id, { onDelete: "cascade" }),
+    dayKey: date("day_key", { mode: "string" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.subjectId, table.dayKey] })],
 );
 
 export const curricula = pgTable(

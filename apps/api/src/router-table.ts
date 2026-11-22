@@ -107,6 +107,9 @@ export const ROUTES: RouteDef[] = [
     pattern: "/subjects/review-due-counts",
     name: "listSubjectReviewDueCounts",
   },
+  { method: "GET", pattern: "/subject-day-skips", name: "listSubjectDaySkips" },
+  { method: "PUT", pattern: /^\/subject-day-skips\/([^/]+)$/, name: "skipSubjectForDay", param: "id" },
+  { method: "DELETE", pattern: /^\/subject-day-skips\/([^/]+)$/, name: "unskipSubjectForDay", param: "id" },
   {
     method: "POST",
     pattern: "/knowledge-bits/reviews",
