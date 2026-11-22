@@ -1,0 +1,6 @@
+{
+  "questions": {
+    "the prod bot and api hostnames are unconfirmed the docs show the webhook url as https postanki ilya online telegram while infra and the pipeline docs show bot postanki ilya online and api postanki ilya online the smoke test needs the exact prod bot and api base urls and how to supply them ci variables derived from gcloud or hardcoded defaults": 2
+  },
+  "fixes": {}
+}

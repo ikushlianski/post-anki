@@ -1,0 +1,20 @@
+[
+  {
+    "text": "Where does the smoke test run? Options are a new job in .github/workflows/deploy.yml that needs deploy, deploy-api and deploy-web, a separate workflow_dispatch workflow, or a local script. The ticket says only 'post-deploy' and 'without deploying anything'. I did not read the full deploy.yml job structure.",
+    "reasonCode": "tree-cap",
+    "fromNode": null,
+    "tick": 3
+  },
+  {
+    "text": "Is there an existing shared helper in packages/core, such as a constant-time secret comparison, that the smoke test should reuse? I did not check packages/core for one.",
+    "reasonCode": "tree-cap",
+    "fromNode": null,
+    "tick": 3
+  },
+  {
+    "text": "The prod bot and API hostnames are unconfirmed. The docs show the webhook URL as https://postanki.ilya.online/telegram, while infra and the pipeline docs show bot.postanki.ilya.online and api.postanki.ilya.online. The smoke test needs the exact prod bot and API base URLs, and how to supply them (CI variables, derived from gcloud, or hardcoded defaults).",
+    "reasonCode": "loop",
+    "fromNode": "n1",
+    "tick": 5
+  }
+]

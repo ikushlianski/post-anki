@@ -1,0 +1,20 @@
+[
+  {
+    "text": "Where should the smoke test live and how is it triggered: a separate workflow (manual or scheduled), a script, or a job in deploy.yml? Something that runs only after deploy.yml completes would never run without a deploy. Which secrets the test may read is also unspecified.",
+    "reasonCode": "tree-cap",
+    "fromNode": null,
+    "tick": 3
+  },
+  {
+    "text": "Do the custom domains api.postanki.ilya.online and bot.postanki.ilya.online currently answer over https from outside? The notes above say the API one does not, and the bot's custom domain has no recorded check.",
+    "reasonCode": "no-quote",
+    "fromNode": "n1",
+    "tick": 4
+  },
+  {
+    "text": "Should the smoke test also exercise the valid-bearer /push path? That path is not side-effect free: it sends a real Telegram message and can claim today's push, which would suppress the scheduled push. The safe default is to send a missing bearer and a wrong bearer and assert 401 for both, and to skip the positive case. Someone needs to decide whether to add the positive case, and if so whether to run it only when reminders are paused.",
+    "reasonCode": "no-quote",
+    "fromNode": "n3",
+    "tick": 6
+  }
+]

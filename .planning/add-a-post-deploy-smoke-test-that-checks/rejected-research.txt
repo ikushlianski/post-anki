@@ -1,0 +1,68 @@
+{
+  "claims": [
+    {
+      "kind": "fact",
+      "text": "The bot's POST /push returns 401 unless the Authorization header equals `Bearer <TELEGRAM_WEBHOOK_SECRET>`. On success it returns 200 immediately and runs the daily push in the background, which sends a Telegram message to the owner. So a 401 check is safe, but a valid-bearer call triggers a real push.",
+      "source": "apps/bot/src/server.ts:149-186"
+    },
+    {
+      "kind": "fact",
+      "text": "The bot exposes GET /_healthz, which returns 200 'ok'.",
+      "source": "apps/bot/src/server.ts:143-147"
+    },
+    {
+      "kind": "fact",
+      "text": "The webhook is registered by calling Telegram setWebhook with a url, a secret_token taken from TELEGRAM_WEBHOOK_SECRET, and allowed_updates [message, edited_message, callback_query]. The expected webhook path is /telegram. A smoke test would read this config back from Telegram (getWebhookInfo) rather than call setWebhook, which would change state.",
+      "source": "apps/bot/scripts/set-webhook.ts:7-18"
+    },
+    {
+      "kind": "fact",
+      "text": "The bot env requires TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET (min 16 characters), OWNER_TELEGRAM_CHAT_ID and API_BASE_URL.",
+      "source": "apps/bot/src/env.ts:4-7"
+    },
+    {
+      "kind": "fact",
+      "text": "The API's GET /daily-push is a registered route (name dailyPush). The API authorizes requests with `Bearer <API_SHARED_SECRET>`, compared with a timing-safe check. When API_SHARED_SECRET is unset it allows every request. Device tokens and session tokens are also accepted.",
+      "source": "apps/api/src/router-table.ts:380; apps/api/src/api-server.ts:459-495"
+    },
+    {
+      "kind": "fact",
+      "text": "The prod default domains are bot.postanki.ilya.online and api.postanki.ilya.online, both overridable through Pulumi config.",
+      "source": "infra/index.ts:8-9"
+    },
+    {
+      "kind": "fact",
+      "text": "deploy.yml triggers on push to main and on workflow_dispatch. It already passes PROD_TELEGRAM_WEBHOOK_SECRET and PROD_API_SHARED_SECRET as secrets and gates each deploy on a curl of $URL/_healthz. A post-deploy smoke test can reuse these secret names.",
+      "source": ".github/workflows/deploy.yml:5-8, 205, 208, 216-218"
+    },
+    {
+      "kind": "fact",
+      "text": "The Cloud Scheduler job now calls the bot's POST /push. The API's GET /daily-push is still used by the web app, so both endpoints are live prod paths.",
+      "source": ".inbox/TODOS.md:61; .product/DECISIONS.md:9"
+    },
+    {
+      "kind": "open",
+      "text": "Does the bot /push auth check mean only the 401 path (wrong or missing bearer, which sends nothing), or also a valid-bearer call? A valid call sends the owner a real Telegram message and may consume the once-per-day push.",
+      "quote": "the bot /push auth",
+      "blocking": false
+    },
+    {
+      "kind": "open",
+      "text": "Is the smoke test a standalone script, a separate workflow, or a job in deploy.yml? 'Without deploying anything' suggests a workflow_dispatch or a standalone script. The wiki and code do not say which.",
+      "quote": "without deploying anything",
+      "blocking": false
+    },
+    {
+      "kind": "open",
+      "text": "Should GET /daily-push be called with the shared-secret bearer? That would run the mentor (an LLM call through OpenRouter) and could cost money. I found no read-only variant. A cheaper check would be a 401 without a bearer.",
+      "quote": "the API GET /daily-push",
+      "blocking": false
+    },
+    {
+      "kind": "open",
+      "text": "The API's prod URL is not stored in the repo as a secret or variable. Only the infra defaults are known, and the workflow secret name for the Telegram bot token (needed for getWebhookInfo) was not confirmed.",
+      "quote": "against the prod URLs",
+      "blocking": false
+    }
+  ]
+}

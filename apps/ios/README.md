@@ -149,7 +149,9 @@ The extension is a separate process, so it reads the sign-in token from a shared
 
 Share > Post Anki from any iPhone app (selected text, or a web link) opens a sheet with the shared text, a subject picker (default Auto), Save and Cancel, and plain success or error messages. It is target `PostAnkiIOSShare` (bundle id `com.ikushlianski.postankiios.share`, embedded in `PostAnkiIOS`); `PostAnkiIOSShareDev` (`com.ikushlianski.postankiios.dev.share`) is embedded in `PostAnkiIOSDev`. Both compile `Sources/PostAnkiIOSShare` and `Sources/ShareShared` (the panel model and text extractor the Mac extension also uses).
 
-It reads the token and server address the same way as the Mac extension (shared keychain group and App Group, switched on by the same `POSTANKI_*` lines in `Local.xcconfig`). With sharing off the extension reports it is signed out. Turning it on needs the App IDs `com.ikushlianski.postankiios`, `.dev` and both `.share` ids to carry the App Group and Keychain Sharing capabilities.
+It reads the token and server address from a shared keychain group and App Group. On iPhone these come from the `[sdk=iphone*]` lines in `Local.xcconfig` (see `Local.xcconfig.example`); iOS app group ids must start with `group.`. With sharing off the extension reports it is signed out.
+
+Development signing (automatic signing with `-allowProvisioningUpdates`) registers the App IDs and groups automatically, so the apps need not be on TestFlight or the App Store. Prod (`PostAnkiIOS`, `PostAnkiIOSShare`) and dev (`PostAnkiIOSDev`, `PostAnkiIOSShareDev`) use separate groups (`POSTANKI_KEYCHAIN_GROUP` / `POSTANKI_APP_GROUP` and the `_DEV` variants), so each pair keeps its own token and server address.
 
 ### Settings
 

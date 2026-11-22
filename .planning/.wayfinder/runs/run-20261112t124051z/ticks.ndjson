@@ -1,0 +1,6 @@
+{"n":1,"step":"rules","usd":0.0878714,"fingerprint":"217d9e4129b1a3e2250a73dab880e727611f734ce011755d13021631609ca117","changed":true,"reasonCode":null}
+{"n":2,"step":"research","usd":0.1237318,"fingerprint":"217d9e4129b1a3e2250a73dab880e727611f734ce011755d13021631609ca117","changed":false,"reasonCode":null}
+{"n":3,"step":"research","usd":0.1156956,"fingerprint":"e569717da7644fc4c8f5892fb2dbac4bbfae46e3563cc5f052da5812192ba17a","changed":true,"reasonCode":null}
+{"n":4,"step":"answer","usd":0.1051453,"fingerprint":"e569717da7644fc4c8f5892fb2dbac4bbfae46e3563cc5f052da5812192ba17a","changed":false,"reasonCode":null}
+{"n":5,"step":"answer","usd":0,"fingerprint":"59f15f425fda2bcea2dbd32c0611671dde332dc149a9cc6623e00817e6c2d4fe","changed":true,"reasonCode":null}
+{"n":6,"step":"plan","usd":0.1227792,"fingerprint":"59f15f425fda2bcea2dbd32c0611671dde332dc149a9cc6623e00817e6c2d4fe","changed":false,"reasonCode":"todo-refused"}

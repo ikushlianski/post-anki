@@ -1,0 +1,9 @@
+{
+  "questions": {
+    "where should the smoke test live and how is it triggered a standalone script run by hand or npm script a new job in deploy yml needs deploy and deploy api a separate workflow dispatch workflow run workflow or a combination without deploying anything rules out a deploy step but does not say which": 1,
+    "what should the webhook config check assert the bot can call telegram getwebhookinfo with prod telegram bot token and compare url to https bot postanki ilya online telegram it could also check pending update count and last error message nothing in the repo says which fields should fail the test and the production webhook path and host are not confirmed in code i read": 1,
+    "what does bot push auth mean for pass criteria safest reading no or wrong bearer gives 401 a valid secret call would trigger a real telegram push to the owner so whether to send one or only check 401 needs a decision": 1,
+    "should the smoke test be a standalone script an npm script run by hand a job in deploy yml a separate workflow or a combination nothing in the repo or wiki decides this": 1
+  },
+  "fixes": {}
+}

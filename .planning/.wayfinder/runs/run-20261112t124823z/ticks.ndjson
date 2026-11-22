@@ -1,0 +1,6 @@
+{"n":1,"step":"rules","usd":0.033266699999999996,"fingerprint":"330b8aadf37bb3fd029480a121ace237a3de8c7eb8bedca9f02d675ae2b1ace6","changed":true,"reasonCode":null}
+{"n":2,"step":"research","usd":0.0849394,"fingerprint":"46a0034e0aabed606f81eaab18b75307cb888c81048714eeb2ab210b1d4641d2","changed":true,"reasonCode":null}
+{"n":3,"step":"answer","usd":0.0691473,"fingerprint":"694338960de328b25bf183e5002b63f83c56ec14d300da5d5966538eaeb19e15","changed":true,"reasonCode":null}
+{"n":4,"step":"plan","usd":0.0520356,"fingerprint":"c43f5b325942ccc54d5f47f0ec75d7d200399f38c39a3d86c265409b817bde9d","changed":true,"reasonCode":null}
+{"n":5,"step":"build","usd":0,"fingerprint":"8f3bd38732c4b99a0c346b8183b99d62a47cf70d93bb53afb1c38f617c44f8fd","changed":true,"reasonCode":null}
+{"n":6,"step":"checks","usd":0.00145781,"fingerprint":"8f3bd38732c4b99a0c346b8183b99d62a47cf70d93bb53afb1c38f617c44f8fd","changed":false,"reasonCode":null}

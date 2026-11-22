@@ -1,0 +1,56 @@
+{
+  "nodes": [
+    {
+      "id": "n1",
+      "parent": null,
+      "depth": 1,
+      "question": "Does the earlier rejection of spaced-repetition scheduling still stand? The current backlog plans FSRS and Anki parity. The answer decides whether scheduling and import/export features can be listed as candidates.",
+      "quote": "List the new features worth considering",
+      "status": "open",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": false
+    },
+    {
+      "id": "n2",
+      "parent": null,
+      "depth": 1,
+      "question": "Which user and use case should the features serve: the single owner learning architecture, or a broader English/business/IT learner? The product has grown beyond the original vision.",
+      "quote": "the user problem each solves",
+      "status": "open",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": false
+    },
+    {
+      "id": "n3",
+      "parent": null,
+      "depth": 1,
+      "question": "What does 'rough size' mean here (S/M/L, or days or todos)? Assume S/M/L, with S about 1 todo, M about 3–5 and L a multi-chapter effort.",
+      "quote": "rough size",
+      "status": "open",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": false
+    },
+    {
+      "id": "n4",
+      "parent": null,
+      "depth": 1,
+      "question": "Does 'new' exclude features already in the backlog and design docs, or may the list include backlog items that are not yet built? Assume it lists new ideas and marks overlap with existing backlog items.",
+      "quote": "adding new important features",
+      "status": "open",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": false
+    }
+  ]
+}

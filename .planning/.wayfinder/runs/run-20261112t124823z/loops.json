@@ -1,0 +1,6 @@
+{
+  "questions": {
+    "should the push auth check use only a negative case a wrong or missing bearer returns 401 no message sent or also a valid secret call a valid call sends a real telegram message to the owner": 1
+  },
+  "fixes": {}
+}

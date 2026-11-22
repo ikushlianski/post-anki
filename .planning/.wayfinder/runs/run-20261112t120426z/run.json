@@ -1,0 +1,43 @@
+{
+  "id": "run-20261112t120426z",
+  "ticketSha": "807b65b78849448bc444af763e6c56fd525f61adb4674486380ded442fd34b61",
+  "stakes": "low",
+  "baseCommit": "b7ef8b25329c6ecd447e4d4a95a0b0a720204b7e",
+  "status": "stopped",
+  "stopReason": "no-change",
+  "startedAt": "2026-11-12T12:04:26.282Z",
+  "caps": {
+    "ticks": 6,
+    "usd": 4,
+    "minutes": 60,
+    "noChange": 2,
+    "judgeCalls": 3,
+    "chapters": 1,
+    "builderUsd": 2.5,
+    "maxDepth": 5
+  },
+  "spend": {
+    "usd": 0.1807742,
+    "tokens": 0,
+    "builderUsd": 0
+  },
+  "ticks": 3,
+  "noChangeStreak": 2,
+  "judgeCalls": 0,
+  "chapters": [],
+  "criteria": [],
+  "lastFingerprint": "a796fc9bb9f36f8649cad7719102a19d9113c5b14881fc1662292724fcbbc465",
+  "slug": "add-a-post-deploy-smoke-test-that-checks",
+  "direction": "add-a-post-deploy-smoke-test-that-checks",
+  "work": {
+    "rulesDone": false,
+    "researchDone": false,
+    "builderRuns": 0,
+    "builtFor": null,
+    "checked": null,
+    "judgedFor": null,
+    "plannedFor": null,
+    "web": ""
+  },
+  "researchOnly": false
+}

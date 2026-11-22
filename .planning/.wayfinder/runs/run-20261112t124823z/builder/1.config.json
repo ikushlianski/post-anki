@@ -1,0 +1,7 @@
+{
+  "limits": {
+    "usdBudget": 2.5,
+    "maxRunMinutes": 30
+  },
+  "reviewFix": false
+}

@@ -13,5 +13,8 @@ POSTANKI_POWERSYNC_TOKEN =
 POSTANKI_SHARING_SUFFIX =
 POSTANKI_KEYCHAIN_GROUP =
 POSTANKI_APP_GROUP =
+// iOS Dev app and its share extension use their own groups so dev and prod do not share sign-in.
+POSTANKI_KEYCHAIN_GROUP_DEV =
+POSTANKI_APP_GROUP_DEV =
 
 #include? "../Local.xcconfig"

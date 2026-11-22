@@ -1,0 +1,1 @@
+Find how to improve the application by adding new important features. List the new features worth considering, with the user problem each solves and rough size.

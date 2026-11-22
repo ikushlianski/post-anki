@@ -1,0 +1,73 @@
+{
+  "nodes": [
+    {
+      "id": "n1",
+      "parent": null,
+      "depth": 1,
+      "question": "How does the API authenticate GET /daily-push in prod (API_SHARED_SECRET bearer, a PAT, or a session)? I could not find the guard code, so the smoke test's credential is unknown.",
+      "quote": "the API GET /daily-push",
+      "status": "parked",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": false,
+      "reason": "assumed"
+    },
+    {
+      "id": "n2",
+      "parent": null,
+      "depth": 1,
+      "question": "Should the /push auth check use only a negative case (a wrong or missing bearer returns 401, no message sent), or also a valid-secret call? A valid call sends a real Telegram message to the owner.",
+      "quote": "the bot /push auth",
+      "status": "done",
+      "answer": "The bot's POST /push compares the Authorization header with `Bearer ${TELEGRAM_WEBHOOK_SECRET}`. A mismatch returns 401 with an empty body, before any push logic runs. This makes a wrong or missing bearer a safe negative check. With a valid secret, /push returns 200 immediately and then runs runDailyPush in the background (fire-and-forget). The 200 therefore does not show that a message was delivered. A valid call sends the owner's Telegram chat a question and digest via sendTodaysQuestion and sendMessageWithKeyboard. It first clears the owner's chat context (clearChatContext), which is a side effect beyond the message. runDailyPush returns 'paused' without sending if reminders are paused. It claims the local day first and returns 'duplicate' if the day was already claimed. Otherwise it sends and returns 'sent'. A smoke-test valid call made before the scheduled run would therefore claim the day and could suppress that day's real scheduled push. A call after the scheduled run would be a no-op duplicate that proves nothing about auth. The scheduler authenticates to /push with the same value, the Pulumi secret telegramWebhookSecret. It must equal the bot's TELEGRAM_WEBHOOK_SECRET. A negative-only test cannot prove that the two secrets match. The /push route is also covered by the project's own docs as bearer-gated. The README lists POST /push with `Authorization: Bearer <TELEGRAM_WEBHOOK_SECRET>`. The prod webhook secret is a deploy secret (PROD_TELEGRAM_WEBHOOK_SECRET). A valid-secret smoke call would require that secret to be available to wherever the smoke test runs.",
+      "source": "apps/bot/src/server.ts:149-154",
+      "spendUsd": 0.0691473,
+      "budgetUsd": 0,
+      "blocking": true
+    },
+    {
+      "id": "n3",
+      "parent": null,
+      "depth": 1,
+      "question": "What should 'webhook config' assert? Candidates are that getWebhookInfo url equals the bot /telegram URL, there is no last_error_message, and pending_update_count is low. It needs TELEGRAM_BOT_TOKEN, and no existing code calls getWebhookInfo.",
+      "quote": "checks the Telegram bot webhook config",
+      "status": "parked",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": false,
+      "reason": "assumed"
+    },
+    {
+      "id": "n4",
+      "parent": null,
+      "depth": 1,
+      "question": "Where should the test run: a local script, a separate GitHub workflow (manual or scheduled), or a job after deploy? The ticket says 'post-deploy' but also 'without deploying anything'.",
+      "quote": "without deploying anything",
+      "status": "parked",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": false,
+      "reason": "assumed"
+    },
+    {
+      "id": "n5",
+      "parent": "n2",
+      "depth": 2,
+      "question": "It is unknown whether the smoke test will have access to the prod TELEGRAM_WEBHOOK_SECRET at all (for example in CI or locally). I found no smoke-test script or config to show where it runs.",
+      "quote": "against the prod URLs, without deploying anything",
+      "status": "parked",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": false,
+      "reason": "assumed"
+    }
+  ]
+}

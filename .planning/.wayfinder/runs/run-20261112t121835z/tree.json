@@ -1,0 +1,124 @@
+{
+  "nodes": [
+    {
+      "id": "n1",
+      "parent": null,
+      "depth": 1,
+      "question": "Which prod URLs should the smoke test use: the custom domains (bot.postanki.ilya.online, api.postanki.ilya.online) or the Cloud Run URLs? Docs and workflow show both.",
+      "quote": "against the prod URLs",
+      "status": "done",
+      "answer": "The deploy workflow's post-deploy health checks for the bot and the API use the Cloud Run service URL read from gcloud (`status.url`), not a custom domain. The API health check in the deploy workflow also uses the Cloud Run `status.url`. The workflow defaults the API public URL to the hard-coded Cloud Run URL https://post-anki-api-pl6jw2mdla-ew.a.run.app when `vars.PROD_API_PUBLIC_URL` is unset. The workflow defaults the web public URL to the custom domain https://postanki.ilya.online. Infra defines the custom domains: bot.postanki.ilya.online, api.postanki.ilya.online and postanki.ilya.online, mapped via Cloud Run DomainMapping. The Telegram webhook is registered by hand, not by the deploy pipeline, to the custom bot domain: https://bot.postanki.ilya.online/telegram. So the webhook URL Telegram holds is a custom-domain URL. A project note records that the Cloud Scheduler jobs targeting api.postanki.ilya.online report error code 13, so the custom API domain may not be working from outside. A pending todo says the API address api.postanki.ilya.online does not answer over https from outside, and the iOS app shows offline. The extension, the MCP config and the anki-batch-mcp test use the API Cloud Run URL as a working address, and the extension manifest allows both hosts.",
+      "source": ".github/workflows/deploy.yml:215-218",
+      "spendUsd": 0.0526177,
+      "budgetUsd": 0
+    },
+    {
+      "id": "n2",
+      "parent": null,
+      "depth": 1,
+      "question": "How should the test check the webhook config? I found no getWebhookInfo call in the bot, infra or workflows. Calling Telegram's getWebhookInfo needs the bot token and an outbound call to Telegram, and I don't know which is intended.",
+      "quote": "checks the Telegram bot webhook config",
+      "status": "done",
+      "answer": "The only Telegram webhook call in the repo is setWebhook, in the one-time registration script. It uses TELEGRAM_BOT_TOKEN and sends TELEGRAM_WEBHOOK_SECRET as secret_token. A grep for getWebhookInfo found nothing. The bot token is stored in the repo's GitHub secrets as PROD_TELEGRAM_BOT_TOKEN, and the deploy workflow injects it into the bot service as TELEGRAM_BOT_TOKEN. The webhook secret is handled the same way. The prod bot is at https://bot.postanki.ilya.online and the API at https://api.postanki.ilya.online. The webhook is registered to https://bot.postanki.ilya.online/telegram. docs/ci-cd/gcp-setup.md still shows the older root-domain URL. The bot's POST /telegram route rejects requests whose secret-token header differs from TELEGRAM_WEBHOOK_SECRET. POST /push requires `Authorization: Bearer <TELEGRAM_WEBHOOK_SECRET>`. Both checks need only the webhook secret, not the bot token, and neither calls Telegram. The README documents the same auth for each bot route: /telegram uses the Telegram secret-token header, and /push, /gap-resurface and /session-idle-sweep use the bearer. The /push bearer is already used by the Cloud Scheduler job in infra, taken from the Pulumi secret telegramWebhookSecret. That secret must equal the bot's TELEGRAM_WEBHOOK_SECRET. The repo treats the Telegram Bot API as an external provider that the bot and daily-push jobs call. It is assumed to be free.",
+      "source": "apps/bot/scripts/set-webhook.ts:11",
+      "spendUsd": 0.054137000000000005,
+      "budgetUsd": 0
+    },
+    {
+      "id": "n3",
+      "parent": null,
+      "depth": 1,
+      "question": "How can the /push auth check avoid side effects? A valid bearer triggers a real push to the owner's chat, so a safe check is probably only that a missing or wrong bearer returns 401. Whether to also test the valid-bearer path is undecided.",
+      "quote": "the bot /push auth",
+      "status": "done",
+      "answer": "POST /push returns 401 with an empty body and does no work when the Authorization header does not equal `Bearer <TELEGRAM_WEBHOOK_SECRET>`. This is checked with secretsEqual, before any push logic runs. A request with a missing or wrong bearer is therefore side-effect free. A valid bearer gets 200 straight away. The server then runs runDailyPush fire-and-forget, which sends the owner's Telegram question and digest. A valid-bearer probe can therefore send a real message to the owner's chat. runDailyPush is guarded. It returns 'paused' if reminders are paused. It returns 'duplicate' if pushStore.claimDay(day) fails because today's push was already claimed. Otherwise it sends the question and digest. A valid-bearer call is a no-op only if reminders are paused or today's push has already been sent. If the claim succeeds, the call uses up today's push claim, so the scheduler's real push for that day would then be skipped as a duplicate. If sending fails, the claim is released. The 200 response is sent before the push work runs, so a 200 does not show whether a push was sent, skipped or failed. Outcomes other than 'sent' are only logged as daily_push_skipped. POST /gap-resurface uses the identical bearer check and 401 behaviour. The same missing or wrong bearer technique could be applied there, but the ticket does not ask for it. The bearer that /push checks must equal the Pulumi secret telegramWebhookSecret that the scheduler sends. The scheduler job post-anki-daily-push POSTs to the bot's /push with that bearer. So the real scheduled push already exercises the valid-bearer path in prod. The bot is deployed with TELEGRAM_WEBHOOK_SECRET taken from the GitHub secret PROD_TELEGRAM_WEBHOOK_SECRET. A smoke test that needs the real secret would have to read that secret. A missing or wrong bearer check needs no secret, only a deliberately wrong string.",
+      "source": "apps/bot/src/server.ts:149-154",
+      "spendUsd": 0.0631042,
+      "budgetUsd": 0
+    },
+    {
+      "id": "n4",
+      "parent": null,
+      "depth": 1,
+      "question": "Does GET /daily-push have side effects? I did not read handleDailyPush, and I don't know which credential the test should send or whether it should check the response body.",
+      "quote": "the API GET /daily-push",
+      "status": "open",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0
+    },
+    {
+      "id": "n5",
+      "parent": "n1",
+      "depth": 2,
+      "question": "Does the stakeholder want the webhook check to compare Telegram's registered URL against the custom bot domain, which is what set-webhook registers? This depends on which URL family the test is meant to prove.",
+      "quote": "checks the Telegram bot webhook config",
+      "status": "open",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0
+    },
+    {
+      "id": "n6",
+      "parent": "n1",
+      "depth": 2,
+      "question": "What is the bot's Cloud Run URL? Only the API's run.app URL is hard-coded in the repo. The bot's would have to come from gcloud `status.url` or a new var, and no `PROD_BOT_*` var was found.",
+      "quote": "against the prod URLs",
+      "status": "open",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0
+    },
+    {
+      "id": "n7",
+      "parent": "n2",
+      "depth": 2,
+      "question": "Should the smoke test call Telegram's getWebhookInfo? That needs PROD_TELEGRAM_BOT_TOKEN in the test's CI environment and an outbound call to api.telegram.org. getWebhookInfo would report whether the registered url equals https://bot.postanki.ilya.online/telegram, plus pending_update_count and last_error_message. The alternative is a Telegram-free check: POST /telegram without the secret header should return 401, and POST /push with a wrong bearer should return 401. That proves the route exists and is protected but cannot show that Telegram has the webhook registered. This is a decision for the stakeholder because it involves a secret and an outside provider.",
+      "quote": "checks the Telegram bot webhook config",
+      "status": "open",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0
+    },
+    {
+      "id": "n8",
+      "parent": "n2",
+      "depth": 2,
+      "question": "Which secrets may the post-deploy smoke test hold: only the webhook secret for /push, or also the bot token? The repo has both as PROD_* GitHub secrets, but nothing I read says a smoke-test workflow may use them.",
+      "quote": "the bot /push auth",
+      "status": "open",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0
+    },
+    {
+      "id": "n9",
+      "parent": "n2",
+      "depth": 2,
+      "question": "Does the smoke test need to avoid actually triggering a push? A valid bearer on POST /push likely makes the bot fetch from the API and send a Telegram message. I did not read the /push handler body, so I don't know whether a dry-run mode exists. A wrong-bearer check (expect 401) and a correct-bearer check may need different treatment.",
+      "quote": "without deploying anything",
+      "status": "open",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0
+    },
+    {
+      "id": "n10",
+      "parent": "n3",
+      "depth": 2,
+      "question": "Is a 401-only check enough to count as the 'bot /push auth' check? It proves the route exists and rejects bad bearers. It does not prove that the deployed TELEGRAM_WEBHOOK_SECRET matches the scheduler's telegramWebhookSecret, because only a valid bearer would show that. I found no side-effect-free way to verify that match from the code I read.",
+      "quote": "the bot /push auth",
+      "status": "open",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0
+    }
+  ]
+}

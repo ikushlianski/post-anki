@@ -1,0 +1,52 @@
+{
+  "rules": [
+    {
+      "text": "Prod is on GCP Cloud Run: api at api.postanki.ilya.online, bot at bot.postanki.ilya.online, web at postanki.ilya.online. Smoke tests must target these prod URLs.",
+      "source": "project_gcloud_deploy.md"
+    },
+    {
+      "text": "Do not use /healthz for health checks. Google Frontend reserves it on Cloud Run and returns a Google 404. Use /_healthz.",
+      "source": "project_gcloud_deploy.md"
+    },
+    {
+      "text": "Health checks hit the run.app URL, not the custom domain, because the custom-domain cert may be pending at deploy time. Internal service calls (bot to api) also use the api run.app URL.",
+      "source": "project_gcloud_deploy.md"
+    },
+    {
+      "text": "Keep prod at $0 idle. All services use min-instances 0, and there must be no LB, NAT or static IP. A smoke test must not add paid always-on resources.",
+      "source": "project_gcloud_deploy.md"
+    },
+    {
+      "text": "The deploy pipeline does not set the Telegram webhook. It is registered manually with set-webhook to https://bot.postanki.ilya.online/telegram. The smoke test must only check the webhook config, not set it.",
+      "source": "project_telegram_bot_webhook.md"
+    },
+    {
+      "text": "TELEGRAM_WEBHOOK_SECRET must match the GitHub secret PROD_TELEGRAM_WEBHOOK_SECRET and the Pulumi config telegramWebhookSecret used by the daily-push scheduler. Never rotate one without the other. The bot /push auth check must use this secret.",
+      "source": "project_telegram_bot_webhook.md"
+    },
+    {
+      "text": "Never write the Telegram bot token or any secret into a git-tracked file (.env.example, source, IaC). The smoke test reads the token and secret from the environment, CI secrets or config.",
+      "source": "project_telegram_bot_token.md"
+    },
+    {
+      "text": "The prod bot token can have its webhook cleared if another process polls it with getUpdates. A webhook check that fails may mean a stray poller, not a broken deploy.",
+      "source": "project_gcloud_deploy.md"
+    },
+    {
+      "text": "The daily push needs the owner to have /started the bot once. GET /daily-push is an existing API endpoint (selectDailyPush across confirmed curricula).",
+      "source": "project_post-anki-architecture.md"
+    },
+    {
+      "text": "Monorepo layout: shared, core (pure, no IO), api, web, bot (outside workspaces), infra (standalone Pulumi). Put the smoke script where it fits this layout. core must not import api.",
+      "source": "project_post-anki-architecture.md"
+    },
+    {
+      "text": "Keep tracker tickets short, with a 2-3 sentence description and 2-4 checkboxes, unless the work is genuinely complex.",
+      "source": "feedback_short_tickets.md"
+    },
+    {
+      "text": "Unattended or autonomous loops must not add mid-loop blocking questions. Resolve any setup gate once up front with a documented default.",
+      "source": "feedback_autonomous_loop_blocking_questions.md"
+    }
+  ]
+}

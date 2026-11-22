@@ -1,0 +1,56 @@
+{
+  "nodes": [
+    {
+      "id": "n1",
+      "parent": null,
+      "depth": 1,
+      "question": "The prod bot and API hostnames are unconfirmed. The docs show the webhook URL as https://postanki.ilya.online/telegram, while infra and the pipeline docs show bot.postanki.ilya.online and api.postanki.ilya.online. The smoke test needs the exact prod bot and API base URLs, and how to supply them (CI variables, derived from gcloud, or hardcoded defaults).",
+      "quote": "against the prod URLs",
+      "status": "parked",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": true
+    },
+    {
+      "id": "n2",
+      "parent": null,
+      "depth": 1,
+      "question": "Does the 'bot /push auth' check only confirm that /push rejects a missing or wrong bearer with 401, or must it also prove the valid secret is accepted? A valid bearer triggers a real daily push message to the owner chat, so a positive check has a side effect. Run unauthenticated, the check cannot show that the deployed secret matches PROD_TELEGRAM_WEBHOOK_SECRET.",
+      "quote": "the bot /push auth",
+      "status": "open",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": true
+    },
+    {
+      "id": "n3",
+      "parent": null,
+      "depth": 1,
+      "question": "What counts as a passing webhook config: the registered url equals the expected /telegram URL, there is no last_error_message, and pending_update_count is acceptable? Telegram's getWebhookInfo does not return the secret_token, so the secret cannot be verified through it. This depends on the getWebhookInfo response, which I did not read in the repo.",
+      "quote": "checks the Telegram bot webhook config",
+      "status": "open",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": false
+    },
+    {
+      "id": "n4",
+      "parent": null,
+      "depth": 1,
+      "question": "What does a pass look like for the API GET /daily-push? Options are a 200 with a JSON body matching dailyPushResponseSchema, or a 200 with only the schema's shape. The mode parameter (?mode=socratic|quick_test) can trigger an LLM question call, which spends tokens. I did not confirm whether the plain endpoint does.",
+      "quote": "the API GET /daily-push",
+      "status": "open",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": false
+    }
+  ]
+}

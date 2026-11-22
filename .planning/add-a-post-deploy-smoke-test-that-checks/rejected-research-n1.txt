@@ -1,0 +1,66 @@
+{
+  "claims": [
+    {
+      "kind": "fact",
+      "text": "Infra defines three separate Cloud Run domain mappings: web at the root domain postanki.ilya.online, bot at bot.postanki.ilya.online, and API at api.postanki.ilya.online. These are config defaults, so Pulumi stack config can override them.",
+      "source": "infra/index.ts:7-9"
+    },
+    {
+      "kind": "fact",
+      "text": "Each of the web, bot and API services has its own domain mapping. The bot mapping routes the botDomain host to post-anki-bot, and the API mapping routes the apiDomain host to post-anki-api.",
+      "source": "infra/index.ts:249-279"
+    },
+    {
+      "kind": "fact",
+      "text": "The Pulumi prod stack sets only `domain: postanki.ilya.online`. It does not override botDomain or apiDomain, so the prod bot and API hosts are the defaults bot.postanki.ilya.online and api.postanki.ilya.online.",
+      "source": "infra/Pulumi.prod.yaml:5"
+    },
+    {
+      "kind": "fact",
+      "text": "The bot is the service that serves POST /telegram and POST /push. The root domain postanki.ilya.online is mapped to the web service. The webhook URL in the docs, https://postanki.ilya.online/telegram, therefore does not match the bot's own host in infra. This is a docs/infra inconsistency.",
+      "source": "apps/bot/src/server.ts:149,236; docs/ci-cd/gcp-setup.md:88; infra/index.ts:249-263"
+    },
+    {
+      "kind": "fact",
+      "text": "The API serves GET /daily-push.",
+      "source": "apps/api/src/router-table.ts:380"
+    },
+    {
+      "kind": "fact",
+      "text": "The API is internet-facing (allUsers invoker) and every route is gated by an API_SHARED_SECRET bearer.",
+      "source": "infra/index.ts:276-278"
+    },
+    {
+      "kind": "fact",
+      "text": "The bot's TELEGRAM_WEBHOOK_SECRET must equal the secret the bot's POST /push checks. The deploy sets the bot's TELEGRAM_WEBHOOK_SECRET, API_SHARED_SECRET and API_BASE_URL from PROD_* secrets.",
+      "source": "infra/index.ts:16; .github/workflows/deploy.yml:204-208"
+    },
+    {
+      "kind": "fact",
+      "text": "The existing deploy job derives the bot URL at runtime with `gcloud run services describe post-anki-bot --region vars.PROD_REGION --project vars.PROD_PROJECT_ID --format='value(status.url)'`. That gives the run.app URL, not the custom domain.",
+      "source": ".github/workflows/deploy.yml:215"
+    },
+    {
+      "kind": "fact",
+      "text": "The Pulumi scheduler jobs call the bot and API through their Cloud Run status URLs (`botService.statuses[0].url`, `apiService.statuses[0].url`), not the custom domains. The daily-push job's URI is the bot URL plus /push.",
+      "source": "infra/index.ts:323,398"
+    },
+    {
+      "kind": "fact",
+      "text": "Existing CI variables are PROD_REGION, PROD_PROJECT_ID, PROD_WEB_PUBLIC_URL (default https://postanki.ilya.online) and PROD_API_PUBLIC_URL. PROD_API_PUBLIC_URL falls back to a hardcoded run.app URL, https://post-anki-api-pl6jw2mdla-ew.a.run.app, for INNGEST_SERVE_ORIGIN. No bot public URL variable exists in the workflow.",
+      "source": ".github/workflows/deploy.yml:289,334-335"
+    },
+    {
+      "kind": "fact",
+      "text": "Existing cold-start docs say the 5-minute scheduler jobs target api.postanki.ilya.online, which agrees with the API subdomain in infra. That statement conflicts with the infra code, where the jobs use the Cloud Run status URL.",
+      "source": "docs/architecture/cold-start-options.md:13; infra/index.ts:398"
+    },
+    {
+      "kind": "open",
+      "text": "Which URL does Telegram's registered webhook actually point to? The smoke test must compare the registered URL from getWebhookInfo against an expected value. Nothing in the repo shows the value registered in prod. The docs example uses the root domain, which maps to web, so the registration may be wrong or the docs example may be stale.",
+      "quote": "checks the Telegram bot webhook config",
+      "blocking": false
+    },
+    {
+      "kind": "open",
+      "text": "Do t

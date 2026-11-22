@@ -1,0 +1,32 @@
+[
+  {
+    "text": "Which URLs should be used: the custom domains (bot.postanki.ilya.online / api.postanki.ilya.online) or the Cloud Run URLs resolved via gcloud? The test should read them from env/config rather than hard-code them.",
+    "reasonCode": "tree-cap",
+    "fromNode": null,
+    "tick": 2
+  },
+  {
+    "text": "What language and location should the test have: a shell/curl script or a Node/TS script under scripts/, and whether it needs a test runner (vitest is used elsewhere)? I did not inspect the scripts/ conventions.",
+    "reasonCode": "tree-cap",
+    "fromNode": null,
+    "tick": 2
+  },
+  {
+    "text": "Should the url assertion be exact equality with https://bot.postanki.ilya.online/telegram? gcp-setup.md still shows the root-domain URL, and the real registered webhook can only be seen through getWebhookInfo.",
+    "reasonCode": "no-quote",
+    "fromNode": "n2",
+    "tick": 4
+  },
+  {
+    "text": "Should a non-empty last_error_message fail the test? Telegram keeps old errors, so a stale message could cause false failures. The repo does not say whether to check last_error_date recency.",
+    "reasonCode": "no-quote",
+    "fromNode": "n2",
+    "tick": 4
+  },
+  {
+    "text": "Should pending_update_count above some threshold fail the test? The repo gives no threshold.",
+    "reasonCode": "no-quote",
+    "fromNode": "n2",
+    "tick": 4
+  }
+]

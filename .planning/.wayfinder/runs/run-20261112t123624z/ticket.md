@@ -1,0 +1,1 @@
+Add a post-deploy smoke test that checks the Telegram bot webhook config, the bot /push auth and the API GET /daily-push against the prod URLs, without deploying anything.

@@ -1,0 +1,34 @@
+[
+  {
+    "id": "q1",
+    "text": "Should the /push auth check include a valid-secret call?",
+    "default": "No. Negative-only: missing and wrong bearer must return 401.",
+    "reason": "A valid call sends a real Telegram message, clears chat context and can claim the day's push. Stakeholder may opt in later.",
+    "categories": [
+      "scope-change",
+      "outside-provider"
+    ],
+    "tick": 4
+  },
+  {
+    "id": "q2",
+    "text": "How does the API GET /daily-push check authenticate?",
+    "default": "Unauthenticated call expecting 401; no valid-credential call.",
+    "reason": "The auth guard is unknown, and a valid call runs the mentor and OpenRouter, which costs money.",
+    "categories": [
+      "money",
+      "outside-provider"
+    ],
+    "tick": 4
+  },
+  {
+    "id": "q3",
+    "text": "How do prod URLs and secrets reach the script?",
+    "default": "Environment variables: PROD_BOT_DOMAIN, PROD_API_DOMAIN and TELEGRAM_BOT_TOKEN. The person or CI supplies them.",
+    "reason": "This avoids hard-coding and keeps the script independent of where it runs. The ticket does not ask for CI wiring.",
+    "categories": [
+      "privacy"
+    ],
+    "tick": 4
+  }
+]

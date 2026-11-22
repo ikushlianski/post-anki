@@ -1,0 +1,56 @@
+{
+  "nodes": [
+    {
+      "id": "n1",
+      "parent": null,
+      "depth": 1,
+      "question": "Which getWebhookInfo fields should fail the check? Candidates are url equal to the expected bot /telegram URL, empty last_error_message, and pending_update_count below a threshold. Nothing in the repo defines this. Default: assert url only and report the others.",
+      "quote": "checks the Telegram bot webhook config",
+      "status": "open",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": false
+    },
+    {
+      "id": "n2",
+      "parent": null,
+      "depth": 1,
+      "question": "What does a pass look like for the bot /push auth? The safe reading is that a wrong bearer gets 401. Testing the correct bearer would fire a real Telegram message to the owner, and the ticket does not say whether that is allowed. Default: send only the invalid bearer and expect 401.",
+      "quote": "the bot /push auth",
+      "status": "open",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": false
+    },
+    {
+      "id": "n3",
+      "parent": null,
+      "depth": 1,
+      "question": "What does a pass look like for API GET /daily-push? Options are status 200 with the correct bearer, or also a valid body shape, and whether to use a specific mode. The call may trigger LLM generation. Default: 200 with the shared secret and `push` present.",
+      "quote": "the API GET /daily-push",
+      "status": "open",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": false
+    },
+    {
+      "id": "n4",
+      "parent": null,
+      "depth": 1,
+      "question": "Where does the smoke test run, and how does it get the prod URLs: a new job or workflow in GitHub Actions, or a script run by hand? 'Without deploying anything' suggests a standalone workflow_dispatch or a post-deploy job with no deploy steps. Default: a standalone script plus a workflow_dispatch workflow that resolves URLs with gcloud, using the prod environment.",
+      "quote": "against the prod URLs, without deploying anything",
+      "status": "open",
+      "answer": null,
+      "source": null,
+      "spendUsd": 0,
+      "budgetUsd": 0,
+      "blocking": false
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "questions": {
+    "which prod urls should the smoke test use the custom domains bot postanki ilya online api postanki ilya online or the cloud run urls docs and workflow show both": 1,
+    "how should the test check the webhook config i found no getwebhookinfo call in the bot infra or workflows calling telegram s getwebhookinfo needs the bot token and an outbound call to telegram and i don t know which is intended": 1,
+    "how can the push auth check avoid side effects a valid bearer triggers a real push to the owner s chat so a safe check is probably only that a missing or wrong bearer returns 401 whether to also test the valid bearer path is undecided": 1
+  },
+  "fixes": {}
+}

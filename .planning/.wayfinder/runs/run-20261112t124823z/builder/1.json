@@ -1,0 +1,9 @@
+{
+  "status": "reported",
+  "report": {
+    "id": "0c51e8fb-2c97-4ae5-8c17-8e9213218787",
+    "result": "failed",
+    "items": []
+  },
+  "absorbed": "no readable .planning/.wayfinder/state.json"
+}

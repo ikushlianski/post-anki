@@ -104,6 +104,8 @@ targets:
       base:
         CODE_SIGN_ENTITLEMENTS: Config/PostAnkiIOS$(POSTANKI_SHARING_SUFFIX).entitlements
         PRODUCT_BUNDLE_IDENTIFIER: com.ikushlianski.postankiios.dev
+        POSTANKI_KEYCHAIN_GROUP: $(POSTANKI_KEYCHAIN_GROUP_DEV)
+        POSTANKI_APP_GROUP: $(POSTANKI_APP_GROUP_DEV)
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         TARGETED_DEVICE_FAMILY: "1,2"
@@ -179,6 +181,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ikushlianski.postankiios.dev.share
+        POSTANKI_KEYCHAIN_GROUP: $(POSTANKI_KEYCHAIN_GROUP_DEV)
+        POSTANKI_APP_GROUP: $(POSTANKI_APP_GROUP_DEV)
         PRODUCT_NAME: PostAnkiShare
         POSTANKI_PRODUCTION: "NO"
         TARGETED_DEVICE_FAMILY: "1,2"

@@ -24,7 +24,14 @@ POSTANKI_POWERSYNC_TOKEN =
 # Optional Debug dev token (saved to the keychain at launch):
 # POSTANKI_DEV_API_TOKEN =
 
-// Share extensions (Mac and iPhone) sharing (needs the App Group and profiles from the README). Uncomment all three.
+// Share extensions (needs the App Groups and profiles from the README). Uncomment the lines for your platform.
+// iOS app group ids must start with "group."; dev signing registers them via -allowProvisioningUpdates.
+// POSTANKI_SHARING_SUFFIX[sdk=iphone*] = .shared
+// POSTANKI_KEYCHAIN_GROUP[sdk=iphone*] = HXJTYD6A7J.com.ikushlianski.postanki.shared
+// POSTANKI_APP_GROUP[sdk=iphone*] = group.com.ikushlianski.postanki
+// POSTANKI_KEYCHAIN_GROUP_DEV[sdk=iphone*] = HXJTYD6A7J.com.ikushlianski.postanki.dev.shared
+// POSTANKI_APP_GROUP_DEV[sdk=iphone*] = group.com.ikushlianski.postanki.dev
+// Mac:
 // POSTANKI_SHARING_SUFFIX = .shared
 // POSTANKI_KEYCHAIN_GROUP = HXJTYD6A7J.com.ikushlianski.postanki.shared
 // POSTANKI_APP_GROUP = HXJTYD6A7J.com.ikushlianski.postanki

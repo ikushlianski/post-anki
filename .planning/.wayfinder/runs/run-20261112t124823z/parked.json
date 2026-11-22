@@ -1,0 +1,38 @@
+[
+  {
+    "text": "Recommendation, not sourced: make the /push check negative-only (missing bearer and wrong bearer both expect 401). A valid call sends a real message, clears chat context and claims the day, which can suppress the scheduled push. If the stakeholder wants proof that the scheduler's secret matches, add a valid call as an explicit opt-in (for example a flag). Decide whether that opt-in is wanted.",
+    "reasonCode": "no-quote",
+    "fromNode": "n2",
+    "tick": 3
+  },
+  {
+    "text": "chapter: Wiring and tests",
+    "reasonCode": "chapter-cap",
+    "fromNode": null,
+    "tick": 4
+  },
+  {
+    "text": "How does the API authenticate GET /daily-push in prod (API_SHARED_SECRET bearer, a PAT, or a session)? I could not find the guard code, so the smoke test's credential is unknown.",
+    "reasonCode": "assumption",
+    "fromNode": "n1",
+    "tick": 4
+  },
+  {
+    "text": "What should 'webhook config' assert? Candidates are that getWebhookInfo url equals the bot /telegram URL, there is no last_error_message, and pending_update_count is low. It needs TELEGRAM_BOT_TOKEN, and no existing code calls getWebhookInfo.",
+    "reasonCode": "assumption",
+    "fromNode": "n3",
+    "tick": 4
+  },
+  {
+    "text": "Where should the test run: a local script, a separate GitHub workflow (manual or scheduled), or a job after deploy? The ticket says 'post-deploy' but also 'without deploying anything'.",
+    "reasonCode": "assumption",
+    "fromNode": "n4",
+    "tick": 4
+  },
+  {
+    "text": "It is unknown whether the smoke test will have access to the prod TELEGRAM_WEBHOOK_SECRET at all (for example in CI or locally). I found no smoke-test script or config to show where it runs.",
+    "reasonCode": "assumption",
+    "fromNode": "n5",
+    "tick": 4
+  }
+]
