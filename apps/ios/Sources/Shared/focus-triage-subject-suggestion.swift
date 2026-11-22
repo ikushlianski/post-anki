@@ -13,7 +13,25 @@ struct FocusTriageSubjectSuggestion: View {
 
     @State private var confirmed = false
 
+    private var currentSubjectId: String? {
+        movedTo == nil ? (source?.subjectSuggestion?.id ?? source?.subjectId) : nil
+    }
+
     var body: some View {
+        content
+            .sheet(isPresented: $isPickerPresented) {
+                if let changeModel {
+                    FocusTriageSubjectSheet(model: changeModel, currentId: currentSubjectId) { label in
+                        movedTo = label
+                        failed = false
+                    }
+                    .presentationDetents([.medium, .large])
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         if let movedTo {
             row(label: "Subject: \(movedTo)", primary: nil, menuTitle: "Change", excluding: nil)
         } else if confirmed {
@@ -58,14 +76,6 @@ struct FocusTriageSubjectSuggestion: View {
             }
         }
         .disabled(isMoving)
-        .sheet(isPresented: $isPickerPresented) {
-            if let changeModel {
-                FocusTriageSubjectSheet(model: changeModel, currentId: excluding) { label in
-                    movedTo = label
-                    failed = false
-                }
-            }
-        }
     }
 
     private func move(to subjectId: String, name: String) {
