@@ -2202,3 +2202,9 @@ directly. See the handoff report delivered to the user for the full scenario-lev
 - 2026-11-22: Today on iPhone and Mac: subject list with checkboxes and cards, offline pack honours the day skip
 - 2026-11-22: Today on web: subject list with checkboxes and expandable cards, unchecking skips the subject today
 - 2026-11-22: Today: skip a subject for the day (API table, endpoints, queue, counts and pack honour it)
+
+## a-button-in-post-anki-that-sends-a-todo-
+
+- 2026-11-22: Add a Me agent client that POSTs a todo to ME_AGENT_TODO_URL from config.
+- 2026-11-22: Add an authenticated API route that sends a todo via the Me agent client.
+- 2026-11-22: Make the route return 'not configured' when ME_AGENT_TODO_URL is unset.

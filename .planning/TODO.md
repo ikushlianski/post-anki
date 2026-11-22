@@ -1399,9 +1399,6 @@ Each root item below is one separate autonomous session, worked sequentially —
 - A button in Post Anki that sends a todo to the user's Me agent (already a blocked backlog item: the Me agent vault MCP is stdio/local only, post-anki runs on Cloud Run).
 
 ### Coding tasks
-- [ ] Add a Me agent client that POSTs a todo to ME_AGENT_TODO_URL from config.
-- [ ] Add an authenticated API route that sends a todo via the Me agent client.
-- [ ] Make the route return 'not configured' when ME_AGENT_TODO_URL is unset.
 
 ### Notes
 - goal run run-20261116t232114z
