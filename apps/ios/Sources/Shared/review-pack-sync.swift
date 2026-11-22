@@ -11,6 +11,7 @@ enum ReviewPackRefreshReason: Sendable {
     case backgrounded
     case networkRegained
     case backgroundTask
+    case skipChanged
 }
 
 @MainActor
@@ -107,7 +108,7 @@ final class ReviewPackSync {
     func refresh(_ reason: ReviewPackRefreshReason) async -> Bool {
         guard !isRefreshing, !isSuspended, hasSession() else { return false }
 
-        let bypassesThrottle = reason == .timer || reason == .networkRegained || reason == .backgroundTask
+        let bypassesThrottle = reason == .timer || reason == .networkRegained || reason == .backgroundTask || reason == .skipChanged
 
         if !bypassesThrottle, let lastSuccess, Date().timeIntervalSince(lastSuccess) < Self.minimumGap {
             await flush()

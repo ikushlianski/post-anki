@@ -19,6 +19,8 @@ struct StoredReviewPack: Codable, Sendable {
     var truncated: Bool
     var cards: [ReviewPackCard]
     var gradedSince: [GradedSinceEntry]
+    var dayKey: String?
+    var skippedSubjectIds: [String]?
 }
 
 struct OfflinePackCards: Sendable {
@@ -57,19 +59,36 @@ actor ReviewPackStore {
             dueBefore: pack.dueBefore,
             truncated: pack.truncated,
             cards: pack.cards,
-            gradedSince: carried
+            gradedSince: carried,
+            dayKey: pack.dayKey,
+            skippedSubjectIds: pack.skippedSubjectIds
         )
 
         return save(stored)
     }
 
-    func cards(scope: ReviewPackScope) -> OfflinePackCards? {
+    func setSkipped(_ subjectIds: [String], skipped: Bool, dayKey: String) {
+        guard var stored = load(), stored.serverURL == ServerScope.current else { return }
+
+        var ids = stored.dayKey == dayKey ? Set(stored.skippedSubjectIds ?? []) : []
+
+        if skipped { ids.formUnion(subjectIds) } else { ids.subtract(subjectIds) }
+
+        stored.dayKey = dayKey
+        stored.skippedSubjectIds = ids.sorted()
+        save(stored)
+    }
+
+    func cards(scope: ReviewPackScope, today: String = LocalDayKey.today()) -> OfflinePackCards? {
         guard let stored = load(), stored.serverURL == ServerScope.current else {
             return nil
         }
 
+        let skipped = stored.dayKey == today ? Set(stored.skippedSubjectIds ?? []) : []
         let packCards = stored.cards.filter { entry in
-            switch scope {
+            if let subjectId = entry.subjectId, skipped.contains(subjectId) { return false }
+
+            return switch scope {
             case .all: true
             case .subject(let id): entry.subjectId == id
             }
@@ -102,8 +121,8 @@ actor ReviewPackStore {
         save(stored)
     }
 
-    func counts() -> ReviewCounts? {
-        guard let offline = cards(scope: .all) else { return nil }
+    func counts(today: String = LocalDayKey.today()) -> ReviewCounts? {
+        guard let offline = cards(scope: .all, today: today) else { return nil }
 
         return Self.counts(of: offline.cards.filter {
             !offline.gradedVariantIds.contains($0.variantId) && !offline.gradedBitIds.contains($0.knowledgeBitId)

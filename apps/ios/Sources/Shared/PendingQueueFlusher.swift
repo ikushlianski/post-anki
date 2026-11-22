@@ -8,11 +8,13 @@ enum PendingQueueFlusher {
     static func flushAll(
         grades: PendingGradeQueue = .shared,
         decisions: PendingDecisionQueue = .shared,
-        answers: PendingAnswerQueue = .shared
+        answers: PendingAnswerQueue = .shared,
+        skips: PendingSubjectSkipQueue = .shared
     ) async {
         await grades.flush()
         await decisions.flush()
         await answers.flush()
+        await skips.flush()
 
         await MainActor.run {
             NotificationCenter.default.post(name: .pendingQueuesFlushed, object: nil)

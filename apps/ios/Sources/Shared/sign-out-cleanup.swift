@@ -8,12 +8,14 @@ enum SignOutCleanup {
         answerQueue: PendingAnswerQueue = .shared,
         decisionQueue: PendingDecisionQueue = .shared,
         reviewPackStore: ReviewPackStore = .shared,
+        skipQueue: PendingSubjectSkipQueue = .shared,
         variantCacheDirectory: URL? = nil,
         defaults: UserDefaults = .standard
     ) async {
         await gradeQueue.clearAll()
         await answerQueue.clearAll()
         await decisionQueue.clearAll()
+        skipQueue.clear()
         ReviewPackSync.shared.signedOut()
         await reviewPackStore.clear()
         VariantCache.clearAll(in: variantCacheDirectory)

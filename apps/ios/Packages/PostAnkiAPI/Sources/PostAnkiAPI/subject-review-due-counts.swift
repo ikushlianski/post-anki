@@ -26,9 +26,10 @@ public struct SubjectReviewDueCount: Decodable, Sendable, Hashable {
     public let learningDueCount: Int
     public let todayCount: Int
     public let limits: SubjectReviewLimits?
+    public let skipped: Bool
 
     private enum CodingKeys: String, CodingKey {
-        case subjectId, dueCount, newCount, reviewTodayCount, learningDueCount, todayCount, limits
+        case subjectId, dueCount, newCount, reviewTodayCount, learningDueCount, todayCount, limits, skipped
     }
 
     public init(from decoder: Decoder) throws {
@@ -40,6 +41,7 @@ public struct SubjectReviewDueCount: Decodable, Sendable, Hashable {
         learningDueCount = container.lenientInt(.learningDueCount)
         todayCount = container.lenientInt(.todayCount)
         limits = (try? container.decodeIfPresent(SubjectReviewLimits.self, forKey: .limits)) ?? nil
+        skipped = (try? container.decodeIfPresent(Bool.self, forKey: .skipped)) ?? false
     }
 
     public init(
@@ -49,7 +51,8 @@ public struct SubjectReviewDueCount: Decodable, Sendable, Hashable {
         reviewTodayCount: Int = 0,
         learningDueCount: Int = 0,
         todayCount: Int = 0,
-        limits: SubjectReviewLimits? = nil
+        limits: SubjectReviewLimits? = nil,
+        skipped: Bool = false
     ) {
         self.subjectId = subjectId
         self.dueCount = dueCount
@@ -58,6 +61,7 @@ public struct SubjectReviewDueCount: Decodable, Sendable, Hashable {
         self.learningDueCount = learningDueCount
         self.todayCount = todayCount
         self.limits = limits
+        self.skipped = skipped
     }
 }
 

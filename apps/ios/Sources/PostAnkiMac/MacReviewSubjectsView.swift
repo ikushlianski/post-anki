@@ -4,6 +4,7 @@ import SwiftUI
 struct MacReviewSubjectsView<Session: View>: View {
     @ViewBuilder let session: (DueReviewScope?, Int) -> Session
     @State private var model = ReviewSubjectsModel()
+    @State private var todayModel = TodaySubjectsModel()
     @State private var route: DueReviewScope?
     @State private var reviewsAll = false
     @State private var learnAhead = LearnAheadOption.off
@@ -27,6 +28,8 @@ struct MacReviewSubjectsView<Session: View>: View {
                     await model.load()
                 }
                 .task { await digest.load() }
+                .task { await todayModel.load() }
+                .onChange(of: todayModel.changeCount) { Task { await model.load() } }
                 .onChange(of: model.tree.expanded) { _, value in
                     if restored { store.save(value) }
                 }
@@ -69,6 +72,8 @@ struct MacReviewSubjectsView<Session: View>: View {
             }
 
             LearnAheadPicker(selection: $learnAhead)
+
+            TodaySubjectsSection(model: todayModel)
 
             Section {
                 allRow
