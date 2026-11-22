@@ -55,5 +55,41 @@ extension SmokeTests {
             #expect(label == nil)
             #expect(model.message != nil)
         }
+
+        @Test("should offer every subject as a tree after loading so the picker is never blank")
+        func treeIsNonEmptyAfterLoad() async {
+            let session = FakeServerSession(["/subjects": .json(200, Self.subjects)])
+            defer { session.end() }
+            let model = FocusTriageSubjectChangeModel(bitId: "kb_1")
+
+            #expect(model.loadState == .loading)
+            #expect(model.tree.isEmpty)
+
+            await model.load()
+
+            #expect(model.loadState == .loaded)
+            #expect(model.tree.map(\.entry.name) == ["Physics"])
+            #expect(model.tree.first?.children.map(\.entry.name) == ["Optics"])
+        }
+
+        @Test("should show a failed state with an empty tree so the sheet can offer Retry, then recover")
+        func failedLoadCanRetry() async {
+            let failing = FakeServerSession(["/subjects": .json(500, #"{"error":"boom"}"#)])
+            let model = FocusTriageSubjectChangeModel(bitId: "kb_1")
+
+            await model.load()
+            failing.end()
+
+            #expect(model.loadState == .failed)
+            #expect(model.tree.isEmpty)
+
+            let working = FakeServerSession(["/subjects": .json(200, Self.subjects)])
+            defer { working.end() }
+
+            await model.load()
+
+            #expect(model.loadState == .loaded)
+            #expect(!model.tree.isEmpty)
+        }
     }
 }

@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 import PostAnkiAPI
 
@@ -8,6 +9,13 @@ final class FocusTriageSubjectChangeModel {
     var subjects: [Subject] = []
     var isBusy = false
     var message: String?
+    private(set) var loadState = LoadState.loading
+
+    enum LoadState: Equatable {
+        case loading
+        case loaded
+        case failed
+    }
 
     init(bitId: String) {
         self.bitId = bitId
@@ -22,12 +30,19 @@ final class FocusTriageSubjectChangeModel {
     }
 
     func load() async {
-        guard subjects.isEmpty else { return }
+        guard subjects.isEmpty else {
+            loadState = .loaded
+
+            return
+        }
+
+        loadState = .loading
 
         do {
             subjects = try await APIClient.listSubjects()
+            loadState = .loaded
         } catch {
-            message = "Couldn't load subjects."
+            loadState = .failed
         }
     }
 

@@ -20,16 +20,20 @@ struct FocusTriageSubjectSheet: View {
                         .padding(.top, 8)
                 }
 
-                SubjectTreePickerLevel(
-                    title: "Subject",
-                    parent: nil,
-                    nodes: model.tree,
-                    selection: currentId,
-                    allowsNone: false
-                ) { id in
-                    guard let id else { return }
+                if model.tree.isEmpty {
+                    emptyState
+                } else {
+                    SubjectTreePickerLevel(
+                        title: "Subject",
+                        parent: nil,
+                        nodes: model.tree,
+                        selection: currentId,
+                        allowsNone: false
+                    ) { id in
+                        guard let id else { return }
 
-                    Task { complete(await model.assign(subjectId: id)) }
+                        Task { complete(await model.assign(subjectId: id)) }
+                    }
                 }
             }
             .navigationTitle("Subject")
@@ -58,6 +62,33 @@ struct FocusTriageSubjectSheet: View {
         .frame(minWidth: 380, minHeight: 460)
         #endif
         .task { await model.load() }
+    }
+
+    @ViewBuilder
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Spacer()
+
+            switch model.loadState {
+            case .loading:
+                ProgressView("Loading subjects…")
+            case .failed:
+                Text("Couldn't load subjects.")
+                    .foregroundStyle(.secondary)
+
+                Button("Retry") { Task { await model.load() } }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("triage-subjects-retry")
+            case .loaded:
+                Text("No subjects yet. Use New subject to create one.")
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
     }
 
     private func complete(_ label: String?) {
