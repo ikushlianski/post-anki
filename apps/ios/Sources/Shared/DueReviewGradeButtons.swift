@@ -14,10 +14,6 @@ struct DueReviewGradeButtons: View {
     var body: some View {
         ZoomHStack(spacing: 8) {
             ForEach(ReviewGrade.allCases, id: \.self) { grade in
-                if grade == .easy, let onKnown {
-                    knownButton(onKnown)
-                }
-
                 Button {
                     graded = grade
                     onGrade(grade)
@@ -46,6 +42,10 @@ struct DueReviewGradeButtons: View {
                 #if os(macOS)
                 .keyboardShortcut(Self.shortcutKey(for: grade), modifiers: [])
                 #endif
+            }
+
+            if let onKnown {
+                knownButton(onKnown)
             }
         }
         .sensoryFeedback(trigger: graded) { _, new in new.map(Self.feedback(for:)) }

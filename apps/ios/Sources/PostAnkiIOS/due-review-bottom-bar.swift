@@ -50,7 +50,7 @@ struct DueReviewBottomBar: View {
                 Task { await model.markCurrentKnown() }
             }
 
-            tiles.insert(known, at: max(tiles.count - 1, 0))
+            tiles.append(known)
         }
 
         return tiles
