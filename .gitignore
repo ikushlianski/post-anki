@@ -32,3 +32,4 @@ apps/web/storybook.log
 .planning/model-switcher/*.dump
 apps/api/dist-lambda/
 apps/extension/.seed-token
+apps/ios/build-agent/
