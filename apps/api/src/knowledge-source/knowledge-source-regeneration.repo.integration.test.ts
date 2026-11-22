@@ -507,5 +507,5 @@ describe("a second generation run after regeneration (real Postgres)", () => {
       outcome: "cards",
       cardCount: 3,
     });
-  });
+  }, 30_000);
 });
