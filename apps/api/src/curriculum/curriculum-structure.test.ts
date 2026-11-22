@@ -635,7 +635,7 @@ describe("generateWithRetry event logging", () => {
         op: "generateDraftStructure",
         agentKey: "docResearchArchitect",
         success: false,
-        errorMessage: "model unavailable",
+        errorMessage: "Error",
         promptTokens: null,
         completionTokens: null,
         totalTokens: null,
