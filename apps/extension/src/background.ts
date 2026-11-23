@@ -94,13 +94,19 @@ chrome.action.onClicked.addListener(async (tab) => {
   openReviewTab(await getWebUrl(), (properties) => chrome.tabs.create(properties));
 });
 
+async function sendShortcut(): Promise<string> {
+  const commands = await chrome.commands.getAll();
+
+  return commands.find((command) => command.name === "send-selection")?.shortcut ?? "";
+}
+
 async function rebuildMenu(): Promise<void> {
   const settings = await getSettings();
   const loaded = await loadMenuSubjects(settings.baseUrl, settings.token);
 
   await chrome.contextMenus.removeAll();
 
-  const entries = loaded.kind === "token-rejected" ? buildTokenRejectedMenu() : buildSubjectMenu(loaded.subjects, settings.subjectId);
+  const entries = loaded.kind === "token-rejected" ? buildTokenRejectedMenu() : buildSubjectMenu(loaded.subjects, settings.subjectId, await sendShortcut());
 
   for (const entry of entries) {
     chrome.contextMenus.create({
@@ -170,4 +176,8 @@ chrome.commands.onCommand.addListener(async (command) => {
   const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
 
   await captureSelection(await getSettings(), tab);
+});
+
+chrome.commands.onChanged?.addListener(() => {
+  void rebuildMenu();
 });

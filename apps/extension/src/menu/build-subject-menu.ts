@@ -19,7 +19,7 @@ export function buildTokenRejectedMenu(): MenuEntry[] {
   return [{ id: TOKEN_REJECTED_ID, title: "Token rejected: open extension options" }];
 }
 
-export function buildSubjectMenu(subjects: SubjectOption[], currentSubjectId: string | undefined): MenuEntry[] {
+export function buildSubjectMenu(subjects: SubjectOption[], currentSubjectId: string | undefined, shortcut = ""): MenuEntry[] {
   const known = new Set(subjects.map((subject) => subject.id));
   const childrenOf = new Map<string, SubjectOption[]>();
   const roots: SubjectOption[] = [];
@@ -35,8 +35,9 @@ export function buildSubjectMenu(subjects: SubjectOption[], currentSubjectId: st
   }
 
   const current = subjects.find((subject) => subject.id === currentSubjectId);
+  const hint = shortcut === "" ? "" : `  (${shortcut})`;
   const entries: MenuEntry[] = [
-    { id: SEND_CURRENT_ID, title: current ? `Send to post-anki: ${current.name}` : "Send to post-anki (no subject)" },
+    { id: SEND_CURRENT_ID, title: `${current ? `Send to post-anki: ${current.name}` : "Send to post-anki (no subject)"}${hint}` },
   ];
 
   if (subjects.length === 0) {

@@ -59,4 +59,14 @@ describe("buildSubjectMenu", () => {
   it("should offer a single entry that sends the user to options when the token is rejected", () => {
     expect(buildTokenRejectedMenu()).toEqual([{ id: "token-rejected", title: "Token rejected: open extension options" }]);
   });
+
+  it("should show the send shortcut next to the last used subject when one is set", () => {
+    const entries = buildSubjectMenu([{ id: "a", name: "Systems" }], "a", "⌥D");
+
+    expect(entries[0]?.title).toBe("Send to post-anki: Systems  (⌥D)");
+  });
+
+  it("should leave the title plain when no shortcut is assigned", () => {
+    expect(buildSubjectMenu([{ id: "a", name: "Systems" }], "a")[0]?.title).toBe("Send to post-anki: Systems");
+  });
 });
