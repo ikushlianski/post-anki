@@ -9,6 +9,13 @@ describe("readSelection", () => {
     await expect(readSelection(3, { executeScript })).resolves.toBe("```ts\nlet a = 1;\n```");
   });
 
+  it("should find a selection made inside an embedded frame, not only the top page", async () => {
+    const executeScript = vi.fn().mockResolvedValue([{ result: null }, { result: "text from a frame" }]);
+
+    await expect(readSelection(3, { executeScript })).resolves.toBe("text from a frame");
+    expect(executeScript).toHaveBeenCalledWith(expect.objectContaining({ target: { tabId: 3, allFrames: true } }));
+  });
+
   it("should fall back to the plain selection when the page has no code or cannot be scripted", async () => {
     await expect(readSelection(3, { executeScript: vi.fn().mockResolvedValue([{ result: null }]) })).resolves.toBeNull();
     await expect(readSelection(3, { executeScript: vi.fn().mockRejectedValue(new Error("blocked")) })).resolves.toBeNull();

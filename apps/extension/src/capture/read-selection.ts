@@ -11,10 +11,10 @@ export async function readSelection(
   }
 
   try {
-    const results = await scripting.executeScript({ target: { tabId }, func: readSelectionMarkdown });
-    const value = results[0]?.result;
+    const results = await scripting.executeScript({ target: { tabId, allFrames: true }, func: readSelectionMarkdown });
+    const value = results.map((entry) => entry.result).find((text): text is string => typeof text === "string" && text !== "");
 
-    return typeof value === "string" && value !== "" ? value : null;
+    return value ?? null;
   } catch {
     return null;
   }
