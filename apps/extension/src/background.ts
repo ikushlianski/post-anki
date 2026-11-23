@@ -1,5 +1,5 @@
 import { buildCaptureText } from "./capture/build-capture-text.js";
-import { readSelection } from "./capture/read-selection.js";
+import { readSelectionWithReason } from "./capture/read-selection.js";
 import { runCapture, retryPendingCapture } from "./capture/run-capture.js";
 import { describeSendResult } from "./feedback/describe-send-result.js";
 import { describeToast } from "./feedback/describe-toast.js";
@@ -50,9 +50,9 @@ async function captureSelection(
   fallbackSelection?: string,
   fallbackPageUrl?: string,
 ): Promise<void> {
-  const pageSelection = await readSelection(tab?.id);
+  const read = await readSelectionWithReason(tab?.id);
   const built = buildCaptureText({
-    selection: pageSelection ?? fallbackSelection ?? "",
+    selection: read.text ?? fallbackSelection ?? "",
     pageUrl: tab?.url ?? fallbackPageUrl,
     title: tab?.title,
     subjectId: settings.subjectId,
@@ -61,7 +61,7 @@ async function captureSelection(
   if (!built.ok) {
     showStatus("ERR", "No text selected");
     clearStatusLater();
-    void showToast(tab?.id, { kind: "error", text: "Select some text first." });
+    void showToast(tab?.id, { kind: "error", text: `Select some text first. (${read.why})` });
 
     return;
   }
