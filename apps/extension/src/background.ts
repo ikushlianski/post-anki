@@ -167,7 +167,7 @@ chrome.commands.onCommand.addListener(async (command) => {
     return;
   }
 
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
 
   await captureSelection(await getSettings(), tab);
 });
