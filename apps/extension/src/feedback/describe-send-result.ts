@@ -1,17 +1,24 @@
 import type { SendCaptureResult } from "../capture/send-capture.js";
+import type { Destination } from "../subjects/describe-subject-path.js";
 
 export type SendFeedback = { badge: "OK" | "DUP" | "ERR"; title: string };
 
-export function describeSendResult(result: SendCaptureResult, baseUrl: string): SendFeedback {
+export function describeSendResult(result: SendCaptureResult, baseUrl: string, destination?: Destination): SendFeedback {
   if (result.ok) {
-    return { badge: "OK", title: "Saved" };
+    return { badge: "OK", title: destination?.kind === "path" ? `Saved to ${destination.path}` : "Saved" };
   }
 
   switch (result.reason) {
     case "bad_request":
       return { badge: "ERR", title: "Rejected: text invalid or too long" };
     case "already_added":
-      return { badge: "DUP", title: "Already added: this selection is already in post-anki" };
+      return {
+        badge: "DUP",
+        title:
+          destination?.kind === "path"
+            ? `Already added to ${destination.path}`
+            : "Already added: this selection is already in post-anki",
+      };
     case "unauthorized":
       return { badge: "ERR", title: "Token rejected (401)" };
     case "forbidden":

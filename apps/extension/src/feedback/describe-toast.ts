@@ -1,24 +1,49 @@
 import { MAX_CAPTURE_CHARS } from "../capture/build-capture-text.js";
 import type { SendCaptureResult } from "../capture/send-capture.js";
+import type { Destination } from "../subjects/describe-subject-path.js";
 
 export type ToastKind = "success" | "info" | "error";
-export type ToastMessage = { kind: ToastKind; text: string };
+export type ToastMessage = { kind: ToastKind; text: string; durationMs?: number };
 
-export function describeToast(result: SendCaptureResult, hasToken: boolean, truncated = false, retryable = false): ToastMessage {
-  const toast = baseToast(result, hasToken, truncated)
+export const DESTINATION_TOAST_MS = 5000;
+
+export function describeToast(
+  result: SendCaptureResult,
+  hasToken: boolean,
+  truncated = false,
+  retryable = false,
+  destination?: Destination,
+): ToastMessage {
+  const toast = baseToast(result, hasToken, truncated, destination);
 
   return retryable && toast.kind === "error" ? { ...toast, text: `${toast.text}${RETRY_HINT}` } : toast;
 }
 
 const RETRY_HINT = " Click the toolbar button to retry.";
 
-function baseToast(result: SendCaptureResult, hasToken: boolean, truncated: boolean): ToastMessage {
+function savedSuffix(destination: Destination | undefined, truncated: boolean): string {
+  if (destination === undefined) {
+    return truncated ? "" : " to Post Anki";
+  }
+
+  switch (destination.kind) {
+    case "path":
+      return ` to ${destination.path}`;
+    case "none":
+      return " to Post Anki (no subject, sorted automatically)";
+    case "unknown":
+      return " (subject not found in your list)";
+  }
+}
+
+function baseToast(result: SendCaptureResult, hasToken: boolean, truncated: boolean, destination?: Destination): ToastMessage {
   if (result.ok) {
+    const lead = truncated ? `Saved the first ${MAX_CAPTURE_CHARS.toLocaleString("en-US")} characters` : "Saved";
+
     return {
       kind: "success",
-      text: truncated
-        ? `Saved the first ${MAX_CAPTURE_CHARS.toLocaleString("en-US")} characters`
-        : "Saved to Post Anki",
+      text: `${lead}${savedSuffix(destination, truncated)}`,
+      ...(destination === undefined ? {} : { durationMs: DESTINATION_TOAST_MS }),
     };
   }
 
@@ -33,7 +58,9 @@ function baseToast(result: SendCaptureResult, hasToken: boolean, truncated: bool
 
   switch (result.reason) {
     case "already_added":
-      return { kind: "info", text: "Already in Post Anki" };
+      return destination?.kind === "path"
+        ? { kind: "info", text: `Already in ${destination.path}`, durationMs: DESTINATION_TOAST_MS }
+        : { kind: "info", text: "Already in Post Anki" };
     case "network":
       return { kind: "error", text: "Can't reach the Post Anki server. Is it running?" };
     case "bad_request":

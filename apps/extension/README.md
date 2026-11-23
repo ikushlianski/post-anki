@@ -21,8 +21,14 @@ page URL and title are posted to `POST /knowledge-sources`, like a paste in /add
    the OK badge (it clears after 4 seconds).
 8. Click the toolbar icon to open `/knowledge-bit-review` and approve the extracted cards.
 
-A small toast in the bottom-right of the tab also reports the result for about 3 seconds
-(saved, already added, no token, token rejected, server unreachable, rejected text). On pages
+Pressing Alt+Shift+S (also on Mac) sends the highlighted text to the last used subject, the same
+one marked in the right-click menu and saved in options. The shortcut can be changed at
+`chrome://extensions/shortcuts`. With no subject chosen yet the text is still sent and sorted
+automatically, and the toast says so.
+
+A small toast in the bottom-right of the tab also reports the result (saved, already added, no token, token rejected, server unreachable, rejected text). A successful save names the full subject path, for example "Saved to Systems › High-load",
+and stays about 5 seconds; the toolbar tooltip carries the same text. If the subject is not in the
+fetched list the toast says "Saved (subject not found in your list)". On pages
 where scripts cannot be injected (chrome:// pages, the Web Store) only the badge is shown.
 
 After code changes: run `npm run build -w @post-anki/extension`, open `chrome://extensions` and

@@ -61,4 +61,42 @@ describe("describeToast", () => {
     expect(describeToast({ ok: false, reason: "bad_request" }, true, false, false).text).not.toContain("retry");
     expect(describeToast({ ok: true }, true, false, true).text).toBe("Saved to Post Anki");
   });
+
+  it("should name the full subject path in the success toast and keep it up longer", () => {
+    expect(describeToast({ ok: true }, true, false, false, { kind: "path", path: "Systems › High-load" })).toEqual({
+      kind: "success",
+      text: "Saved to Systems › High-load",
+      durationMs: 5000,
+    });
+  });
+
+  it("should name a top-level subject on its own", () => {
+    expect(describeToast({ ok: true }, true, false, false, { kind: "path", path: "Systems" }).text).toBe("Saved to Systems");
+  });
+
+  it("should say the text is sorted automatically when no subject was ever chosen", () => {
+    expect(describeToast({ ok: true }, true, false, false, { kind: "none" }).text).toBe(
+      "Saved to Post Anki (no subject, sorted automatically)",
+    );
+  });
+
+  it("should admit the destination is unknown rather than invent a name", () => {
+    expect(describeToast({ ok: true }, true, false, false, { kind: "unknown" }).text).toBe(
+      "Saved (subject not found in your list)",
+    );
+  });
+
+  it("should keep the 50,000 character note and add the destination when the selection was cut", () => {
+    expect(describeToast({ ok: true }, true, true, false, { kind: "path", path: "Systems › High-load" }).text).toBe(
+      "Saved the first 50,000 characters to Systems › High-load",
+    );
+  });
+
+  it("should name the destination in the already-added toast when it is known", () => {
+    expect(describeToast({ ok: false, reason: "already_added" }, true, false, false, { kind: "path", path: "Systems" })).toEqual({
+      kind: "info",
+      text: "Already in Systems",
+      durationMs: 5000,
+    });
+  });
 });

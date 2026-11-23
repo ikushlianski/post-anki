@@ -24,10 +24,12 @@ export function renderPageToast(message: ToastMessage): void {
     "font:14px/1.4 system-ui,-apple-system,Segoe UI,sans-serif",
     "padding:10px 14px",
     "border-radius:8px",
-    "max-width:320px",
+    "max-width:420px",
+    "word-break:break-word",
+    "overflow-wrap:anywhere",
     "box-shadow:0 4px 14px rgba(0,0,0,.35)",
   ].join(";");
   root.appendChild(box);
   document.documentElement.appendChild(host);
-  setTimeout(() => host.remove(), 3000);
+  setTimeout(() => host.remove(), message.durationMs ?? 3000);
 }

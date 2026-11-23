@@ -9,6 +9,16 @@ describe("describeSendResult", () => {
     expect(describeSendResult({ ok: true }, baseUrl)).toEqual({ badge: "OK", title: "Saved" });
   });
 
+  it("should carry the destination path in the toolbar title when known", () => {
+    expect(describeSendResult({ ok: true }, baseUrl, { kind: "path", path: "Systems › High-load" })).toEqual({
+      badge: "OK",
+      title: "Saved to Systems › High-load",
+    });
+    expect(describeSendResult({ ok: false, reason: "already_added" }, baseUrl, { kind: "path", path: "Systems" }).title).toBe(
+      "Already added to Systems",
+    );
+  });
+
   it("should explain a 400 as invalid or too long text", () => {
     expect(describeSendResult({ ok: false, reason: "bad_request" }, baseUrl)).toEqual({
       badge: "ERR",

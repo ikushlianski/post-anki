@@ -12,8 +12,10 @@ import {
   subjectIdFromMenuId,
   TOKEN_REJECTED_ID,
 } from "./menu/build-subject-menu.js";
-import { getSettings, getWebUrl, saveSettings } from "./settings/settings.js";
+import { getSettings, getWebUrl, saveSettings, type Settings } from "./settings/settings.js";
+import type { Destination } from "./subjects/describe-subject-path.js";
 import { loadMenuSubjects } from "./subjects/load-menu-subjects.js";
+import { resolveDestination } from "./subjects/resolve-destination.js";
 
 const BADGE_CLEAR_MS = 4000;
 const DEFAULT_TITLE = "post-anki capture";
@@ -35,11 +37,43 @@ function clearStatusLater(): void {
 
 const RETRY_HINT = " Click the toolbar button to retry.";
 
-function reportOutcome(outcome: Awaited<ReturnType<typeof runCapture>>, baseUrl: string): void {
-  const feedback = describeSendResult(outcome.result, baseUrl);
+function reportOutcome(outcome: Awaited<ReturnType<typeof runCapture>>, baseUrl: string, destination?: Destination): void {
+  const feedback = describeSendResult(outcome.result, baseUrl, destination);
 
   showStatus(feedback.badge, outcome.retryable ? `${feedback.title}.${RETRY_HINT}` : feedback.title);
   clearStatusLater();
+}
+
+async function captureSelection(
+  settings: Settings,
+  tab: chrome.tabs.Tab | undefined,
+  fallbackSelection?: string,
+  fallbackPageUrl?: string,
+): Promise<void> {
+  const pageSelection = await readSelection(tab?.id);
+  const built = buildCaptureText({
+    selection: pageSelection ?? fallbackSelection ?? "",
+    pageUrl: tab?.url ?? fallbackPageUrl,
+    title: tab?.title,
+    subjectId: settings.subjectId,
+  });
+
+  if (!built.ok) {
+    showStatus("ERR", "No text selected");
+    clearStatusLater();
+    void showToast(tab?.id, { kind: "error", text: "Select some text first." });
+
+    return;
+  }
+
+  showStatus("...", "Sending...");
+
+  const outcome = await runCapture(built.body, settings);
+  const worked = outcome.result.ok || (!outcome.result.ok && outcome.result.reason === "already_added");
+  const destination = worked ? await resolveDestination(settings) : undefined;
+
+  reportOutcome(outcome, settings.baseUrl, destination);
+  void showToast(tab?.id, describeToast(outcome.result, settings.token !== "", built.truncated, outcome.retryable, destination));
 }
 
 chrome.action.onClicked.addListener(async (tab) => {
@@ -125,26 +159,15 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     settings = await getSettings();
   }
 
-  const pageSelection = await readSelection(tab?.id);
-  const built = buildCaptureText({
-    selection: pageSelection ?? info.selectionText ?? "",
-    pageUrl: tab?.url ?? info.pageUrl,
-    title: tab?.title,
-    subjectId: settings.subjectId,
-  });
+  await captureSelection(settings, tab, info.selectionText, info.pageUrl);
+});
 
-  if (!built.ok) {
-    showStatus("ERR", "No text selected");
-    clearStatusLater();
-    void showToast(tab?.id, { kind: "error", text: "Select some text first." });
-
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command !== "send-selection") {
     return;
   }
 
-  showStatus("...", "Sending...");
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-  const outcome = await runCapture(built.body, settings);
-
-  reportOutcome(outcome, settings.baseUrl);
-  void showToast(tab?.id, describeToast(outcome.result, settings.token !== "", built.truncated, outcome.retryable));
+  await captureSelection(await getSettings(), tab);
 });

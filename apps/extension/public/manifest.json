@@ -22,6 +22,15 @@
     "type": "module"
   },
   "options_page": "options.html",
+  "commands": {
+    "send-selection": {
+      "suggested_key": {
+        "default": "Alt+Shift+S",
+        "mac": "Alt+Shift+S"
+      },
+      "description": "Send selected text to the last used subject"
+    }
+  },
   "action": {
     "default_title": "post-anki capture"
   }
