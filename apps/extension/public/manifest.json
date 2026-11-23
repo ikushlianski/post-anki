@@ -25,8 +25,8 @@
   "commands": {
     "send-selection": {
       "suggested_key": {
-        "default": "Alt+Shift+S",
-        "mac": "Alt+Shift+S"
+        "default": "Alt+A",
+        "mac": "Alt+A"
       },
       "description": "Send selected text to the last used subject"
     }

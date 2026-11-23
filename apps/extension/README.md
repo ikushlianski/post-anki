@@ -21,7 +21,7 @@ page URL and title are posted to `POST /knowledge-sources`, like a paste in /add
    the OK badge (it clears after 4 seconds).
 8. Click the toolbar icon to open `/knowledge-bit-review` and approve the extracted cards.
 
-Pressing Alt+Shift+S (also on Mac) sends the highlighted text to the last used subject, the same
+Pressing Alt+A (also on Mac) sends the highlighted text to the last used subject, the same
 one marked in the right-click menu and saved in options. The shortcut can be changed at
 `chrome://extensions/shortcuts`. With no subject chosen yet the text is still sent and sorted
 automatically, and the toast says so.
