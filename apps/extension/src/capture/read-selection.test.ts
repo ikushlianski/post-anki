@@ -9,6 +9,15 @@ describe("readSelection", () => {
     await expect(readSelection(3, { executeScript })).resolves.toBe("```ts\nlet a = 1;\n```");
   });
 
+  it("should use the plain highlighted text when the page has no code to format", async () => {
+    const executeScript = vi
+      .fn()
+      .mockResolvedValueOnce([{ result: null }])
+      .mockResolvedValueOnce([{ result: "plain prose selection" }]);
+
+    await expect(readSelection(3, { executeScript })).resolves.toBe("plain prose selection");
+  });
+
   it("should find a selection made inside an embedded frame, not only the top page", async () => {
     const executeScript = vi.fn().mockResolvedValue([{ result: null }, { result: "text from a frame" }]);
 
