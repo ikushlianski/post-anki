@@ -177,7 +177,3 @@ chrome.commands.onCommand.addListener(async (command) => {
 
   await captureSelection(await getSettings(), tab);
 });
-
-chrome.commands.onChanged?.addListener(() => {
-  void rebuildMenu();
-});
