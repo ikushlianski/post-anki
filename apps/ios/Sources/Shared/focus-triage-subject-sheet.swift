@@ -4,6 +4,7 @@ import SwiftUI
 struct FocusTriageSubjectSheet: View {
     let model: FocusTriageSubjectChangeModel
     let currentId: String?
+    var onPicked: ((_ id: String, _ label: String) -> Void)?
     let onChanged: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -33,7 +34,12 @@ struct FocusTriageSubjectSheet: View {
                     ) { id in
                         guard let id else { return }
 
-                        Task { complete(await model.assign(subjectId: id)) }
+                        if let onPicked {
+                            onPicked(id, model.label(for: id))
+                            dismiss()
+                        } else {
+                            Task { complete(await model.assign(subjectId: id)) }
+                        }
                     }
                 }
             }

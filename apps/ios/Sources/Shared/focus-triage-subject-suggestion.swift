@@ -7,7 +7,6 @@ struct FocusTriageSubjectSuggestion: View {
 
     @State private var pickerModel: FocusTriageSubjectChangeModel?
     @State private var movedTo: String?
-    @State private var isMoving = false
     @State private var failed = false
 
     @State private var confirmed = false
@@ -19,7 +18,11 @@ struct FocusTriageSubjectSuggestion: View {
     var body: some View {
         content
             .sheet(item: $pickerModel) { model in
-                FocusTriageSubjectSheet(model: model, currentId: currentSubjectId) { label in
+                FocusTriageSubjectSheet(
+                    model: model,
+                    currentId: currentSubjectId,
+                    onPicked: { id, label in move(to: id, name: label) }
+                ) { label in
                     movedTo = label
                     failed = false
                 }
@@ -71,27 +74,25 @@ struct FocusTriageSubjectSuggestion: View {
                     .foregroundStyle(.red)
             }
         }
-        .disabled(isMoving)
     }
 
     private func move(to subjectId: String, name: String) {
-        isMoving = true
+        let previous = movedTo
+        movedTo = name
         failed = false
 
         Task {
             do {
                 let result = try await APIClient.moveKnowledgeBits(ids: [bit.id], subjectId: subjectId)
 
-                if result.moved.contains(bit.id) {
-                    movedTo = name
-                } else {
+                if !result.moved.contains(bit.id) {
+                    movedTo = previous
                     failed = true
                 }
             } catch {
+                movedTo = previous
                 failed = true
             }
-
-            isMoving = false
         }
     }
 }
