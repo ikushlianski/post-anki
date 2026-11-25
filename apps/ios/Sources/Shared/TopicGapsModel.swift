@@ -7,6 +7,7 @@ final class TopicGapsModel {
     let topicId: String
     var gaps: [Gap] = []
     var busyIds: Set<String> = []
+    let writes = SerialWriteQueue()
     var isLoading = false
     var hasLoaded = false
     var notice: String?
@@ -66,46 +67,63 @@ final class TopicGapsModel {
         }
     }
 
+    func settle() async { await writes.settle() }
+
     func setWanted(_ gap: Gap, _ wanted: Bool) async {
-        await curate(gap, CurateGapInput(wanted: wanted))
+        await mutate(gap, locally: { $0.wanted = wanted }) { [self] in
+            replace(try await APIClient.curateGap(id: gap.id, CurateGapInput(wanted: wanted)))
+        }
     }
 
     func setState(_ gap: Gap, _ state: String) async {
-        await curate(gap, CurateGapInput(state: state))
-    }
-
-    private func curate(_ gap: Gap, _ input: CurateGapInput) async {
-        await mutate(gap) {
-            replace(try await APIClient.curateGap(id: gap.id, input))
+        await mutate(gap, locally: { $0.state = state }) { [self] in
+            replace(try await APIClient.curateGap(id: gap.id, CurateGapInput(state: state)))
         }
     }
 
     func triage(_ gap: Gap, action: String) async {
-        await mutate(gap) {
+        await mutate(gap, locally: { $0.triageState = Self.triageState(after: action, from: $0.triageState) }) { [self] in
             let result = try await APIClient.triageGap(id: gap.id, action: action)
             replace(result.gap)
             notice = result.changed ? nil : "No change."
         }
     }
 
-    private func mutate(_ gap: Gap, _ work: () async throws -> Void) async {
-        guard !busyIds.contains(gap.id) else { return }
+    private static func triageState(after action: String, from current: String) -> String {
+        switch action {
+        case "important": "important"
+        case "defer": "user_deferred"
+        case "dismiss": "dismissed"
+        case "revisit": "untriaged"
+        default: current
+        }
+    }
+
+    private func mutate(_ gap: Gap, locally: (inout Gap) -> Void, _ work: @escaping @MainActor () async throws -> Void) async {
+        guard !busyIds.contains(gap.id), let index = gaps.firstIndex(where: { $0.id == gap.id }) else { return }
+
+        let before = gaps[index]
 
         busyIds.insert(gap.id)
         errorMessage = nil
         notice = nil
+        locally(&gaps[index])
 
-        do {
-            try await work()
-        } catch {
-            if case APIError.badStatus(404, _) = error {
-                gaps.removeAll { $0.id == gap.id }
+        writes.enqueue { [self] in
+            defer { busyIds.remove(gap.id) }
+
+            do {
+                try await work()
+            } catch {
+                if case APIError.badStatus(404, _) = error {
+                    gaps.removeAll { $0.id == gap.id }
+                } else if let current = gaps.firstIndex(where: { $0.id == gap.id }) {
+                    gaps[current] = before
+                }
+
+                errorMessage = GapError.message(for: error)
             }
-
-            errorMessage = GapError.message(for: error)
         }
-
-        busyIds.remove(gap.id)
     }
 
     private func replace(_ gap: Gap) {

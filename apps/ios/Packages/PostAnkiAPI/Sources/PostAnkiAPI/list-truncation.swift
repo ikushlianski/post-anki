@@ -24,6 +24,12 @@ public struct TruncationTracker: Equatable, Sendable {
         total = max(0, current - 1)
     }
 
+    public mutating func restoredOne() {
+        guard let current = total else { return }
+
+        total = current + 1
+    }
+
     public func truncation(shown: Int) -> ListTruncation? {
         guard let total, total > shown else { return nil }
 

@@ -140,23 +140,17 @@ struct PendingReviewVariantBlock: View {
 
 struct PendingReviewSourceFooter: View {
     let readyCount: Int
-    let isBulkBusy: Bool
     let message: String?
     let onApproveAll: () -> Void
 
     var body: some View {
         ZoomVStack(alignment: .leading, spacing: 6) {
-            if readyCount > 1 || isBulkBusy {
+            if readyCount > 1 {
                 HStack {
                     Spacer(minLength: 0)
 
                     Button("Approve all (\(readyCount))", action: onApproveAll)
                         .buttonStyle(.bordered)
-                        .disabled(isBulkBusy)
-
-                    if isBulkBusy {
-                        ProgressView()
-                    }
 
                     Spacer(minLength: 0)
                 }

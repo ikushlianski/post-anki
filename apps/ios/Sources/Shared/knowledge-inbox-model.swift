@@ -13,6 +13,8 @@ final class TriageInboxModel {
     var overwritePromptId: String?
     var draft = ""
     private var truncationTracker = TruncationTracker()
+    let writes = SerialWriteQueue()
+    private var removing: Set<String> = []
 
     var truncation: ListTruncation? { truncationTracker.truncation(shown: items.count) }
     var query: String?
@@ -25,6 +27,8 @@ final class TriageInboxModel {
         self.counts = counts
     }
 
+    func settle() async { await writes.settle() }
+
     func load() async {
         guard !isLoading else { return }
 
@@ -35,7 +39,7 @@ final class TriageInboxModel {
         do {
             let list = try await APIClient.listInboxKnowledgeBits()
 
-            items = list.items
+            items = list.items.filter { !removing.contains($0.id) }
             truncationTracker = TruncationTracker(list.truncation)
             hasLoaded = true
             rowMessages = [:]
@@ -50,7 +54,7 @@ final class TriageInboxModel {
     }
 
     func returnToTriage(_ id: String) async {
-        await run(id, doing: "send this back to triage") {
+        await run(id, doing: "send this back to triage") { [self] in
             try await APIClient.returnKnowledgeBitFromInbox(id: id)
             counts.adjust(by: 1)
         }
@@ -109,27 +113,36 @@ final class TriageInboxModel {
         }
     }
 
-    private func run(_ id: String, doing action: String, _ work: () async throws -> Void) async {
-        guard !inFlight.contains(id) else { return }
+    private func run(_ id: String, doing action: String, _ work: @escaping @MainActor () async throws -> Void) async {
+        guard !removing.contains(id), let removed = items.first(where: { $0.id == id }) else { return }
 
-        inFlight.insert(id)
+        let following = RowReinsertion.following(id, in: items)
+
+        removing.insert(id)
         rowMessages[id] = nil
-        defer { inFlight.remove(id) }
+        removeItem(id)
+        counts.setInbox(items.count)
 
-        do {
-            try await work()
-            removeItem(id)
-            counts.setInbox(items.count)
-        } catch {
-            if KnowledgeManageError.isGone(error) {
-                removeItem(id)
+        writes.enqueue { [self] in
+            defer { removing.remove(id) }
+
+            do {
+                try await work()
+            } catch {
+                guard !KnowledgeManageError.isGone(error) else { return }
+
+                putBack(removed, before: following)
                 counts.setInbox(items.count)
-
-                return
+                rowMessages[id] = InboxMessages.message(for: error, doing: action)
             }
-
-            rowMessages[id] = InboxMessages.message(for: error, doing: action)
         }
+    }
+
+    private func putBack(_ item: InboxKnowledgeBit, before following: Set<String>) {
+        guard !items.contains(where: { $0.id == item.id }) else { return }
+
+        items.insert(item, at: RowReinsertion.index(in: items, before: following))
+        truncationTracker.restoredOne()
     }
 
     private func removeItem(_ id: String) {

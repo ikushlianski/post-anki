@@ -8,9 +8,6 @@ struct KnowledgeItemDetailScreen: View {
     let onDeleted: () -> Void
     let onMoved: (String) -> Void
 
-    @State private var state: String
-    @State private var isBusy = false
-    @State private var message: String?
     @State private var actions: KnowledgeItemActionsModel
     @State private var variants: MoreVariantsModel
     @State private var cards: KnowledgeItemCardsModel
@@ -31,21 +28,27 @@ struct KnowledgeItemDetailScreen: View {
         self.onStateChange = onStateChange
         self.onDeleted = onDeleted
         self.onMoved = onMoved
-        _state = State(initialValue: item.state)
-        _actions = State(initialValue: KnowledgeItemActionsModel(item: item))
+
+        let actionsModel = KnowledgeItemActionsModel(item: item)
+        let cardsModel = KnowledgeItemCardsModel(bitId: item.id)
+
+        actionsModel.onMoved = onMoved
+        actionsModel.onStateChange = { state in
+            onStateChange(state)
+            Task { await cardsModel.load() }
+        }
+
+        _actions = State(initialValue: actionsModel)
         _variants = State(initialValue: MoreVariantsModel(bitId: item.id))
-        _cards = State(initialValue: KnowledgeItemCardsModel(bitId: item.id))
+        _cards = State(initialValue: cardsModel)
     }
 
     private var shownSubjectName: String? { actions.subjectName ?? subjectName }
 
-    private var isSuspended: Bool { state == "suspended" }
-    private var isBuried: Bool { state == "buried" }
-
     private var actionTitle: String {
-        if isSuspended { return "Unsuspend" }
+        if actions.isSuspended { return "Unsuspend" }
 
-        return isBuried ? "Bring back today" : "Suspend"
+        return actions.isBuried ? "Bring back today" : "Suspend"
     }
 
     var body: some View {
@@ -57,7 +60,7 @@ struct KnowledgeItemDetailScreen: View {
                 SynonymsSection(bitId: item.id, question: actions.question)
 
                 Section {
-                    LabeledContent("Status", value: KnowledgeOverviewItem.label(for: state))
+                    LabeledContent("Status", value: KnowledgeOverviewItem.label(for: actions.state))
 
                     if let shownSubjectName { LabeledContent("Subject", value: shownSubjectName) }
 
@@ -70,7 +73,7 @@ struct KnowledgeItemDetailScreen: View {
 
                 KnowledgeItemCardsSection(model: cards)
 
-                if let message = message ?? actions.message {
+                if let message = actions.message {
                     Section { Text(message).zoomFont(.caption).foregroundStyle(.red) }
                 }
 
@@ -105,7 +108,7 @@ struct KnowledgeItemDetailScreen: View {
                 loadFailureMessage: actions.subjectsNotice,
                 onRetry: { Task { await actions.loadSubjects() } }
             ) { subject in
-                Task { if await actions.move(to: subject) { onMoved(subject.id) } }
+                Task { _ = await actions.move(to: subject) }
             }
         }
         .confirmationDialog("Delete this item? This can't be undone.", isPresented: $confirmingDelete, titleVisibility: .visible) {
@@ -131,8 +134,8 @@ struct KnowledgeItemDetailScreen: View {
                     }
                 }
                 Button("Move to subject", systemImage: "folder") { choosingSubject = true }
-                Button(actionTitle, systemImage: isSuspended ? "play.circle" : "pause.circle") {
-                    Task { await toggle() }
+                Button(actionTitle, systemImage: actions.isSuspended ? "play.circle" : "pause.circle") {
+                    Task { await actions.toggleSuspend() }
                 }
                 Button("Generate more question variants", systemImage: "sparkles") {
                     Task { await variants.request() }
@@ -145,7 +148,7 @@ struct KnowledgeItemDetailScreen: View {
             } label: {
                 Label("Actions", systemImage: "ellipsis.circle")
             }
-            .disabled(isBusy || actions.isBusy)
+            .disabled(actions.isBusy)
         }
     }
 
@@ -162,39 +165,6 @@ struct KnowledgeItemDetailScreen: View {
 
         onDeleted()
         dismiss()
-    }
-
-    private func toggle() async {
-        guard !isBusy else { return }
-
-        isBusy = true
-        message = nil
-        defer { isBusy = false }
-
-        do {
-            let result: ScheduleControlResult
-
-            if isSuspended {
-                result = try await APIClient.setSchedule(id: item.id, suspended: false, buried: nil)
-            } else if isBuried {
-                result = try await APIClient.setSchedule(id: item.id, suspended: nil, buried: false)
-            } else {
-                result = try await APIClient.setSchedule(id: item.id, suspended: true, buried: nil)
-            }
-
-            if result.suspended {
-                state = "suspended"
-            } else if result.buriedUntil != nil {
-                state = "buried"
-            } else {
-                state = item.state == "suspended" || item.state == "buried" ? "active" : item.state
-            }
-
-            onStateChange(state)
-            await cards.load()
-        } catch {
-            message = KnowledgeManageError.message(for: error, action: "update this item")
-        }
     }
 }
 

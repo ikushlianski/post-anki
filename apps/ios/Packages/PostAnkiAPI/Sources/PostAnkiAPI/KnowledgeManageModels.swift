@@ -4,7 +4,7 @@ public struct KnowledgeOverviewItem: Decodable, Sendable, Identifiable, Hashable
     public let knowledgeBitId: String
     public let question: String
     public let answer: String
-    public let subjectId: String?
+    public var subjectId: String?
     public var state: String
     public let dueAt: String?
     public let lapses: Int
@@ -129,8 +129,8 @@ public struct KnowledgeCardState: Decodable, Sendable, Identifiable, Hashable {
     public let state: String
     public let dueAt: String?
     public let lapses: Int
-    public let suspended: Bool
-    public let buried: Bool
+    public var suspended: Bool
+    public var buried: Bool
 
     public var id: String { variantId }
 

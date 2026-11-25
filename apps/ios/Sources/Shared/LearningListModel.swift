@@ -12,17 +12,22 @@ final class LearningListModel {
     var failureKind: ProgressLoadError?
     var actionMessage: String?
     var subjectsFailed = false
+    var deciding: Set<String> = []
+    var approving: Set<String> = []
+    let writes = SerialWriteQueue()
 
     var subjectsNotice: String? {
         SubjectListNotice.learningListMessage(failed: subjectsFailed, subjectCount: subjects.count)
     }
 
-    var awaiting: [LearningListItem] { items.filter(\.isAwaitingDecision) }
+    var awaiting: [LearningListItem] { items.filter { $0.isAwaitingDecision && !approving.contains($0.id) } }
     var parked: [LearningListItem] { items.filter { $0.status == "parked" } }
-    var working: [LearningListItem] { items.filter { ["captured", "classifying"].contains($0.status) } }
+    var working: [LearningListItem] {
+        items.filter { ["captured", "classifying"].contains($0.status) || approving.contains($0.id) }
+    }
 
     var done: [LearningListItem] {
-        items.filter { ["folded_in", "course_created", "declined", "unreachable"].contains($0.status) }
+        items.filter { ["folded_in", "course_created", "declined", "unreachable"].contains($0.status) && !approving.contains($0.id) }
     }
 
     func load() async {
@@ -44,15 +49,37 @@ final class LearningListModel {
         }
     }
 
+    func settle() async { await writes.settle() }
+
     func decide(_ item: LearningListItem, approve: Bool) async {
+        guard !deciding.contains(item.id), let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+
+        let before = items[index]
+
         actionMessage = nil
+        deciding.insert(item.id)
 
-        do {
-            let result = try await APIClient.decideLearningItem(id: item.id, approve: approve)
+        if approve {
+            approving.insert(item.id)
+        } else {
+            items[index].status = "declined"
+        }
 
-            replace(result.item)
-        } catch {
-            actionMessage = LearningListError.message(for: error)
+        writes.enqueue { [self] in
+            defer {
+                deciding.remove(item.id)
+                approving.remove(item.id)
+            }
+
+            do {
+                let result = try await APIClient.decideLearningItem(id: item.id, approve: approve)
+
+                replace(result.item)
+            } catch {
+                if let current = items.firstIndex(where: { $0.id == item.id }) { items[current] = before }
+
+                actionMessage = LearningListError.message(for: error)
+            }
         }
     }
 

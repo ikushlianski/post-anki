@@ -94,6 +94,8 @@ final class FocusTriageModel {
     }
 
     func load() async {
+        await list.settleDecisions()
+
         for (bitId, id) in await decisionQueue.pendingIds() where queuedIds[bitId] == nil {
             queuedIds[bitId] = id
         }

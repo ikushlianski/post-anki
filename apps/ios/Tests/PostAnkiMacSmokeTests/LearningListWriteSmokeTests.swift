@@ -39,6 +39,11 @@ extension SmokeTests {
 
             await model.decide(model.items[0], approve: true)
 
+            #expect(model.awaiting.isEmpty)
+            #expect(model.working.first?.id == "li_01")
+
+            await model.settle()
+
             #expect(FakeServer.writes.map(\.method) == ["PATCH"])
             #expect(FakeServer.writes.map(\.path) == [recommendationPath])
             #expect(FakeServer.writes.first?.bodyObject == ["decision": "approve"] as NSDictionary)
@@ -58,11 +63,15 @@ extension SmokeTests {
 
             await model.decide(model.items[0], approve: false)
 
+            #expect(model.items.first?.status == "declined")
+
+            await model.settle()
+
             #expect(FakeServer.writes.first?.bodyObject == ["decision": "decline"] as NSDictionary)
             #expect(model.items.first?.status == "declined")
         }
 
-        @Test("should leave the list untouched and explain when a decision fails", arguments: decisionFailures)
+        @Test("should put the item back among the pending ones and explain when a decision fails", arguments: decisionFailures)
         func decideFails(failure: WriteFailureCase) async throws {
             let session = FakeServerSession(["PATCH \(recommendationPath)": failure.reply])
             defer { session.end() }
@@ -74,9 +83,57 @@ extension SmokeTests {
             let before = model.items
 
             await model.decide(before[0], approve: true)
+            await model.settle()
 
             #expect(model.items == before)
+            #expect(model.awaiting.first?.id == "li_01")
             #expect(model.actionMessage == failure.message)
+        }
+
+        @Test("should show a declined item at once and decide the next one while the first is held")
+        func declineWhileHeld() async throws {
+            let session = FakeServerSession(["PATCH \(recommendationPath)": .held(200, itemJSON(status: "declined", curriculumId: nil))])
+            defer { session.end() }
+
+            let model = LearningListModel()
+
+            model.items = Wire.fixture([LearningListItem].self, "learning-list")
+
+            await model.decide(model.items[0], approve: false)
+
+            #expect(model.items[0].status == "declined")
+            #expect(model.items[1] == Wire.fixture([LearningListItem].self, "learning-list")[1])
+
+            for _ in 0..<300 where FakeServer.heldCount < 1 { try await Task.sleep(for: .milliseconds(10)) }
+
+            FakeServer.releaseHeld()
+            await model.settle()
+
+            #expect(model.items[0].status == "declined")
+        }
+
+        @Test("should restore only the declined item when its late save fails")
+        func lateDeclineFailureRestoresOnlyThatItem() async throws {
+            let session = FakeServerSession(["PATCH \(recommendationPath)": .held(500, "{}")])
+            defer { session.end() }
+
+            let model = LearningListModel()
+
+            model.items = Wire.fixture([LearningListItem].self, "learning-list")
+
+            let before = model.items
+
+            await model.decide(before[0], approve: false)
+
+            #expect(model.items[0].status == "declined")
+
+            for _ in 0..<300 where FakeServer.heldCount < 1 { try await Task.sleep(for: .milliseconds(10)) }
+
+            FakeServer.releaseHeld()
+            await model.settle()
+
+            #expect(model.items == before)
+            #expect(model.actionMessage != nil)
         }
 
         @Test("should patch the chosen destination and adopt the returned item and course")
@@ -141,6 +198,10 @@ extension SmokeTests {
             let model = LearningListItemModel(item: awaitingItem())
 
             await model.decide(approve: true)
+
+            #expect(model.item.status == "classifying")
+
+            await model.settle()
 
             #expect(model.item.status == "parked")
             #expect(model.message == "This item changed. Refreshed.")

@@ -36,6 +36,9 @@ extension SmokeTests {
             #expect(model.queue.count == 1)
             #expect(chat.count == before + 1)
             #expect(model.queued.isEmpty)
+
+            await model.settlePending()
+
             #expect(FakeServer.writes.map { "\($0.method) \($0.path)" } == ["POST \(path)"])
             #expect(FakeServer.writes.first?.body == nil)
         }
@@ -46,6 +49,9 @@ extension SmokeTests {
             defer { session.end() }
 
             #expect(await model.sendToChat(prompt: "Why this?"))
+
+            await model.settlePending()
+
             #expect(FakeServer.writes.first?.bodyObject?["prompt"] as? String == "Why this?")
         }
 
@@ -54,19 +60,53 @@ extension SmokeTests {
             let (model, session) = await make(reply: .json(409, #"{"error":"blocked"}"#))
             defer { session.end() }
 
-            #expect(!(await model.sendToChat()))
+            #expect(await model.sendToChat())
             #expect(model.current?.id == "b")
-            #expect(model.list.notice != nil)
+
+            await model.settlePending()
+
+            #expect(model.current?.id == "b")
+            #expect(model.queue.map(\.id) == ["b"])
+            #expect(model.list.notice == "That item was already decided elsewhere, so it was removed.")
         }
 
-        @Test("should keep the card with a message when the move fails offline")
-        func failureKeepsCard() async {
-            let (model, session) = await make(reply: .failure(.notConnectedToInternet))
+        @Test("should move on at once while the send is held and bring the card back with a message when it fails")
+        func failureBringsCardBack() async throws {
+            let (model, session) = await make(reply: .held(500, "{}"))
             defer { session.end() }
 
-            #expect(!(await model.sendToChat()))
-            #expect(model.current?.id == "a")
-            #expect(model.message != nil)
+            let chat = ChatQueueCountStore.shared
+            let before = chat.count
+
+            #expect(await model.sendToChat())
+            #expect(model.current?.id == "b")
+            #expect(chat.count == before + 1)
+
+            for _ in 0..<300 where FakeServer.heldCount < 1 { try await Task.sleep(for: .milliseconds(10)) }
+
+            FakeServer.releaseHeld()
+            await model.settlePending()
+
+            #expect(model.queue.map(\.id) == ["a", "b"])
+            #expect(model.current?.id == "b")
+            #expect(chat.count == before)
+            #expect(model.list.rowMessages["a"] != nil)
+            #expect(model.list.notice == "A card couldn't be sent and is back in the queue.")
+        }
+
+        @Test("should not wait for the first send before the next card can be sent")
+        func nextSendWhileHeld() async throws {
+            let (model, session) = await make(reply: .held(200, moved))
+            defer { session.end() }
+
+            #expect(await model.sendToChat())
+            #expect(await model.sendToChat())
+            #expect(model.queue.isEmpty)
+
+            for _ in 0..<300 where FakeServer.heldCount < 1 { try await Task.sleep(for: .milliseconds(10)) }
+
+            FakeServer.releaseHeld()
+            await model.settlePending()
         }
     }
 }

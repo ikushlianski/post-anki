@@ -13,7 +13,6 @@ final class PendingReviewListModel {
     var inFlight: Set<String> = []
     var rowMessages: [String: String] = [:]
     var notice: String?
-    var bulkInFlight: Set<String> = []
     var sourceMessages: [String: String] = [:]
     var pendingUndo: PendingReviewUndo?
     var keptUndo: PendingReviewKeptUndo?
@@ -32,56 +31,24 @@ final class PendingReviewListModel {
     @ObservationIgnored var scopeSubjectId: String?
     @ObservationIgnored var loadTask: Task<Void, Never>?
     @ObservationIgnored var reloadRequested = false
+    @ObservationIgnored var queuedIds: [String: String] = [:]
+    @ObservationIgnored var unsent: [String: PendingReviewRemovedBit] = [:]
+    @ObservationIgnored var latestKeep: String?
+    @ObservationIgnored var skipTask: Task<Void, Never>?
+    @ObservationIgnored let decisionQueue: PendingDecisionQueue
+    @ObservationIgnored let drainer: DecisionDrainer
 
-    init(counts: PendingReviewCountStore = .shared, windowed: Bool = false) {
+    init(counts: PendingReviewCountStore = .shared, windowed: Bool = false, decisionQueue: PendingDecisionQueue = .shared) {
         self.counts = counts
         self.windowed = windowed
+        self.decisionQueue = decisionQueue
+        drainer = DecisionDrainer(queue: decisionQueue)
+        drainer.onSettled = { [weak self] in self?.applyDecisions($0) }
+        drainer.onFailure = { [weak self] in self?.handleDecisionFailure($0) }
     }
 
     func readyCount(in source: PendingReviewSource) -> Int {
         source.bits.filter { !$0.variants.isEmpty && !inFlight.contains($0.id) }.count
-    }
-
-    func decide(_ decision: PendingReviewDecision, bitId: String) async -> PendingReviewDecisionOutcome {
-        guard !inFlight.contains(bitId) else { return .kept(message: "") }
-
-        inFlight.insert(bitId)
-        rowMessages[bitId] = nil
-        notice = nil
-        defer { inFlight.remove(bitId) }
-
-        let snapshot = decision == .reject ? snapshot(of: bitId) : nil
-        let outcome: PendingReviewDecisionOutcome
-
-        do {
-            switch decision {
-            case .approve: try await APIClient.approveKnowledgeBit(id: bitId)
-            case .reject: _ = try await APIClient.rejectKnowledgeBit(id: bitId)
-            }
-
-            outcome = .removed
-        } catch {
-            outcome = decision.outcome(for: error)
-        }
-
-        switch outcome {
-        case .removed:
-            withAnimation { remove(bitId: bitId) }
-            counts.adjust(by: -1)
-
-            if let snapshot {
-                withAnimation { pendingUndo = PendingReviewUndo(removed: snapshot) }
-                scheduleUndoExpiry(after: 8)
-            }
-        case .removedElsewhere:
-            withAnimation { remove(bitId: bitId) }
-            notice = "That item was already decided elsewhere, so it was removed."
-            Task { await counts.refresh() }
-        case .kept(let message):
-            if !message.isEmpty { rowMessages[bitId] = message }
-        }
-
-        return outcome
     }
 
     func load(limit requestedLimit: Int? = nil, subjectId requestedSubjectId: String? = nil) async {
@@ -128,8 +95,9 @@ final class PendingReviewListModel {
 
         do {
             let page = try await APIClient.listPendingReviewPage(limit: limit, subjectId: subjectId, attention: true)
+            let queuedElsewhere = await decisionQueue.pendingIds()
             let fetched = page.sources
-            let removed = removedDuringLoad
+            let removed = removedDuringLoad.union(queuedElsewhere.keys).union(queuedIds.keys)
 
             recordServerTotal(page.total, loaded: fetched, subjectId: subjectId)
             windowCursor = PendingReviewWindow.cursor(after: nil, loaded: fetched)

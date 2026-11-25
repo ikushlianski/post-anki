@@ -14,6 +14,7 @@ final class DuplicateReviewModel {
     var errorMessage: String?
     var failureKind: ProgressLoadError?
     var notice: String?
+    let writes = SerialWriteQueue()
 
     func subjectName(_ id: String) -> String { subjectNames[id] ?? "(removed)" }
 
@@ -62,12 +63,40 @@ final class DuplicateReviewModel {
         }
     }
 
+    func settle() async { await writes.settle() }
+
     func resolveSubject(_ pair: SubjectDuplicateSuggestion, keep: String?) async {
-        await resolve { try await APIClient.resolveSubjectDuplicate(id: pair.id, keepSubjectId: keep) }
+        guard let index = subjectPairs.firstIndex(where: { $0.id == pair.id }) else { return }
+
+        notice = nil
+        subjectPairs.remove(at: index)
+
+        writes.enqueue { [self] in
+            do {
+                try await APIClient.resolveSubjectDuplicate(id: pair.id, keepSubjectId: keep)
+            } catch {
+                if !subjectPairs.contains(where: { $0.id == pair.id }) { subjectPairs.insert(pair, at: min(index, subjectPairs.count)) }
+
+                notice = DuplicateReviewError.message(for: error)
+            }
+        }
     }
 
     func resolveSource(_ pair: SourceDuplicateSuggestion, acknowledged: Bool) async {
-        await resolve { try await APIClient.resolveSourceDuplicate(id: pair.id, acknowledged: acknowledged) }
+        guard let index = sourcePairs.firstIndex(where: { $0.id == pair.id }) else { return }
+
+        notice = nil
+        sourcePairs.remove(at: index)
+
+        writes.enqueue { [self] in
+            do {
+                try await APIClient.resolveSourceDuplicate(id: pair.id, acknowledged: acknowledged)
+            } catch {
+                if !sourcePairs.contains(where: { $0.id == pair.id }) { sourcePairs.insert(pair, at: min(index, sourcePairs.count)) }
+
+                notice = DuplicateReviewError.message(for: error)
+            }
+        }
     }
 
     private func scan(_ run: () async throws -> String) async {
@@ -77,18 +106,6 @@ final class DuplicateReviewModel {
 
         do {
             notice = try await run()
-        } catch {
-            notice = DuplicateReviewError.message(for: error)
-        }
-
-        await load()
-    }
-
-    private func resolve(_ call: () async throws -> Void) async {
-        notice = nil
-
-        do {
-            try await call()
         } catch {
             notice = DuplicateReviewError.message(for: error)
         }

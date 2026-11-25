@@ -4,6 +4,7 @@ import SwiftUI
 extension PendingReviewTriageModel {
     func settlePending() async {
         await drainer.settle()
+        await chatWrites.settle()
     }
 
     func enqueue(_ bit: PendingReviewBit, kind: PendingDecision.Kind, note: String? = nil) async {

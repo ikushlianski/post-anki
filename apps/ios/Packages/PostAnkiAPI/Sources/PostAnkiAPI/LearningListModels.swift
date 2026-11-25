@@ -20,7 +20,7 @@ public struct LearningListItem: Decodable, Sendable, Hashable, Identifiable {
     public let title: String?
     public let kind: String
     public let recommendation: LearningListRecommendation?
-    public let status: String
+    public var status: String
     public let curriculumId: String?
     public let createdAt: String
 

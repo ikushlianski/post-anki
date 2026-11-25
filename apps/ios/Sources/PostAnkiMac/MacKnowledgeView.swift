@@ -70,7 +70,7 @@ struct MacKnowledgeView: View {
     }
 
     private var bulkDisabled: Bool {
-        model.selection.isEmpty || model.selectionTooLarge || model.isBulkBusy
+        model.selection.isEmpty || model.selectionTooLarge
     }
 
     @ToolbarContentBuilder
@@ -235,7 +235,7 @@ struct MacKnowledgeView: View {
 
     @ViewBuilder
     private func rowMenu(_ ids: Set<String>) -> some View {
-        if !ids.isEmpty, !model.isBulkBusy {
+        if !ids.isEmpty {
             Button("Move to Subject…") {
                 model.selection = ids
                 choosingSubject = true

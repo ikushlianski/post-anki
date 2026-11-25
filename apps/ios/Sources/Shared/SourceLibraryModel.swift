@@ -29,6 +29,8 @@ final class SourceLibraryModel {
     var failureKind: ProgressLoadError?
     var busyIds: Set<String> = []
     var rowMessages: [String: String] = [:]
+    let writes = SerialWriteQueue()
+    private var deleting: Set<String> = []
 
     var groups: [SourceLibraryGroup] {
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -64,7 +66,7 @@ final class SourceLibraryModel {
         defer { isLoading = false }
 
         do {
-            sources = try await APIClient.librarySources()
+            sources = try await APIClient.librarySources().filter { !deleting.contains($0.id) }
             hasLoaded = true
         } catch where ProgressLoadError.from(error) == nil {
             return
@@ -92,20 +94,28 @@ final class SourceLibraryModel {
     }
 
     func delete(_ source: SourceLibraryItem) async {
-        guard !busyIds.contains(source.id) else { return }
+        guard !deleting.contains(source.id), let index = sources.firstIndex(where: { $0.id == source.id }) else { return }
 
-        busyIds.insert(source.id)
-        defer { busyIds.remove(source.id) }
+        deleting.insert(source.id)
+        rowMessages[source.id] = nil
+        sources.remove(at: index)
 
-        do {
-            _ = try await APIClient.deleteLibrarySource(id: source.id)
-            sources.removeAll { $0.id == source.id }
-        } catch APIError.badStatus(404, _) {
-            sources.removeAll { $0.id == source.id }
-        } catch {
-            rowMessages[source.id] = SourceLibraryError.message(for: error)
+        writes.enqueue { [self] in
+            defer { deleting.remove(source.id) }
+
+            do {
+                _ = try await APIClient.deleteLibrarySource(id: source.id)
+            } catch APIError.badStatus(404, _) {
+                return
+            } catch {
+                if !sources.contains(where: { $0.id == source.id }) { sources.insert(source, at: min(index, sources.count)) }
+
+                rowMessages[source.id] = SourceLibraryError.message(for: error)
+            }
         }
     }
+
+    func settle() async { await writes.settle() }
 
     private func matches(_ source: SourceLibraryItem, _ text: String) -> Bool {
         [source.title ?? "", source.value, source.curriculumName, source.subjectName]

@@ -96,14 +96,22 @@ extension SmokeTests {
             defer { session.end() }
             let model = KnowledgeItemActionsModel(item: Self.item)
 
+            var told: [String] = []
+
+            model.onMoved = { told.append($0) }
+
             let moved = await model.move(to: Self.subject)
 
             #expect(moved)
             #expect(model.subjectId == "s_b")
+
+            await model.settle()
+
+            #expect(told == ["s_b"])
             #expect(FakeServer.writes.first?.bodyObject == ["knowledgeBitIds": ["kb_1"], "subjectId": "s_b"] as NSDictionary)
         }
 
-        @Test("should keep the subject and show a message when the item is skipped")
+        @Test("should put the old subject back, say so and not tell the list when the item is skipped")
         func moveSkipped() async {
             let session = FakeServerSession([
                 "POST /knowledge-bits/moves": .json(200, #"{"moved":[],"skipped":[{"id":"kb_1","reason":"not_approved"}]}"#)
@@ -111,11 +119,66 @@ extension SmokeTests {
             defer { session.end() }
             let model = KnowledgeItemActionsModel(item: Self.item)
 
+            var told: [String] = []
+
+            model.onMoved = { told.append($0) }
+
             let moved = await model.move(to: Self.subject)
 
-            #expect(!moved)
+            #expect(moved)
+            #expect(model.subjectId == "s_b")
+
+            await model.settle()
+
             #expect(model.subjectId == "s_a")
             #expect(model.message != nil)
+            #expect(told.isEmpty)
+        }
+
+        @Test("should not lock the screen while a move is held and let the user suspend meanwhile")
+        func moveAndSuspendWhileHeld() async throws {
+            let session = FakeServerSession([
+                "POST /knowledge-bits/moves": .held(200, #"{"moved":["kb_1"],"skipped":[]}"#),
+                "PATCH /knowledge-bits/kb_1/schedule": .json(200, #"{"knowledgeBitId":"kb_1","suspended":true,"buriedUntil":null,"leech":false,"cardKey":null}"#)
+            ])
+            defer { session.end() }
+            let model = KnowledgeItemActionsModel(item: Self.item)
+
+            _ = await model.move(to: Self.subject)
+            await model.toggleSuspend()
+
+            #expect(model.subjectId == "s_b")
+            #expect(model.state == "suspended")
+            #expect(!model.isBusy)
+
+            for _ in 0..<300 where FakeServer.heldCount < 1 { try await Task.sleep(for: .milliseconds(10)) }
+
+            FakeServer.releaseHeld()
+            await model.settle()
+
+            #expect(model.state == "suspended")
+        }
+
+        @Test("should show the item as suspended at once and put the old state back when the save fails")
+        func suspendRollsBack() async throws {
+            let session = FakeServerSession(["PATCH /knowledge-bits/kb_1/schedule": .held(500, "{}")])
+            defer { session.end() }
+            let model = KnowledgeItemActionsModel(item: Self.item)
+            var told: [String] = []
+
+            model.onStateChange = { told.append($0) }
+            await model.toggleSuspend()
+
+            #expect(model.state == "suspended")
+
+            for _ in 0..<300 where FakeServer.heldCount < 1 { try await Task.sleep(for: .milliseconds(10)) }
+
+            FakeServer.releaseHeld()
+            await model.settle()
+
+            #expect(model.state == "review")
+            #expect(model.message != nil)
+            #expect(told.isEmpty)
         }
 
         @Test("should report the item as deleted when the server deletes it")

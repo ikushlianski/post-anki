@@ -10,6 +10,9 @@ final class CourseRefocusModel {
     var errorMessage: String?
     var notice: String?
     var failureKind: ProgressLoadError?
+    let writes = SerialWriteQueue()
+
+    func settle() async { await writes.settle() }
 
     func load() async {
         guard !isLoading else { return }
@@ -31,15 +34,20 @@ final class CourseRefocusModel {
     }
 
     func dismiss(_ item: CourseRefocusSuggestion) async {
+        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+
         notice = nil
+        items.remove(at: index)
 
-        do {
-            try await APIClient.dismissCourseRefocus(curriculumId: item.curriculumId, reason: item.reason)
-        } catch {
-            notice = DomainMapError.message(for: error)
+        writes.enqueue { [self] in
+            do {
+                try await APIClient.dismissCourseRefocus(curriculumId: item.curriculumId, reason: item.reason)
+            } catch {
+                if !items.contains(where: { $0.id == item.id }) { items.insert(item, at: min(index, items.count)) }
+
+                notice = DomainMapError.message(for: error)
+            }
         }
-
-        await load()
     }
 
     func course(for item: CourseRefocusSuggestion) async -> Curriculum? {

@@ -13,6 +13,12 @@ final class KnowledgeItemActionsModel {
     var subjectsFailed = false
     var isBusy = false
     var message: String?
+    var state: String
+    var onMoved: ((String) -> Void)?
+    var onStateChange: ((String) -> Void)?
+
+    let writes = SerialWriteQueue()
+    let initialState: String
 
     private(set) var noteSource: NoteSource?
     private var variantId: String?
@@ -22,7 +28,11 @@ final class KnowledgeItemActionsModel {
         question = item.question
         answer = item.answer
         subjectId = item.subjectId
+        state = item.state
+        initialState = item.state
     }
+
+    func settle() async { await writes.settle() }
 
     var subjectName: String? {
         subjectId.flatMap { id in subjects.first { $0.id == id }?.name }
@@ -124,37 +134,6 @@ final class KnowledgeItemActionsModel {
             return nil
         } catch {
             return KnowledgeManageError.message(for: error, action: "save this item")
-        }
-    }
-
-    func move(to subject: Subject) async -> Bool {
-        guard !isBusy else { return false }
-
-        isBusy = true
-        message = nil
-        defer { isBusy = false }
-
-        do {
-            let result = try await APIClient.moveKnowledgeBits(ids: [itemId], subjectId: subject.id)
-
-            guard result.moved.contains(itemId) else {
-                message = "Couldn't move this item. Try again."
-
-                return false
-            }
-
-            subjectId = subject.id
-
-            return true
-        } catch {
-            message = KnowledgeManageError.message(for: error, action: "move this item")
-
-            if case APIError.badStatus(404, "subject_not_found") = error {
-                subjects = []
-                await loadSubjects()
-            }
-
-            return false
         }
     }
 

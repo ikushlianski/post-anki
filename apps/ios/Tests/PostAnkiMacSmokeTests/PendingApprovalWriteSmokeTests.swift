@@ -4,7 +4,7 @@ import Testing
 
 extension SmokeTests {
     @MainActor
-    @Suite("Pending approval decisions send the right request and keep items on failure")
+    @Suite("Pending approval decisions leave the list at once, save in the background and come back on failure")
     struct PendingApprovalWriteSmokeTests {
         private func loadedModel(extra: [String: FakeReply]) async -> (PendingReviewListModel, FakeServerSession) {
             var routes: [String: FakeReply] = ["/knowledge-bits/pending-review": .fixture("pending-review")]
@@ -12,7 +12,7 @@ extension SmokeTests {
             routes.merge(extra) { _, new in new }
 
             let session = FakeServerSession(routes)
-            let model = PendingReviewListModel()
+            let model = PendingReviewListModel(decisionQueue: .isolated())
 
             await model.load()
 
@@ -23,7 +23,11 @@ extension SmokeTests {
             model.sources.flatMap(\.bits).map(\.id)
         }
 
-        @Test("should post the approval for one item and remove it from the list")
+        private func waitForHeld(_ count: Int) async throws {
+            for _ in 0..<300 where FakeServer.heldCount < count { try await Task.sleep(for: .milliseconds(10)) }
+        }
+
+        @Test("should remove the item at once and post the approval in the background")
         func approveSucceeds() async throws {
             let (model, session) = await loadedModel(extra: ["POST /knowledge-bits/kb_10/approve": .json(200, "{}")])
             defer { session.end() }
@@ -32,13 +36,17 @@ extension SmokeTests {
 
             guard case .removed = outcome else { Issue.record("expected removed, got \(outcome)"); return }
 
+            #expect(bitIds(model) == ["kb_11"])
+
+            await model.settleDecisions()
+
             #expect(FakeServer.writes.map(\.method) == ["POST"])
             #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/kb_10/approve"])
             #expect(bitIds(model) == ["kb_11"])
             #expect(model.rowMessages["kb_10"] == nil)
         }
 
-        @Test("should post the rejection, remove the item and offer undo without asking for a reason")
+        @Test("should remove a rejected item at once, offer undo and post the rejection in the background")
         func rejectSucceeds() async throws {
             let (model, session) = await loadedModel(extra: [
                 "POST /knowledge-bits/kb_10/reject": .json(200, #"{"ok":true,"feedbackId":"fb_01"}"#)
@@ -49,119 +57,152 @@ extension SmokeTests {
 
             guard case .removed = outcome else { Issue.record("expected removed, got \(outcome)"); return }
 
-            #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/kb_10/reject"])
             #expect(bitIds(model) == ["kb_11"])
             #expect(model.pendingUndo?.removed.bit.id == "kb_10")
+
+            await model.settleDecisions()
+
+            #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/kb_10/reject"])
             model.dismissUndo()
         }
 
-        @Test("should keep the item and show a reason when approving fails", arguments: [
-            WriteFailureCase(name: "signed out", reply: .status(401), message: "Your access token was rejected. Check Settings."),
-            WriteFailureCase(
-                name: "no questions yet",
-                reply: .json(409, #"{"error":"no_variant"}"#),
-                message: "This item has no questions yet, so it can't be approved."
-            ),
-            WriteFailureCase(
-                name: "server error",
-                reply: .json(500, "{}"),
-                message: "Couldn't approve this item. Try again."
-            ),
-            WriteFailureCase(
-                name: "dropped connection",
-                reply: .failure(.notConnectedToInternet),
-                message: "Couldn't connect to the server. Nothing was changed, try again in a moment."
-            )
+        @Test("should accept the next decision while the previous one is still being sent")
+        func nextDecisionWhileHeld() async throws {
+            let (model, session) = await loadedModel(extra: [
+                "POST /knowledge-bits/kb_10/approve": .held(200, "{}"),
+                "POST /knowledge-bits/kb_11/reject": .json(200, #"{"ok":true,"feedbackId":null}"#)
+            ])
+            defer { session.end() }
+
+            _ = await model.decide(.approve, bitId: "kb_10")
+
+            try await waitForHeld(1)
+
+            let second = await model.decide(.reject, bitId: "kb_11")
+
+            guard case .removed = second else { Issue.record("expected removed, got \(second)"); return }
+
+            #expect(bitIds(model).isEmpty)
+
+            FakeServer.releaseHeld()
+            await model.settleDecisions()
+
+            #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/kb_10/approve", "/knowledge-bits/kb_11/reject"])
+            model.dismissUndo()
+        }
+
+        @Test("should put back only the item the server refused and say why, leaving the other decision in place")
+        func lateFailureRestoresOnlyThatRow() async throws {
+            let (model, session) = await loadedModel(extra: [
+                "POST /knowledge-bits/kb_10/approve": .held(409, #"{"error":"no_variant"}"#),
+                "POST /knowledge-bits/kb_11/reject": .json(200, #"{"ok":true,"feedbackId":null}"#)
+            ])
+            defer { session.end() }
+
+            _ = await model.decide(.approve, bitId: "kb_10")
+            _ = await model.decide(.reject, bitId: "kb_11")
+
+            try await waitForHeld(1)
+            FakeServer.releaseHeld()
+            await model.settleDecisions()
+
+            #expect(bitIds(model) == ["kb_10"])
+            #expect(model.rowMessages["kb_10"] == "This item has no questions yet, so it can't be approved.")
+            #expect(model.rowMessages["kb_11"] == nil)
+            model.dismissUndo()
+        }
+
+        @Test("should bring a rejected item back with a message and drop its undo when the server errors out")
+        func rejectFailureRestores() async throws {
+            let (model, session) = await loadedModel(extra: ["POST /knowledge-bits/kb_10/reject": .json(500, "{}")])
+            defer { session.end() }
+
+            _ = await model.decide(.reject, bitId: "kb_10")
+            await model.settleDecisions()
+
+            #expect(bitIds(model) == ["kb_10", "kb_11"])
+            #expect(model.rowMessages["kb_10"] == "The server isn't answering properly right now (error 500).")
+            #expect(model.pendingUndo == nil)
+        }
+
+        @Test("should keep the item out of the list and queued for later when the connection is down", arguments: [
+            WriteFailureCase.offline,
+            WriteFailureCase.signedOut
         ])
-        func approveFails(failure: WriteFailureCase) async throws {
+        func offlineStaysQueued(failure: WriteFailureCase) async throws {
             let (model, session) = await loadedModel(extra: ["POST /knowledge-bits/kb_10/approve": failure.reply])
             defer { session.end() }
 
-            let outcome = await model.decide(.approve, bitId: "kb_10")
+            _ = await model.decide(.approve, bitId: "kb_10")
+            await model.settleDecisions()
 
-            guard case .kept(let message) = outcome else { Issue.record("expected kept, got \(outcome)"); return }
-
-            #expect(message == failure.message)
-            #expect(model.rowMessages["kb_10"] == failure.message)
-            #expect(bitIds(model) == ["kb_10", "kb_11"])
-            #expect(model.pendingUndo == nil)
-            #expect(model.inFlight.isEmpty)
+            #expect(bitIds(model) == ["kb_11"])
+            #expect(model.rowMessages["kb_10"] == nil)
+            #expect(await model.decisionQueue.count() == 1)
         }
 
-        @Test("should remove an item another device already decided and tell the user")
+        @Test("should hide an item another device already decided and tell the user")
         func approveAlreadyDecidedElsewhere() async throws {
             let (model, session) = await loadedModel(extra: [
                 "POST /knowledge-bits/kb_10/approve": .json(409, #"{"error":"blocked"}"#)
             ])
             defer { session.end() }
 
-            let outcome = await model.decide(.approve, bitId: "kb_10")
-
-            guard case .removedElsewhere = outcome else { Issue.record("expected removedElsewhere, got \(outcome)"); return }
+            _ = await model.decide(.approve, bitId: "kb_10")
+            await model.settleDecisions()
 
             #expect(bitIds(model) == ["kb_11"])
             #expect(model.notice == "That item was already decided elsewhere, so it was removed.")
         }
 
-        @Test("should keep the item and show a reason when rejecting fails", arguments: [
-            WriteFailureCase(name: "signed out", reply: .status(401), message: "Your access token was rejected. Check Settings."),
-            WriteFailureCase(
-                name: "dropped connection",
-                reply: .failure(.networkConnectionLost),
-                message: "Couldn't connect to the server. Nothing was changed, try again in a moment."
-            )
-        ])
-        func rejectFails(failure: WriteFailureCase) async throws {
-            let (model, session) = await loadedModel(extra: ["POST /knowledge-bits/kb_10/reject": failure.reply])
+        @Test("should send each ready item of a source as its own approval and leave items without questions alone")
+        func bulkApproveSucceeds() async throws {
+            let (model, session) = await loadedModel(extra: ["POST /knowledge-bits/kb_10/approve": .json(200, "{}")])
             defer { session.end() }
 
-            let outcome = await model.decide(.reject, bitId: "kb_10")
+            await model.approveAll(sourceId: "src_01")
 
-            guard case .kept(let message) = outcome else { Issue.record("expected kept, got \(outcome)"); return }
+            #expect(bitIds(model) == ["kb_11"])
 
-            #expect(message == failure.message)
-            #expect(bitIds(model) == ["kb_10", "kb_11"])
-            #expect(model.pendingUndo == nil)
+            await model.settleDecisions()
+
+            #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/kb_10/approve"])
+            #expect(bitIds(model) == ["kb_11"])
         }
 
-        @Test("should send only the ready items of a source in one bulk approval and report the count")
-        func bulkApproveSucceeds() async throws {
+        @Test("should bring back only the items the server refused after a bulk approval")
+        func bulkApproveRollsBackPerRow() async throws {
+            let (model, session) = await loadedModel(extra: ["POST /knowledge-bits/kb_10/approve": .json(409, #"{"error":"no_variant"}"#)])
+            defer { session.end() }
+
+            await model.approveAll(sourceId: "src_01")
+            await model.settleDecisions()
+
+            #expect(bitIds(model) == ["kb_10", "kb_11"])
+            #expect(model.rowMessages["kb_10"] == "This item has no questions yet, so it can't be approved.")
+        }
+
+        @Test("should restore a rejected item before the rejection is sent without calling the server")
+        func undoRejectBeforeSend() async throws {
             let (model, session) = await loadedModel(extra: [
-                "POST /knowledge-bits/approvals": .json(200, #"{"approved":["kb_10"],"skipped":[]}"#)
+                "POST /knowledge-bits/kb_10/reject": .held(200, #"{"ok":true,"feedbackId":null}"#),
+                "POST /knowledge-bits/kb_11/approve": .json(200, "{}")
             ])
             defer { session.end() }
 
-            await model.approveAll(sourceId: "src_01")
+            _ = await model.decide(.approve, bitId: "kb_11")
+            _ = await model.decide(.reject, bitId: "kb_10")
+            await model.undoReject()
 
-            #expect(FakeServer.writes.map(\.method) == ["POST"])
-            #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/approvals"])
-            #expect(FakeServer.writes.first?.bodyObject == ["knowledgeBitIds": ["kb_10"]] as NSDictionary)
-            #expect(bitIds(model) == ["kb_11"])
-            #expect(model.sourceMessages["src_01"] == "Approved 1.")
-            #expect(model.bulkInFlight.isEmpty)
+            #expect(bitIds(model).contains("kb_10"))
+            #expect(model.pendingUndo == nil)
+
+            await model.settleDecisions()
+
+            #expect(!FakeServer.writes.map(\.path).contains("/knowledge-bits/kb_10/reject"))
         }
 
-        @Test("should keep every item and explain when a bulk approval fails", arguments: [
-            WriteFailureCase(name: "signed out", reply: .status(401), message: "Your access token was rejected. Check Settings."),
-            WriteFailureCase(name: "server error", reply: .json(500, "{}"), message: "Couldn't approve these items. Try again."),
-            WriteFailureCase(
-                name: "dropped connection",
-                reply: .failure(.notConnectedToInternet),
-                message: "Couldn't connect to the server. Nothing was changed, try again in a moment."
-            )
-        ])
-        func bulkApproveFails(failure: WriteFailureCase) async throws {
-            let (model, session) = await loadedModel(extra: ["POST /knowledge-bits/approvals": failure.reply])
-            defer { session.end() }
-
-            await model.approveAll(sourceId: "src_01")
-
-            #expect(bitIds(model) == ["kb_10", "kb_11"])
-            #expect(model.sourceMessages["src_01"] == failure.message)
-            #expect(model.inFlight.isEmpty)
-        }
-
-        @Test("should post the restore and put a rejected item back in its place")
+        @Test("should post the restore and put a rejected item back in its place once the rejection was sent")
         func undoRejectSucceeds() async throws {
             let (model, session) = await loadedModel(extra: [
                 "POST /knowledge-bits/kb_10/reject": .json(200, #"{"ok":true,"feedbackId":null}"#),
@@ -170,6 +211,7 @@ extension SmokeTests {
             defer { session.end() }
 
             _ = await model.decide(.reject, bitId: "kb_10")
+            await model.settleDecisions()
             await model.undoReject()
 
             #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/kb_10/reject", "/knowledge-bits/kb_10/restore"])
@@ -186,6 +228,7 @@ extension SmokeTests {
             defer { session.end() }
 
             _ = await model.decide(.reject, bitId: "kb_10")
+            await model.settleDecisions()
             await model.undoReject()
 
             #expect(bitIds(model) == ["kb_11"])

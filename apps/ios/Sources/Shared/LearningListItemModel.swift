@@ -9,6 +9,7 @@ final class LearningListItemModel {
     var message: String?
     var curriculum: Curriculum?
     var openableCurriculumId: String?
+    let writes = SerialWriteQueue()
 
     init(item: LearningListItem) {
         self.item = item
@@ -27,11 +28,27 @@ final class LearningListItemModel {
         }
     }
 
-    func decide(approve: Bool) async {
-        await run {
-            let result = try await APIClient.decideLearningItem(id: item.id, approve: approve)
+    func settle() async { await writes.settle() }
 
-            apply(result)
+    func decide(approve: Bool) async {
+        guard item.isAwaitingDecision else { return }
+
+        let before = item
+
+        message = nil
+        item.status = approve ? "classifying" : "declined"
+
+        writes.enqueue { [self] in
+            do {
+                apply(try await APIClient.decideLearningItem(id: before.id, approve: approve))
+            } catch {
+                item = before
+                message = LearningListError.message(for: error)
+
+                if LearningListError.isStale(error), let fresh = try? await APIClient.getLearningItem(id: before.id) {
+                    item = fresh
+                }
+            }
         }
     }
 

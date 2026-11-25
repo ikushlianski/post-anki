@@ -99,11 +99,9 @@ struct RejectedCardsScreen: View {
                         if !model.isSelecting {
                             Button("Restore") { Task { await model.restore(card) } }
                                 .tint(.green)
-                                .disabled(model.restoringId != nil)
 
                             Button("Send to Chat") { Task { await model.sendToChat(card) } }
                                 .tint(.blue)
-                                .disabled(model.restoringId != nil)
                         }
                     }
                 }

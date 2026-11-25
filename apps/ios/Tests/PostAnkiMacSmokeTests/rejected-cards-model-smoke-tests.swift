@@ -28,9 +28,63 @@ extension SmokeTests {
 
             await model.restore(first)
 
+            #expect(model.items.map(\.id) == ["c2"])
+
+            await model.settle()
+
             #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/c1/restore-rejected"])
             #expect(model.items.map(\.id) == ["c2"])
             #expect(model.failure == nil)
+        }
+
+        @Test("should let the next card be restored while the first restore is still being sent")
+        func nextRestoreWhileHeld() async throws {
+            let session = FakeServerSession([
+                "/knowledge-bits/rejected": page(["c1", "c2", "c3"], hasMore: false),
+                "POST /knowledge-bits/c1/restore-rejected": .held(200, "{}"),
+                "POST /knowledge-bits/c2/restore-rejected": .status(200)
+            ])
+            defer { session.end() }
+            let model = RejectedCardsModel()
+
+            await model.load()
+            await model.restore(model.items[0])
+            await model.restore(model.items[0])
+
+            #expect(model.items.map(\.id) == ["c3"])
+
+            for _ in 0..<300 where FakeServer.heldCount < 1 { try await Task.sleep(for: .milliseconds(10)) }
+
+            FakeServer.releaseHeld()
+            await model.settle()
+
+            #expect(model.items.map(\.id) == ["c3"])
+            #expect(model.failure == nil)
+        }
+
+        @Test("should bring back only the card whose restore failed, in its old place, and say so")
+        func lateFailureRestoresOnlyThatCard() async throws {
+            let session = FakeServerSession([
+                "/knowledge-bits/rejected": page(["c1", "c2", "c3"], hasMore: false),
+                "POST /knowledge-bits/c2/restore-rejected": .held(500, "{}"),
+                "POST /knowledge-bits/c1/restore-rejected": .status(200)
+            ])
+            defer { session.end() }
+            let model = RejectedCardsModel()
+
+            await model.load()
+            await model.restore(model.items[1])
+            await model.restore(model.items[0])
+
+            #expect(model.items.map(\.id) == ["c3"])
+
+            for _ in 0..<300 where FakeServer.heldCount < 1 { try await Task.sleep(for: .milliseconds(10)) }
+
+            FakeServer.releaseHeld()
+            await model.settle()
+
+            #expect(model.items.map(\.id).sorted() == ["c2", "c3"])
+            #expect(model.failure != nil)
         }
 
         @Test("should append the next page once and stop asking when there is no more")

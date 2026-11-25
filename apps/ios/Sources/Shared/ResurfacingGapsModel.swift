@@ -7,6 +7,7 @@ final class ResurfacingGapsModel {
     var userDeferred: [GapResurfaceItem] = []
     var dismissedCheckin: [GapResurfaceItem] = []
     var busyIds: Set<String> = []
+    let writes = SerialWriteQueue()
     var isLoading = false
     var hasLoaded = false
     var errorMessage: String?
@@ -38,24 +39,37 @@ final class ResurfacingGapsModel {
         isLoading = false
     }
 
+    func settle() async { await writes.settle() }
+
     func triage(_ item: GapResurfaceItem, action: GapTriageAction) async {
         guard !busyIds.contains(item.id) else { return }
 
+        let deferredIndex = userDeferred.firstIndex { $0.id == item.id }
+        let checkinIndex = dismissedCheckin.firstIndex { $0.id == item.id }
+
         busyIds.insert(item.id)
         errorMessage = nil
+        remove(item.id)
 
-        do {
-            _ = try await APIClient.triageGap(id: item.id, action: action.rawValue)
-            remove(item.id)
-        } catch {
-            if case APIError.badStatus(404, _) = error {
-                remove(item.id)
+        writes.enqueue { [self] in
+            defer { busyIds.remove(item.id) }
+
+            do {
+                _ = try await APIClient.triageGap(id: item.id, action: action.rawValue)
+            } catch {
+                if case APIError.badStatus(404, _) = error {
+                    errorMessage = GapError.message(for: error)
+
+                    return
+                }
+
+                if let deferredIndex { userDeferred.insert(item, at: min(deferredIndex, userDeferred.count)) }
+
+                if let checkinIndex { dismissedCheckin.insert(item, at: min(checkinIndex, dismissedCheckin.count)) }
+
+                errorMessage = GapError.message(for: error)
             }
-
-            errorMessage = GapError.message(for: error)
         }
-
-        busyIds.remove(item.id)
     }
 
     private func remove(_ id: String) {

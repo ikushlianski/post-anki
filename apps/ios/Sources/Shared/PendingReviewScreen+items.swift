@@ -31,7 +31,6 @@ extension PendingReviewScreen {
             } footer: {
                 PendingReviewSourceFooter(
                     readyCount: model.readyCount(in: source),
-                    isBulkBusy: model.bulkInFlight.contains(source.id),
                     message: model.sourceMessages[source.id],
                     onApproveAll: {
                         confirmingCount = model.readyCount(in: source)

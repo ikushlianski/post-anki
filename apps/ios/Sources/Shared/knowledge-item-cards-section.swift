@@ -7,13 +7,17 @@ import SwiftUI
 final class KnowledgeItemCardsModel {
     let bitId: String
     var cards: [KnowledgeCardState] = []
-    var busy: Set<String> = []
     var message: String?
     var loadFailed = false
 
+    let writes = SerialWriteQueue()
+
     init(bitId: String) {
         self.bitId = bitId
+        writes.onIdle = { [weak self] in await self?.load() }
     }
+
+    func settle() async { await writes.settle() }
 
     var showsCards: Bool { loadFailed || cards.contains { !$0.cardKey.isEmpty } }
 
@@ -22,6 +26,9 @@ final class KnowledgeItemCardsModel {
     func load() async {
         do {
             let detail = try await APIClient.knowledgeDetail(id: bitId)
+
+            guard writes.isIdle else { return }
+
             cards = detail.perCardStates
             loadFailed = false
         } catch {
@@ -32,25 +39,36 @@ final class KnowledgeItemCardsModel {
     }
 
     func apply(_ card: KnowledgeCardState, suspended: Bool?, buried: Bool?) async {
-        guard !busy.contains(card.id) else { return }
+        let id = card.variantId
 
-        busy.insert(card.id)
         message = nil
-        defer { busy.remove(card.id) }
+        update(id) {
+            if let suspended { $0.suspended = suspended }
 
-        do {
-            _ = try await APIClient.setSchedule(
-                id: bitId,
-                suspended: suspended,
-                buried: buried,
-                variantId: card.variantId
-            )
-            await load()
-        } catch {
-            guard !KnowledgeManageError.isCancellation(error) else { return }
-
-            message = KnowledgeManageError.message(for: error, action: "update this card")
+            if let buried { $0.buried = buried }
         }
+
+        writes.enqueue { [self] in
+            do {
+                _ = try await APIClient.setSchedule(id: bitId, suspended: suspended, buried: buried, variantId: id)
+            } catch {
+                update(id) {
+                    if suspended != nil, $0.suspended == suspended { $0.suspended = card.suspended }
+
+                    if buried != nil, $0.buried == buried { $0.buried = card.buried }
+                }
+
+                guard !KnowledgeManageError.isCancellation(error) else { return }
+
+                message = KnowledgeManageError.message(for: error, action: "update this card")
+            }
+        }
+    }
+
+    private func update(_ variantId: String, _ change: (inout KnowledgeCardState) -> Void) {
+        guard let index = cards.firstIndex(where: { $0.id == variantId }) else { return }
+
+        change(&cards[index])
     }
 }
 
@@ -61,7 +79,7 @@ struct KnowledgeItemCardsSection: View {
         if model.showsCards {
             Section("Cards") {
                 ForEach(model.cards) { card in
-                    KnowledgeItemCardRow(card: card, isBusy: model.busy.contains(card.id)) { suspended, buried in
+                    KnowledgeItemCardRow(card: card) { suspended, buried in
                         Task { await model.apply(card, suspended: suspended, buried: buried) }
                     }
                 }
@@ -80,7 +98,6 @@ struct KnowledgeItemCardsSection: View {
 
 private struct KnowledgeItemCardRow: View {
     let card: KnowledgeCardState
-    let isBusy: Bool
     let onChange: (_ suspended: Bool?, _ buried: Bool?) -> Void
 
     private var statusText: String {
@@ -125,7 +142,6 @@ private struct KnowledgeItemCardRow: View {
             } label: {
                 Label("Card actions", systemImage: "ellipsis.circle").labelStyle(.iconOnly)
             }
-            .disabled(isBusy)
         }
     }
 }

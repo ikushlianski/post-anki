@@ -22,6 +22,10 @@ final class OpenQuestionsModel {
     var loadError: String?
     var failureKind: ProgressLoadError?
     var actionMessage: String?
+    var unsentAnswers: [String: String] = [:]
+    let writes = SerialWriteQueue()
+
+    func settle() async { await writes.settle() }
 
     func load() async {
         let requested = filter
@@ -55,29 +59,34 @@ final class OpenQuestionsModel {
         as resolution: OpenQuestionResolution,
         answerText: String? = nil
     ) async -> Bool {
+        guard let index = items.firstIndex(where: { $0.id == question.id }) else { return true }
+
         actionMessage = nil
+        unsentAnswers[question.id] = nil
+        remove(question)
 
-        do {
-            _ = try await APIClient.resolveOpenQuestion(
-                id: question.id,
-                status: resolution,
-                answerText: answerText
-            )
-            remove(question)
+        writes.enqueue { [self] in
+            do {
+                _ = try await APIClient.resolveOpenQuestion(id: question.id, status: resolution, answerText: answerText)
+            } catch {
+                if case APIError.badStatus(404, _) = error {
+                    actionMessage = "Already resolved elsewhere"
 
-            return true
-        } catch {
-            if case APIError.badStatus(404, _) = error {
-                remove(question)
-                actionMessage = "Already resolved elsewhere"
+                    return
+                }
 
-                return true
+                if filter == .open, !items.contains(where: { $0.id == question.id }) {
+                    items.insert(question, at: min(index, items.count))
+                    totalCount += 1
+                }
+
+                if let answerText, !answerText.isEmpty { unsentAnswers[question.id] = answerText }
+
+                actionMessage = StudyToolsError.message(for: error)
             }
-
-            actionMessage = StudyToolsError.message(for: error)
-
-            return false
         }
+
+        return true
     }
 
     private func remove(_ question: OpenQuestion) {
@@ -119,7 +128,7 @@ struct OpenQuestionsScreen: View {
         .refreshable { await model.load() }
         .task(id: model.filter) { await model.load() }
         .sheet(item: $resolving) { question in
-            ResolveQuestionSheet(question: question) { answer in
+            ResolveQuestionSheet(question: question, initialAnswer: model.unsentAnswers[question.id] ?? "") { answer in
                 await model.resolve(question, as: .answered, answerText: answer)
             }
         }
@@ -210,8 +219,14 @@ struct ResolveQuestionSheet: View {
     let onAnswer: (String) async -> Bool
 
     @Environment(\.dismiss) private var dismiss
-    @State private var answer = ""
+    @State private var answer: String
     @State private var isSaving = false
+
+    init(question: OpenQuestion, initialAnswer: String = "", onAnswer: @escaping (String) async -> Bool) {
+        self.question = question
+        self.onAnswer = onAnswer
+        _answer = State(initialValue: initialAnswer)
+    }
 
     var body: some View {
         NavigationStack {

@@ -139,7 +139,7 @@ struct KnowledgeListScreen: View {
     @ViewBuilder
     private var selectionBar: some View {
         if editMode.isEditing {
-            let blocked = model.selection.isEmpty || model.selectionTooLarge || model.isBulkBusy
+            let blocked = model.selection.isEmpty || model.selectionTooLarge
 
             VStack(spacing: 0) {
                 if model.selectionTooLarge {

@@ -9,6 +9,8 @@ final class PendingReviewTriageModel {
     var hint: String?
     var saveFailure: SaveFailure?
     var subjectFilter: String?
+    var sendingToChat: Set<String> = []
+    let chatWrites = SerialWriteQueue()
     private var selections: [String: PendingReviewTriageSelection] = [:]
 
     @ObservationIgnored var queued: [String: String] = [:]
@@ -45,6 +47,7 @@ final class PendingReviewTriageModel {
     }
 
     func layoutChanged(toTriage: Bool) async {
+        await list.settleDecisions()
         list.scopeSubjectId = toTriage ? subjectFilter : nil
         await list.load()
         topUpIfNeeded()

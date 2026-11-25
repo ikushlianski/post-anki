@@ -46,14 +46,23 @@ final class KnowledgeListModel {
     var isLoading = false
     var isLoadingMore = false
     var hasLoaded = false
-    var isBulkBusy = false
     var failure: String?
     var failureKind: ProgressLoadError?
     var notice: String?
 
+    @ObservationIgnored let writes = SerialWriteQueue()
+    @ObservationIgnored var pendingDeletes: Set<String> = []
+    @ObservationIgnored var pendingMoves: [String: String] = [:]
+    @ObservationIgnored var needsReconcile = false
     @ObservationIgnored private var offset = 0
     @ObservationIgnored private var requestToken = 0
     @ObservationIgnored private var loadTask: Task<Void, Never>?
+
+    init() {
+        writes.onIdle = { [weak self] in await self?.reconcile() }
+    }
+
+    func settle() async { await writes.settle() }
 
     var hasActiveFilter: Bool {
         subjectId != nil || statusFilter != .all || originFilter != .all || !query.trimmingCharacters(in: .whitespaces).isEmpty
@@ -140,7 +149,7 @@ final class KnowledgeListModel {
 
             let known = Set(items.map(\.id))
 
-            items += page.items.filter { !known.contains($0.id) }
+            items += withPendingWrites(page.items).filter { !known.contains($0.id) }
             offset = pageOffset + page.items.count
             hasMore = page.hasMore
             failure = nil
@@ -200,7 +209,7 @@ final class KnowledgeListModel {
 
             guard token == requestToken else { return }
 
-            items = page.items
+            items = withPendingWrites(page.items)
             offset = page.items.count
             hasMore = page.hasMore
             hasLoaded = true

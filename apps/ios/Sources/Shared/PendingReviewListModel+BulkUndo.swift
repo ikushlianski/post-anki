@@ -3,55 +3,16 @@ import SwiftUI
 
 extension PendingReviewListModel {
     func approveAll(sourceId: String) async {
-        guard !bulkInFlight.contains(sourceId),
-              let source = sources.first(where: { $0.id == sourceId }) else { return }
+        guard let source = sources.first(where: { $0.id == sourceId }) else { return }
 
-        let ids = source.bits.filter { !$0.variants.isEmpty && !inFlight.contains($0.id) }.map(\.id)
+        let ready = source.bits.filter { !$0.variants.isEmpty && !inFlight.contains($0.id) && queuedIds[$0.id] == nil }
 
-        guard !ids.isEmpty else { return }
-
-        inFlight.formUnion(ids)
-        bulkInFlight.insert(sourceId)
         sourceMessages[sourceId] = nil
-        defer {
-            inFlight.subtract(ids)
-            bulkInFlight.remove(sourceId)
-        }
 
-        var approved: [String] = []
-        var skipped: [PendingReviewBulkSkip] = []
-        var failure: Error?
+        for bit in ready {
+            guard let snapshot = snapshot(of: bit.id) else { continue }
 
-        for start in stride(from: 0, to: ids.count, by: 200) {
-            let chunk = Array(ids[start..<min(start + 200, ids.count)])
-
-            do {
-                let result = try await APIClient.approveKnowledgeBits(ids: chunk)
-
-                approved += result.approved
-                skipped += result.skipped
-                apply(result)
-            } catch {
-                failure = error
-
-                break
-            }
-        }
-
-        let gone = skipped.filter { $0.reason == "already_decided" || $0.reason == "not_found" }
-
-        if !approved.isEmpty { counts.adjust(by: -approved.count) }
-
-        if !gone.isEmpty { Task { await counts.refresh() } }
-
-        if let failure {
-            if approved.isEmpty {
-                sourceMessages[sourceId] = PendingReviewDecision.bulkErrorMessage(for: failure)
-            } else if PendingReviewDecision.bulkErrorMessage(for: failure) != nil {
-                sourceMessages[sourceId] = "Approved \(approved.count) of \(ids.count). Couldn't finish, try again."
-            }
-        } else {
-            sourceMessages[sourceId] = PendingReviewBulkApprovalResult(approved: approved, skipped: skipped).summary()
+            _ = await queueDecision(snapshot, kind: .approve)
         }
     }
 
@@ -59,6 +20,10 @@ extension PendingReviewListModel {
         guard let undo = pendingUndo, !undo.isRestoring, undo.canRetry else { return }
 
         let removed = undo.removed
+
+        if await undoQueuedDecision(removed) { return }
+
+        guard pendingUndo?.removed.bit.id == removed.bit.id else { return }
 
         pendingUndo?.isRestoring = true
         pendingUndo?.message = nil
@@ -102,23 +67,6 @@ extension PendingReviewListModel {
         undoTask?.cancel()
         undoTask = nil
         withAnimation { pendingUndo = nil }
-    }
-
-    private func apply(_ result: PendingReviewBulkApprovalResult) {
-        var gone = Set(result.approved)
-
-        for skip in result.skipped {
-            switch skip.reason {
-            case "already_decided", "not_found":
-                gone.insert(skip.id)
-            case "no_variant":
-                rowMessages[skip.id] = "This item has no questions yet, so it can't be approved."
-            default:
-                break
-            }
-        }
-
-        withAnimation { remove(bitIds: gone) }
     }
 
     func applyRestore(_ removed: PendingReviewRemovedBit) {

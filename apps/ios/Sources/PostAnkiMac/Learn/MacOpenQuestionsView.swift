@@ -54,7 +54,7 @@ struct MacOpenQuestionsView: View {
             }
         }
         .sheet(item: $resolving) { question in
-            ResolveQuestionSheet(question: question) { answer in
+            ResolveQuestionSheet(question: question, initialAnswer: model.unsentAnswers[question.id] ?? "") { answer in
                 await model.resolve(question, as: .answered, answerText: answer)
             }
             .macSheetMinSize(width: 460, height: 340)

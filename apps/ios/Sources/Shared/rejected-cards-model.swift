@@ -21,13 +21,17 @@ final class RejectedCardsModel {
     var subjectsNotice: String? {
         SubjectListNotice.rejectedFilterMessage(failed: subjectsFailed, optionCount: subjectOptions.count)
     }
-    var restoringId: String?
+    private(set) var pendingIds: Set<String> = []
     var selection = RejectedSelection()
     var isSelecting = false
     var bulkRunning = false
 
+    let writes = SerialWriteQueue()
+
     @ObservationIgnored private var offset = 0
     @ObservationIgnored private var generation = 0
+
+    func settle() async { await writes.settle() }
 
     func select(_ reason: RejectedCardReason?) async {
         guard reason != self.reason else { return }
@@ -75,8 +79,8 @@ final class RejectedCardsModel {
 
             guard current == generation else { return }
 
-            items = page.items
-            selection.keepOnly(page.items.map(\.id))
+            items = page.items.filter { !pendingIds.contains($0.id) }
+            selection.keepOnly(items.map(\.id))
             counts = RejectedReasonCounts(page.reasonCounts) ?? counts
             offset = page.items.count
             hasMore = page.hasMore
@@ -91,52 +95,73 @@ final class RejectedCardsModel {
     }
 
     func restore(_ card: RejectedCard) async {
-        guard restoringId == nil else { return }
+        guard let row = takeOut(card.id) else { return }
 
-        restoringId = card.id
-        failure = nil
-        notice = nil
-        defer { restoringId = nil }
+        TriageFeedbackPlayer.announce(.restored)
 
-        do {
-            try await APIClient.restoreRejectedCard(id: card.id)
-            remove(card.id)
-            TriageFeedbackPlayer.announce(.restored)
-            await refreshCounts()
-        } catch {
-            guard !KnowledgeManageError.isCancellation(error) else { return }
+        writes.enqueue { [self] in
+            defer { pendingIds.remove(card.id) }
 
-            switch RejectedCardRestoreOutcome.outcome(for: error) {
-            case .restored, .alreadyGone:
-                remove(card.id)
+            do {
+                try await APIClient.restoreRejectedCard(id: card.id)
                 await refreshCounts()
-            case .notRejected:
-                notice = "That card is no longer rejected. List refreshed."
-                await load()
-            case .failed:
-                failure = KnowledgeManageError.message(for: error, action: "restore the card")
+            } catch {
+                switch RejectedCardRestoreOutcome.outcome(for: error) {
+                case .restored, .alreadyGone:
+                    await refreshCounts()
+                case .notRejected:
+                    notice = "That card is no longer rejected. List refreshed."
+                    pendingIds.remove(card.id)
+                    await load()
+                case .failed:
+                    putBack(row)
+
+                    if !KnowledgeManageError.isCancellation(error) {
+                        failure = KnowledgeManageError.message(for: error, action: "restore the card")
+                    }
+                }
             }
         }
     }
 
     func sendToChat(_ card: RejectedCard) async {
-        guard restoringId == nil else { return }
+        guard let row = takeOut(card.id) else { return }
 
-        restoringId = card.id
+        TriageFeedbackPlayer.announce(.sentToChat)
+
+        writes.enqueue { [self] in
+            defer { pendingIds.remove(card.id) }
+
+            guard await APIClient.sendTriageDecisionToChat(id: card.id, wasRejected: true) else {
+                putBack(row)
+                failure = "Couldn't send the card to Chat. Try again."
+
+                return
+            }
+
+            await refreshCounts()
+            await ChatQueueCountStore.shared.refresh()
+        }
+    }
+
+    private func takeOut(_ id: String) -> (following: Set<String>, card: RejectedCard)? {
+        guard !pendingIds.contains(id), let index = items.firstIndex(where: { $0.id == id }) else { return nil }
+
+        let row = (following: RowReinsertion.following(id, in: items), card: items[index])
+
         failure = nil
         notice = nil
-        defer { restoringId = nil }
+        pendingIds.insert(id)
+        remove(id)
 
-        guard await APIClient.sendTriageDecisionToChat(id: card.id, wasRejected: true) else {
-            failure = "Couldn't send the card to Chat. Try again."
+        return row
+    }
 
-            return
-        }
+    private func putBack(_ row: (following: Set<String>, card: RejectedCard)) {
+        guard !items.contains(where: { $0.id == row.card.id }) else { return }
 
-        remove(card.id)
-        TriageFeedbackPlayer.announce(.sentToChat)
-        await refreshCounts()
-        await ChatQueueCountStore.shared.refresh()
+        items.insert(row.card, at: RowReinsertion.index(in: items, before: row.following))
+        offset += 1
     }
 
     private func refreshCounts() async {
@@ -159,7 +184,7 @@ final class RejectedCardsModel {
     func restoreSelected() async {
         let ids = selection.orderedIds(in: items.map(\.id))
 
-        guard !ids.isEmpty, !bulkRunning, restoringId == nil else { return }
+        guard !ids.isEmpty, !bulkRunning else { return }
 
         bulkRunning = true
         failure = nil
@@ -227,7 +252,7 @@ final class RejectedCardsModel {
 
             let known = Set(items.map(\.id))
 
-            items += page.items.filter { !known.contains($0.id) }
+            items += page.items.filter { !known.contains($0.id) && !pendingIds.contains($0.id) }
             offset += page.items.count
             hasMore = page.hasMore
         } catch {
