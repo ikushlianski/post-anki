@@ -25,7 +25,7 @@ extension ChatQueueThreadModel {
         guard let line = lines.first(where: { $0.seq == seq }) else { return }
 
         for index in ChatQueueMakeCardsPrompt.pendingIndexes(in: line.proposals) {
-            guard await decide(seq: seq, index: index, decision: .accept) else { return }
+            await decide(seq: seq, index: index, decision: .accept)
         }
     }
 

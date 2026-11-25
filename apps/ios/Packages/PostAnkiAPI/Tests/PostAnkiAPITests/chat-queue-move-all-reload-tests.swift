@@ -60,6 +60,7 @@ struct ChatQueueMoveAllReloadTests {
 
         await harness.waitForListGate()
         await model.moveAllVisibleToInbox()
+        await model.settleBackgroundActions()
         harness.releaseList()
         await reload.value
 
@@ -100,6 +101,7 @@ struct ChatQueueMoveAllReloadTests {
         await model.load()
         model.staleOnly = true
         await model.moveAllVisibleToInbox()
+        await model.settleBackgroundActions()
         await model.load()
 
         #expect(model.items.isEmpty)

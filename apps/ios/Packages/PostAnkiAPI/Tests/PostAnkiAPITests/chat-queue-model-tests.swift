@@ -52,6 +52,7 @@ struct ChatQueueModelTests {
 
         await model.load()
         await model.returnToInbox("a")
+        await model.settleBackgroundActions()
 
         #expect(model.items.map(\.id) == ["b"])
         #expect(harness.counts.last == 1)
@@ -66,6 +67,7 @@ struct ChatQueueModelTests {
         await model.load()
         harness.returnError = APIError.badStatus(409, "not_in_chat")
         await model.returnToInbox("a")
+        await model.settleBackgroundActions()
 
         #expect(model.items.map(\.id) == ["b"])
         #expect(model.errorMessage == ChatQueueFailure.notInChat.message)
@@ -79,6 +81,7 @@ struct ChatQueueModelTests {
         await model.load()
         harness.returnError = APIError.badStatus(404, "not_found")
         await model.returnToInbox("a")
+        await model.settleBackgroundActions()
 
         #expect(model.items.map(\.id) == ["b"])
         #expect(model.errorMessage == ChatQueueFailure.notFound.message)
@@ -92,6 +95,7 @@ struct ChatQueueModelTests {
         await model.load()
         harness.returnError = URLError(.notConnectedToInternet)
         await model.returnToInbox("a")
+        await model.settleBackgroundActions()
 
         #expect(model.items.map(\.id) == ["a", "b"])
         #expect(model.errorMessage == ChatQueueFailure.offline.message)
@@ -113,6 +117,7 @@ struct ChatQueueModelTests {
 
         harness.returnGate?.resume()
         await first.value
+        await model.settleBackgroundActions()
 
         #expect(harness.returnCalls == ["a"])
         #expect(model.items.map(\.id) == ["b"])
@@ -132,6 +137,7 @@ struct ChatQueueModelTests {
         while harness.listGate == nil { await Task.yield() }
 
         await model.returnToInbox("a")
+        await model.settleBackgroundActions()
 
         harness.holdList = false
         harness.listGate?.resume()

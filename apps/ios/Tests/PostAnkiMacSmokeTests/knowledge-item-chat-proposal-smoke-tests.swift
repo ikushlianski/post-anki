@@ -62,6 +62,7 @@ extension SmokeTests {
 
             let before = ChatQueueCountStore.shared.count
             let ok = await model.thread.decide(seq: 2, index: 0, decision: .accept)
+            await model.thread.settleWrites()
 
             #expect(ok)
             #expect(model.thread.lines.last?.proposals.first?.savedCardId == "c1")

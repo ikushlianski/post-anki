@@ -94,8 +94,6 @@ extension ChatQueueModel {
 
     @discardableResult
     public func runBulk(_ action: ChatQueueBulkAction) async -> Int {
-        guard !isBulkRunning else { return 0 }
-
         let ids = targetIds(for: action)
         let skipped = skipNotice(for: action)
 
@@ -105,77 +103,73 @@ extension ChatQueueModel {
             return 0
         }
 
-        isConfirmingBulk = false
-        isBulkRunning = true
-        bulkNotice = nil
-        defer { isBulkRunning = false }
+        let skippedIds = Set(pickedIds).subtracting(ids)
+        let local = applyLocally(action, to: ids)
 
-        let result = await ChatQueueBulkRunner.run(ids: ids) { [self] id in
-            await perform(action, on: id)
+        isConfirmingBulk = false
+        bulkNotice = skipped
+        picked = skippedIds
+        activeBulks += 1
+
+        runInBackground(ids: ids) { [self] in
+            let result = await ChatQueueBulkRunner.run(ids: ids) { [self] id in
+                await perform(action, on: id)
+            }
+
+            for id in result.failed { revert(id, local) }
+
+            picked.formUnion(result.failed.filter { id in items.contains { $0.id == id } })
+            bulkNotice = [ChatQueueBulkRunner.notice(failed: result.failed.count, verb: action.failureVerb), skipped]
+                .compactMap { $0 }
+                .joined(separator: "; ")
+                .nilIfEmpty
+            activeBulks -= 1
         }
 
-        let skippedIds = Set(pickedIds).subtracting(ids)
+        return ids.count
+    }
 
-        picked = Set(result.failed).union(skippedIds)
-        bulkNotice = [ChatQueueBulkRunner.notice(failed: result.failed.count, verb: action.failureVerb), skipped]
-            .compactMap { $0 }
-            .joined(separator: "; ")
-            .nilIfEmpty
+    private struct LocalBulkChange {
+        var rows: [String: RemovedRow] = [:]
+        var snoozes: [String: (before: ChatQueueItem, marked: ChatQueueItem)] = [:]
+    }
 
-        if case .snooze = action, !result.succeeded.isEmpty { await load() }
+    private func applyLocally(_ action: ChatQueueBulkAction, to ids: [String]) -> LocalBulkChange {
+        var local = LocalBulkChange()
 
-        return result.succeeded.count
+        for id in ids {
+            if case .snooze(let days) = action {
+                local.snoozes[id] = markSnoozed(id, until: Date().addingTimeInterval(TimeInterval(days) * 86_400))
+            } else {
+                local.rows[id] = takeOut(id)
+            }
+        }
+
+        return local
+    }
+
+    private func revert(_ id: String, _ local: LocalBulkChange) {
+        if let row = local.rows[id] { putBack(row) }
+
+        if let change = local.snoozes[id] { restoreSnooze(change) }
     }
 
     private func perform(_ action: ChatQueueBulkAction, on id: String) async -> Bool {
-        switch action {
-        case .moveToInbox:
-            return await bulkReturnToInbox(id)
-        case .snooze(let days):
-            return await bulkSnooze(id, days: days)
-        case .delete:
-            return await bulkDelete(id)
-        }
-    }
-
-    private func bulkReturnToInbox(_ id: String) async -> Bool {
         do {
-            try await returnAction(id)
-        } catch {
-            let failure = ChatQueueFailure.failure(for: error)
-
-            guard failure == .notFound || failure == .notInChat else { return false }
-        }
-
-        resolved(id)
-
-        return true
-    }
-
-    private func bulkDelete(_ id: String) async -> Bool {
-        do {
-            try await deleteAction(id)
-        } catch {
-            let failure = ChatQueueFailure.failure(for: error)
-
-            guard failure == .notFound || failure == .notInChat else { return false }
-        }
-
-        resolved(id)
-
-        return true
-    }
-
-    private func bulkSnooze(_ id: String, days: Int) async -> Bool {
-        do {
-            try await snoozeAction(id, days: days)
+            switch action {
+            case .moveToInbox: try await returnAction(id)
+            case .snooze(let days): try await snoozeAction(id, days: days)
+            case .delete: try await deleteAction(id)
+            }
         } catch {
             let failure = ChatQueueFailure.failure(for: error)
 
             guard failure == .notFound || failure == .notInChat else { return false }
 
-            resolved(id)
+            if case .snooze = action { resolved(id) }
         }
+
+        pendingRemoval.remove(id)
 
         return true
     }

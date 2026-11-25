@@ -51,10 +51,10 @@ public final class ChatQueueModel {
     public var subject: String? {
         didSet { reconcileSubject() }
     }
-    public var isMovingAll = false
+    public var isMovingAll: Bool { activeMoveAlls > 0 }
     public var picked: Set<String> = []
     public var pickAnchor: String?
-    public var isBulkRunning = false
+    public var isBulkRunning: Bool { activeBulks > 0 }
     public var bulkNotice: String?
     public var isConfirmingBulk = false
     public var confirmingAction: ChatQueueBulkAction = .moveToInbox
@@ -94,10 +94,14 @@ public final class ChatQueueModel {
         subject = nil
     }
 
-    @ObservationIgnored private let actions: ChatQueueActions
+    @ObservationIgnored let actions: ChatQueueActions
     @ObservationIgnored private let orderStore: ChatQueueOrderStoring
-    @ObservationIgnored private var inFlight: Set<String> = []
-    @ObservationIgnored private var removedDuringLoad: Set<String> = []
+    @ObservationIgnored var removedDuringLoad: Set<String> = []
+    @ObservationIgnored var pendingRemoval: Set<String> = []
+    @ObservationIgnored var itemTails: [String: Task<Void, Never>] = [:]
+    @ObservationIgnored var backgroundTasks: [UUID: Task<Void, Never>] = [:]
+    var activeBulks = 0
+    var activeMoveAlls = 0
 
     public init(actions: ChatQueueActions, orderStore: ChatQueueOrderStoring = InMemoryChatQueueOrderStore()) {
         self.actions = actions
@@ -130,7 +134,7 @@ public final class ChatQueueModel {
 
         do {
             let list = try await actions.list()
-            let kept = list.items.filter { !removedDuringLoad.contains($0.id) }
+            let kept = list.items.filter { !removedDuringLoad.contains($0.id) && !pendingRemoval.contains($0.id) }
             let dropped = list.items.count - kept.count
 
             items = kept
@@ -156,93 +160,79 @@ public final class ChatQueueModel {
     }
 
     public func snooze(_ id: String, days: Int) async {
-        await change(id) { try await self.actions.snooze(id, days) }
+        let until = Date().addingTimeInterval(TimeInterval(days) * 86_400)
+
+        await changeSnooze(id, until: until) { try await self.actions.snooze(id, days) }
     }
 
     public func unsnooze(_ id: String) async {
-        await change(id) { try await self.actions.unsnooze(id) }
+        await changeSnooze(id, until: nil) { try await self.actions.unsnooze(id) }
     }
 
     @discardableResult
     public func returnToInbox(_ id: String) async -> Bool {
-        guard inFlight.insert(id).inserted else { return false }
-
-        defer { inFlight.remove(id) }
-
         errorMessage = nil
 
-        do {
-            try await actions.returnToInbox(id)
-        } catch {
-            let failure = ChatQueueFailure.failure(for: error)
+        guard let row = takeOut(id) else { return false }
 
-            errorMessage = failure.message
-
-            if failure == .notFound || failure == .notInChat { resolved(id) }
-
-            return false
+        runInBackground(ids: [id]) { [self] in
+            do {
+                try await actions.returnToInbox(id)
+                pendingRemoval.remove(id)
+            } catch {
+                failedToLeave(row, error)
+            }
         }
-
-        resolved(id)
 
         return true
     }
 
     @discardableResult
     public func moveAllVisibleToInbox() async -> Int {
-        guard !isMovingAll, isStaleFilterActive else { return 0 }
+        guard isStaleFilterActive else { return 0 }
 
         let ids = movableVisibleItems.map(\.id)
 
         guard !ids.isEmpty else { return 0 }
 
-        isMovingAll = true
         errorMessage = nil
-        defer { isMovingAll = false }
 
-        var failed = 0
-        var moved = 0
+        let rows = ids.compactMap { takeOut($0) }
 
-        for id in ids {
-            do {
-                try await actions.returnToInbox(id)
-                moved += 1
-                resolved(id)
-            } catch {
-                let failure = ChatQueueFailure.failure(for: error)
+        activeMoveAlls += 1
+        runInBackground(ids: ids) { [self] in
+            var failed: [RemovedRow] = []
 
-                if failure == .notFound || failure == .notInChat {
-                    resolved(id)
-                } else {
-                    failed += 1
+            for row in rows {
+                do {
+                    try await actions.returnToInbox(row.item.id)
+                    pendingRemoval.remove(row.item.id)
+                } catch {
+                    let failure = ChatQueueFailure.failure(for: error)
+
+                    if failure == .notFound || failure == .notInChat {
+                        pendingRemoval.remove(row.item.id)
+                    } else {
+                        failed.append(row)
+                    }
                 }
+            }
+
+            failed.forEach { putBack($0) }
+            activeMoveAlls -= 1
+            await load()
+
+            if !failed.isEmpty {
+                errorMessage = "\(failed.count) \(failed.count == 1 ? "card" : "cards") could not be moved"
             }
         }
 
-        await load()
-
-        if failed > 0 {
-            errorMessage = "\(failed) \(failed == 1 ? "card" : "cards") could not be moved"
-        }
-
-        return moved
+        return rows.count
     }
 
-    private func change(_ id: String, _ action: () async throws -> Void) async {
-        errorMessage = nil
-
-        do {
-            try await action()
-        } catch {
-            let failure = ChatQueueFailure.failure(for: error)
-
-            errorMessage = failure.message
-
-            if failure == .notFound || failure == .notInChat { resolved(id) }
-
-            return
-        }
-
+    public func reloadAfterRollback(_ id: String, message: String) async {
+        removedDuringLoad.remove(id)
         await load()
+        errorMessage = message
     }
 }

@@ -14,9 +14,19 @@ struct ChatQueueThreadScreen: View {
     let onSnoozed: () -> Void
     let onCardUpdated: () -> Void
 
-    init(item: ChatQueueItem, onResolved: @escaping () -> Void, onSnoozed: @escaping () -> Void, onCardUpdated: @escaping () -> Void = {}) {
+    init(
+        item: ChatQueueItem,
+        onResolved: @escaping () -> Void,
+        onSnoozed: @escaping () -> Void,
+        onCardUpdated: @escaping () -> Void = {},
+        onRolledBack: @escaping @MainActor (String, String) -> Void = { _, _ in }
+    ) {
         self.onCardUpdated = onCardUpdated
-        _model = State(initialValue: ChatQueueThreadModel(item: item))
+
+        let threadModel = ChatQueueThreadModel(item: item)
+
+        threadModel.onRolledBack = onRolledBack
+        _model = State(initialValue: threadModel)
         self.onResolved = onResolved
         self.onSnoozed = onSnoozed
     }
@@ -132,7 +142,16 @@ struct ChatQueueThreadScreen: View {
         .onChange(of: model.isFinished) { _, finished in
             guard finished else { return }
 
-            if model.wasSnoozed { onSnoozed() } else { onResolved() }
+            if model.wasSnoozed {
+                let thread = model
+
+                Task {
+                    await thread.settleWrites()
+                    onSnoozed()
+                }
+            } else {
+                onResolved()
+            }
 
             dismiss()
         }
@@ -141,6 +160,7 @@ struct ChatQueueThreadScreen: View {
         }) { feedback in
             RejectReasonSheet(
                 feedback: feedback,
+                canSend: model.rejectFeedbackId != nil,
                 onSend: { reason, note in await model.sendRejectReason(reason, note: note) },
                 onSkip: { model.skipRejectReason() }
             )

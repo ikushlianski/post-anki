@@ -49,6 +49,7 @@ struct ChatQueueMoveAllTests {
         await model.load()
         model.staleOnly = true
         await model.moveAllVisibleToInbox()
+        await model.settleBackgroundActions()
 
         #expect(harness.calls == ["a", "b"])
         #expect(model.items.map(\.id) == ["c"])
@@ -65,29 +66,71 @@ struct ChatQueueMoveAllTests {
         model.staleOnly = true
         harness.failIds = ["b", "c"]
         await model.moveAllVisibleToInbox()
+        await model.settleBackgroundActions()
 
         #expect(Set(model.items.map(\.id)) == ["b", "c"])
         #expect(model.errorMessage == "2 cards could not be moved")
     }
 
-    @Test("a second trigger while the move is running is ignored")
+    @Test("a second trigger right after the first moves nothing more and the server is called once per card")
     func doubleTrigger() async {
         let harness = MoveAllHarness(stale: ["a", "b"])
         let model = harness.model()
 
         await model.load()
         model.staleOnly = true
+
+        let first = await model.moveAllVisibleToInbox()
+        let second = await model.moveAllVisibleToInbox()
+        await model.settleBackgroundActions()
+
+        #expect(first == 2)
+        #expect(second == 0)
+        #expect(harness.calls == ["a", "b"])
+    }
+
+    @Test("the cards leave the list at once while the server request is still held")
+    func removedWhileHeld() async {
+        let harness = MoveAllHarness(stale: ["a", "b"], fresh: ["c"])
+        let model = harness.model()
+
+        await model.load()
+        model.staleOnly = true
         harness.hold = true
 
-        let first = Task { await model.moveAllVisibleToInbox() }
+        let moved = await model.moveAllVisibleToInbox()
 
-        await Task.yield()
-        await model.moveAllVisibleToInbox()
+        #expect(moved == 2)
+        #expect(model.items.map(\.id) == ["c"])
+        #expect(harness.counts.last == 1)
+
+        while harness.gate == nil { await Task.yield() }
+
         harness.hold = false
         harness.gate?.resume()
-        await first.value
+        await model.settleBackgroundActions()
 
-        #expect(harness.calls == ["a", "b"])
+        #expect(model.items.map(\.id) == ["c"])
+    }
+
+    @Test("a refresh that lands while the move is still held does not bring the moving cards back")
+    func refreshWhileHeld() async {
+        let harness = MoveAllHarness(stale: ["a", "b"], fresh: ["c"])
+        let model = harness.model()
+
+        await model.load()
+        model.staleOnly = true
+        harness.hold = true
+        await model.moveAllVisibleToInbox()
+        await model.load()
+
+        #expect(model.items.map(\.id) == ["c"])
+
+        while harness.gate == nil { await Task.yield() }
+
+        harness.hold = false
+        harness.gate?.resume()
+        await model.settleBackgroundActions()
     }
 
     @Test("nothing happens when the stale filter is off or no stale cards exist")
@@ -97,6 +140,7 @@ struct ChatQueueMoveAllTests {
 
         await model.load()
         await model.moveAllVisibleToInbox()
+        await model.settleBackgroundActions()
 
         #expect(harness.calls.isEmpty)
 
@@ -106,6 +150,7 @@ struct ChatQueueMoveAllTests {
         await other.load()
         other.staleOnly = true
         await other.moveAllVisibleToInbox()
+        await other.settleBackgroundActions()
 
         #expect(none.calls.isEmpty)
         #expect(other.items.map(\.id) == ["c"])
@@ -121,29 +166,57 @@ struct ChatQueueSingleMoveTests {
         let model = harness.model()
 
         await model.load()
-        harness.hold = true
 
-        async let first = model.returnToInbox("a")
-
-        await Task.yield()
-
+        let first = await model.returnToInbox("a")
         let second = await model.returnToInbox("a")
+        await model.settleBackgroundActions()
 
-        harness.gate?.resume()
-
+        #expect(first == true)
         #expect(second == false)
-        #expect(await first == true)
         #expect(harness.calls == ["a"])
     }
 
-    @Test("a failed move reports no move")
+    @Test("a failed move puts the card back in its place with a message once the server answers")
     func failure() async {
-        let harness = MoveAllHarness(stale: ["a"])
+        let harness = MoveAllHarness(stale: ["a", "b"])
         let model = harness.model()
 
         await model.load()
         harness.failIds = ["a"]
 
-        #expect(await model.returnToInbox("a") == false)
+        #expect(await model.returnToInbox("a") == true)
+        #expect(model.items.map(\.id) == ["b"])
+
+        await model.settleBackgroundActions()
+
+        #expect(model.items.map(\.id) == ["a", "b"])
+        #expect(model.errorMessage != nil)
+    }
+
+    @Test("the card leaves the list at once while its request is held and the next card can still be moved")
+    func nextActionWhileHeld() async {
+        let harness = MoveAllHarness(stale: ["a", "b"])
+        let model = harness.model()
+
+        await model.load()
+        harness.hold = true
+
+        #expect(await model.returnToInbox("a") == true)
+        #expect(model.items.map(\.id) == ["b"])
+
+        while harness.gate == nil { await Task.yield() }
+
+        harness.hold = false
+
+        #expect(await model.returnToInbox("b") == true)
+        #expect(model.items.isEmpty)
+
+        while harness.calls.count < 2 { await Task.yield() }
+
+        harness.gate?.resume()
+        await model.settleBackgroundActions()
+
+        #expect(model.items.isEmpty)
+        #expect(model.errorMessage == nil)
     }
 }

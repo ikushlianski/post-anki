@@ -20,7 +20,7 @@ struct ChatQueueBulkModelTests {
         ))
     }
 
-    @Test("failed cards stay selected and the notice reports how many failed")
+    @Test("a card whose move fails comes back selected after the server answers, with a notice that counts it")
     func failedStaySelected() async {
         let model = model(ids: ["a", "b", "c"], failing: ["b"])
 
@@ -28,8 +28,9 @@ struct ChatQueueBulkModelTests {
         model.picked = ["a", "b", "c"]
 
         let moved = await model.runBulk(.moveToInbox)
+        await model.settleBackgroundActions()
 
-        #expect(moved == 2)
+        #expect(moved == 3)
         #expect(model.picked == ["b"])
         #expect(model.items.map(\.id) == ["b"])
         #expect(model.bulkNotice == "1 card could not be moved")
@@ -42,6 +43,7 @@ struct ChatQueueBulkModelTests {
         await model.load()
         model.picked = ["a", "b"]
         await model.runBulk(.moveToInbox)
+        await model.settleBackgroundActions()
 
         #expect(model.picked.isEmpty)
         #expect(model.items.isEmpty)
@@ -80,12 +82,14 @@ struct ChatQueueBulkConfirmTests {
         model.picked = Set(["1", "2", "3", "4", "5", "6"])
 
         let moved = await model.requestBulk(.moveToInbox, on: "3")
+        await model.settleBackgroundActions()
 
         #expect(moved == 0)
         #expect(model.isConfirmingBulk)
         #expect(counter.calls == 0)
 
         let confirmed = await model.runBulk(.moveToInbox)
+        await model.settleBackgroundActions()
 
         #expect(confirmed == 6)
         #expect(!model.isConfirmingBulk)
@@ -98,6 +102,7 @@ struct ChatQueueBulkConfirmTests {
         model.picked = Set(["1", "2", "3", "4", "5", "6"])
 
         let moved = await model.requestBulk(.moveToInbox, on: "8")
+        await model.settleBackgroundActions()
 
         #expect(moved == 1)
         #expect(counter.calls == 1)
@@ -113,6 +118,7 @@ struct ChatQueueBulkConfirmTests {
         #expect(model.pickedIds.count == 5)
 
         let moved = await model.requestBulk(.moveToInbox)
+        await model.settleBackgroundActions()
 
         #expect(moved == 5)
         #expect(counter.calls == 5)
@@ -166,6 +172,7 @@ struct ChatQueueBulkSnoozeTests {
         model.picked = Set((1...7).map(String.init))
 
         let count = await model.requestBulk(.snooze(days: 3))
+        await model.settleBackgroundActions()
 
         #expect(count == 7)
         #expect(!model.isConfirmingBulk)
@@ -180,8 +187,9 @@ struct ChatQueueBulkSnoozeTests {
         model.picked = ["1", "2", "3"]
 
         let count = await model.runBulk(.snooze(days: 7))
+        await model.settleBackgroundActions()
 
-        #expect(count == 2)
+        #expect(count == 3)
         #expect(log.calls.count == 2)
         #expect(model.picked == ["2"])
         #expect(model.bulkNotice == "1 card could not be snoozed")

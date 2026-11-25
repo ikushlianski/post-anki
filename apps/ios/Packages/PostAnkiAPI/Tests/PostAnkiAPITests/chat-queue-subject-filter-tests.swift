@@ -157,6 +157,7 @@ struct ChatQueueSubjectStaleTests {
         #expect(model.sortedItems.map(\.id) == ["n1"])
 
         await model.moveAllVisibleToInbox()
+        await model.settleBackgroundActions()
 
         #expect(moved == ["n1"])
     }

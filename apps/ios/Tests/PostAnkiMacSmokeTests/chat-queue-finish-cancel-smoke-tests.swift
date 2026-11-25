@@ -54,6 +54,7 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.cancelChat()
+            await model.settleWrites()
 
             #expect(FakeServer.writes.map { "\($0.method) \($0.path)" } == ["DELETE \(threadPath)"])
             #expect(model.isFinished)
@@ -65,6 +66,7 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.accept()
+            await model.settleWrites()
 
             #expect(FakeServer.writes.map { "\($0.method) \($0.path)" } == ["POST /knowledge-bits/k1/approve"])
             #expect(model.isFinished)
@@ -76,6 +78,7 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.cancelChat()
+            await model.settleWrites()
 
             #expect(!model.isFinished)
             #expect(model.errorMessage != nil)

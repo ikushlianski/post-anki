@@ -44,6 +44,7 @@ extension SmokeTests {
             async let second = model.decide(seq: 2, index: 0, decision: .accept)
             _ = await (first, second)
             _ = await model.decide(seq: 2, index: 0, decision: .accept)
+            await model.settleWrites()
 
             #expect(FakeServer.writes.map { "\($0.method) \($0.path)" } == ["POST \(decidePath)/accept"])
             #expect(model.lines.last?.proposals.first?.status == .accepted)
@@ -59,6 +60,7 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.decide(seq: 2, index: 0, decision: .reject)
+            await model.settleWrites()
             await model.rejectAnnouncement?.value
 
             #expect(model.lines.last?.proposals.first?.status == .pending)
@@ -68,14 +70,18 @@ extension SmokeTests {
             #expect(FakeServer.writes.map(\.path) == ["\(decidePath)/reject", threadPath])
         }
 
-        @Test("should keep the proposal pending and show the error when the decision fails")
+        @Test("should put the proposal back to pending and show the error when the saved decision fails")
         func failureKeepsPending() async {
             let (model, session) = await make(["POST \(decidePath)/accept": .status(500)])
             defer { session.end() }
 
             let ok = await model.decide(seq: 2, index: 0, decision: .accept)
 
-            #expect(!ok)
+            #expect(ok)
+            #expect(model.lines.last?.proposals.first?.status == .accepted)
+
+            await model.settleWrites()
+
             #expect(model.lines.last?.proposals.first?.status == .pending)
             #expect(model.proposalErrors[ChatQueueProposalKey(seq: 2, index: 0)] != nil)
             #expect(model.decidingProposals.isEmpty)
@@ -105,6 +111,7 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.decide(seq: 2, index: 0, decision: .accept)
+            await model.settleWrites()
 
             #expect(model.item.body == "Q?\nA")
         }
@@ -115,6 +122,7 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.decide(seq: 2, index: 0, decision: .reject)
+            await model.settleWrites()
 
             #expect(model.item.body == "Card")
         }
@@ -143,6 +151,7 @@ extension SmokeTests {
 
             model.capReached = true
             await model.decide(seq: 2, index: 0, decision: .reject)
+            await model.settleWrites()
             await model.rejectAnnouncement?.value
             #expect(model.awaitsRejectExplanation)
 

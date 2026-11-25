@@ -35,6 +35,7 @@ struct ChatQueueBulkDeleteTests {
         model.picked = ["1", "2"]
 
         let deleted = await model.requestBulk(.delete)
+        await model.settleBackgroundActions()
 
         #expect(deleted == 0)
         #expect(model.isConfirmingBulk)
@@ -49,6 +50,7 @@ struct ChatQueueBulkDeleteTests {
         model.picked = ["1", "3", "4"]
 
         let deleted = await model.runBulk(.delete)
+        await model.settleBackgroundActions()
 
         #expect(deleted == 3)
         #expect(Set(log.deleted) == ["1", "3", "4"])
@@ -63,6 +65,7 @@ struct ChatQueueBulkDeleteTests {
 
         model.picked = ["1", "2"]
         await model.runBulk(.delete)
+        await model.settleBackgroundActions()
 
         #expect(model.picked == ["2"])
         #expect(model.bulkNotice == "1 card could not be deleted")
@@ -77,11 +80,13 @@ struct ChatQueueBulkDeleteTests {
         #expect(model.deletableIds == ["1"])
 
         _ = await model.requestBulk(.delete)
+        await model.settleBackgroundActions()
 
         #expect(model.isConfirmingBulk)
         #expect(log.deleted.isEmpty)
 
         let deleted = await model.runBulk(.delete)
+        await model.settleBackgroundActions()
 
         #expect(deleted == 1)
         #expect(log.deleted == ["1"])
@@ -96,6 +101,7 @@ struct ChatQueueBulkDeleteTests {
         model.picked = ["1"]
 
         let deleted = await model.requestBulk(.delete)
+        await model.settleBackgroundActions()
 
         #expect(deleted == 0)
         #expect(!model.isConfirmingBulk)
@@ -110,6 +116,7 @@ struct ChatQueueBulkDeleteTests {
         model.picked = ["1", "2"]
 
         let moved = await model.runBulk(.moveToInbox)
+        await model.settleBackgroundActions()
 
         #expect(moved == 2)
         #expect(model.items.isEmpty)

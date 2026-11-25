@@ -50,7 +50,6 @@ struct ChatQueueBulkControls: ViewModifier {
         if editMode?.wrappedValue.isEditing == true {
             ToolbarItemGroup(placement: .bottomBar) {
                 Button("Select all") { model.pickAllVisible() }
-                    .disabled(model.isBulkRunning)
 
                 Spacer()
 
@@ -81,7 +80,7 @@ struct ChatQueueBulkControls: ViewModifier {
         } label: {
             Label("Snooze", systemImage: "moon.zzz").zoomFont(.body)
         }
-        .disabled(model.isBulkRunning || !model.hasPicked)
+        .disabled(!model.hasPicked)
         .accessibilityIdentifier("chat-queue-bulk-snooze")
     }
 
@@ -91,7 +90,7 @@ struct ChatQueueBulkControls: ViewModifier {
         } label: {
             Label("Delete", systemImage: "trash").zoomFont(.body)
         }
-        .disabled(model.isBulkRunning || !model.hasPicked)
+        .disabled(!model.hasPicked)
         .accessibilityIdentifier("chat-queue-bulk-delete")
     }
 
@@ -99,10 +98,10 @@ struct ChatQueueBulkControls: ViewModifier {
         Button {
             Task { await ChatQueueBulkAnnouncer.request(model) }
         } label: {
-            Label(model.isBulkRunning ? "Moving…" : "Move to Inbox", systemImage: "tray.and.arrow.down")
+            Label("Move to Inbox", systemImage: "tray.and.arrow.down")
                 .zoomFont(.body)
         }
-        .disabled(model.isBulkRunning || !model.hasPicked)
+        .disabled(!model.hasPicked)
         .accessibilityIdentifier("chat-queue-bulk-move")
     }
 }
@@ -157,13 +156,11 @@ struct ChatQueueBulkMenu: View {
         Button("Move to Inbox", systemImage: "tray.and.arrow.down") {
             Task { await ChatQueueBulkAnnouncer.request(model, on: item.id) }
         }
-        .disabled(model.isBulkRunning)
         .accessibilityIdentifier("chat-queue-bulk-menu-\(item.id)")
 
         Button("Delete…", systemImage: "trash", role: .destructive) {
             Task { await ChatQueueBulkAnnouncer.requestDelete(model, on: item.id) }
         }
-        .disabled(model.isBulkRunning)
         .accessibilityIdentifier("chat-queue-bulk-delete-menu-\(item.id)")
 
         if model.picked.count > 1, model.picked.contains(item.id) {
@@ -174,7 +171,6 @@ struct ChatQueueBulkMenu: View {
                     }
                 }
             }
-            .disabled(model.isBulkRunning)
             .accessibilityIdentifier("chat-queue-bulk-snooze-menu-\(item.id)")
         }
     }

@@ -17,7 +17,6 @@ struct ChatQueueRowCheckbox: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(model.isBulkRunning)
         .accessibilityLabel(model.picked.contains(item.id) ? "Deselect chat" : "Select chat")
         .accessibilityIdentifier("chat-queue-row-checkbox-\(item.id)")
     }
@@ -46,7 +45,7 @@ struct ChatQueueSelectAllToggle: View {
             )
             .zoomFont(.body)
         }
-        .disabled(model.isBulkRunning || model.sortedItems.isEmpty)
+        .disabled(model.sortedItems.isEmpty)
         .keyboardShortcut("a", modifiers: .command)
         .accessibilityIdentifier("chat-queue-select-all")
     }

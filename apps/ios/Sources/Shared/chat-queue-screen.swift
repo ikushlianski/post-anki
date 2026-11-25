@@ -105,7 +105,6 @@ struct ChatQueueScreen: View {
 
                 if model.isStaleFilterActive, !model.movableVisibleItems.isEmpty {
                     Button("Move all to Inbox", systemImage: "tray.and.arrow.down") { confirmMoveAll = true }
-                        .disabled(model.isMovingAll)
                         .accessibilityIdentifier("chat-queue-move-all")
                 }
 
@@ -202,7 +201,8 @@ extension ChatQueueScreen {
             item: item,
             onResolved: { model.resolved(item.id) },
             onSnoozed: { Task { await model.load() } },
-            onCardUpdated: { Task { await model.load() } }
+            onCardUpdated: { Task { await model.load() } },
+            onRolledBack: { id, message in Task { await model.reloadAfterRollback(id, message: message) } }
         )
     }
 

@@ -1,11 +1,13 @@
 import PostAnkiAPI
 
 extension ChatQueueThreadModel {
-    func announceRejection(seq: Int, index: Int, front: String, feedback: String? = nil) async {
+    func announceRejection(seq: Int, index: Int, front: String, feedback: String? = nil, after gate: Task<Bool, Never>? = nil) async {
         let alreadyHandled = rejectMessageIds.contains("reject:\(item.id):\(seq):\(index)")
-        let sent = await sendRejectMessage(seq: seq, index: index, front: front, feedback: feedback)
+        let sent = await sendRejectMessage(seq: seq, index: index, front: front, feedback: feedback, after: gate)
 
         if !sent {
+            if let gate, await !gate.value { return }
+
             if !alreadyHandled {
                 keepInDraft(ChatQueueProposalRejectFeedback.message(front: front, feedback: feedback))
             }
@@ -15,10 +17,10 @@ extension ChatQueueThreadModel {
         }
     }
 
-    private func sendRejectMessage(seq: Int, index: Int, front: String, feedback: String?) async -> Bool {
+    private func sendRejectMessage(seq: Int, index: Int, front: String, feedback: String?, after gate: Task<Bool, Never>?) async -> Bool {
         let id = "reject:\(item.id):\(seq):\(index)"
 
-        guard !limitReached, !budgetPaused, !isResolving, !isDeleting,
+        guard !limitReached, !budgetPaused, !isResolving, !isDeleting, !isFinished,
               rejectMessageIds.insert(id).inserted
         else { return false }
 
@@ -37,7 +39,7 @@ extension ChatQueueThreadModel {
         isSending = true
         defer { isSending = false }
 
-        let failure = await deliver(text, keepDraft: true, clientId: id)
+        let failure = await deliver(text, keepDraft: true, clientId: id, after: gate)
 
         if failure != nil {
             rejectMessageIds.remove(id)

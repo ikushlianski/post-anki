@@ -3,6 +3,7 @@ import SwiftUI
 
 struct RejectReasonSheet: View {
     let feedback: PendingRejectFeedback
+    var canSend = true
     let onSend: (String, String) async -> String?
     let onSkip: () -> Void
 
@@ -60,7 +61,7 @@ struct RejectReasonSheet: View {
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Send") { Task { await send() } }
-                        .disabled(reason == nil || isSending)
+                        .disabled(reason == nil || isSending || !canSend)
                 }
             }
             .interactiveDismissDisabled(isSending)

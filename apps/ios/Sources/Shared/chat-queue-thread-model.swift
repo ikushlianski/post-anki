@@ -34,6 +34,7 @@ final class ChatQueueThreadModel {
     var noticeMessage: String?
     var isDeleting = false
     var rejectFeedback: PendingRejectFeedback?
+    var rejectFeedbackId: String?
     var isFinished = false
     var wasSnoozed = false
     var decidingProposals: Set<ChatQueueProposalKey> = []
@@ -48,9 +49,11 @@ final class ChatQueueThreadModel {
     @ObservationIgnored private var retryId: (text: String, id: String)?
     @ObservationIgnored var inFlightRetryDelay: Duration = .seconds(1)
     @ObservationIgnored var firstReplyPollDelay: Duration = .seconds(3)
-    @ObservationIgnored private let counts: ChatQueueCountStore
-    @ObservationIgnored private let drafts: ChatQueueDraftStoring
-    @ObservationIgnored private let tracksQueue: Bool
+    @ObservationIgnored let counts: ChatQueueCountStore
+    @ObservationIgnored let drafts: ChatQueueDraftStoring
+    @ObservationIgnored let tracksQueue: Bool
+    @ObservationIgnored var writeTail: Task<Void, Never>?
+    @ObservationIgnored var onRolledBack: (@MainActor (String, String) -> Void)?
 
     init(item: ChatQueueItem, counts: ChatQueueCountStore = .shared,
          drafts: ChatQueueDraftStoring = UserDefaultsChatQueueDraftStore(), tracksQueue: Bool = true) {
@@ -69,7 +72,7 @@ final class ChatQueueThreadModel {
     var limitReached: Bool { capReached || turnsLeft <= 0 }
 
     var canSend: Bool {
-        !limitReached && !budgetPaused && !awaitsFirstReply && !isResolving && !isDeleting && (!isSending || !followUps.isFull)
+        !limitReached && !budgetPaused && !awaitsFirstReply && !isResolving && !isDeleting && !isFinished && (!isSending || !followUps.isFull)
             && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
@@ -118,7 +121,7 @@ final class ChatQueueThreadModel {
     func send(_ preset: String? = nil) async {
         let text = (preset ?? draft).trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard !text.isEmpty, !isResolving, !isDeleting, !limitReached, !budgetPaused else { return }
+        guard !text.isEmpty, !isResolving, !isDeleting, !isFinished, !limitReached, !budgetPaused else { return }
 
         if isSending {
             guard preset == nil, followUps.enqueue(text) != nil else { return }
@@ -194,7 +197,13 @@ final class ChatQueueThreadModel {
     }
 
     @discardableResult
-    func deliver(_ text: String, keepDraft: Bool, merges: Bool = false, clientId queuedId: String? = nil) async -> ChatQueueFailure? {
+    func deliver(
+        _ text: String,
+        keepDraft: Bool,
+        merges: Bool = false,
+        clientId queuedId: String? = nil,
+        after gate: Task<Bool, Never>? = nil
+    ) async -> ChatQueueFailure? {
         let clientId = queuedId ?? (retryId?.text == text ? retryId?.id ?? UUID().uuidString : UUID().uuidString)
         let line = ChatQueueLine(id: "u-\(clientId)", isUser: true, text: text)
 
@@ -204,6 +213,13 @@ final class ChatQueueThreadModel {
         if !keepDraft { draft = "" }
 
         errorMessage = nil
+
+        if let gate, await !gate.value {
+            lines.removeAll { $0.id == line.id }
+            retryId = nil
+
+            return .other
+        }
 
         do {
             let result = try await sendIdempotently(text, clientId: clientId)
@@ -307,105 +323,5 @@ final class ChatQueueThreadModel {
         }
 
         errorMessage = failure.message
-    }
-
-    func accept() async {
-        await resolve {
-            try await APIClient.approveKnowledgeBit(id: item.id)
-            finish(removing: true)
-        }
-    }
-
-    func reject() async {
-        await resolve {
-            let feedbackId = try await APIClient.rejectKnowledgeBit(id: item.id)
-
-            if let feedbackId {
-                rejectFeedback = PendingRejectFeedback(feedbackId: feedbackId, bitBody: item.body, reasonCodes: item.rejectReasonCodes)
-                drafts.clear(cardId: item.id)
-                counts.adjust(by: -1)
-            } else {
-                finish(removing: true)
-            }
-        }
-    }
-
-    func sendRejectReason(_ reason: String, note: String) async -> String? {
-        guard let feedback = rejectFeedback else { return nil }
-
-        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        do {
-            try await APIClient.setRejectFeedback(
-                id: feedback.feedbackId,
-                reasonCode: reason,
-                note: trimmed.isEmpty ? nil : trimmed
-            )
-            rejectFeedback = nil
-            isFinished = true
-
-            return nil
-        } catch {
-            return "Couldn't save the reason. Try again or skip."
-        }
-    }
-
-    func skipRejectReason() {
-        rejectFeedback = nil
-        isFinished = true
-    }
-
-    func snooze(days: Int) async {
-        await resolve {
-            _ = try await APIClient.snoozeChatQueue(id: item.id, days: days)
-            wasSnoozed = true
-            finish(removing: false)
-            TriageFeedbackPlayer.announce(.snoozed(days: days))
-        }
-    }
-
-    func clearChat() async {
-        await resolve {
-            try await APIClient.returnFromChatQueue(id: item.id)
-            finish(removing: true)
-        }
-    }
-
-    func cancelChat() async {
-        await resolve {
-            try await APIClient.cancelChatQueueThread(id: item.id)
-            finish(removing: true)
-        }
-    }
-
-    func backToTriage() async {
-        await resolve {
-            try await APIClient.returnFromChatQueue(id: item.id)
-            finish(removing: true)
-            TriageFeedbackPlayer.announce(.movedToInbox)
-        }
-    }
-
-    func resolve(_ action: () async throws -> Void) async {
-        guard !isResolving, !isSending else { return }
-
-        isResolving = true
-        errorMessage = nil
-        defer { isResolving = false }
-
-        do {
-            try await action()
-        } catch {
-            handle(ChatQueueFailure.failure(for: error))
-        }
-    }
-
-    func finish(removing: Bool) {
-        if removing, tracksQueue {
-            counts.adjust(by: -1)
-            drafts.clear(cardId: item.id)
-        }
-
-        isFinished = true
     }
 }

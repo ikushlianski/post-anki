@@ -20,6 +20,7 @@ extension SmokeTests {
             let model = ChatQueueThreadModel(item: item, counts: counts, drafts: InMemoryChatQueueDraftStore())
 
             await model.clearChat()
+            await model.settleWrites()
 
             #expect(FakeServer.writes.map { "\($0.method) \($0.path)" } == ["DELETE \(clearPath)"])
             #expect(model.isFinished)

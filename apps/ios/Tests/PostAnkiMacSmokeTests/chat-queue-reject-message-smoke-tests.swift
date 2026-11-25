@@ -36,8 +36,10 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.decide(seq: 2, index: 0, decision: .reject)
+            await model.settleWrites()
             await model.rejectAnnouncement?.value
             await model.decide(seq: 2, index: 0, decision: .reject)
+            await model.settleWrites()
             await model.rejectAnnouncement?.value
 
             #expect(sends().count == 1)
@@ -46,7 +48,7 @@ extension SmokeTests {
             #expect(!model.awaitsRejectExplanation)
         }
 
-        @Test("should finish the decision before the agent reply arrives and still send once")
+        @Test("should mark the card rejected before the agent reply arrives and still send the rejection message once")
         func decisionDoesNotWaitForReply() async {
             let (model, session) = await make(["POST \(threadPath)": .json(200, reply)])
             defer { session.end() }
@@ -54,10 +56,12 @@ extension SmokeTests {
             let ok = await model.decide(seq: 2, index: 0, decision: .reject)
 
             #expect(ok)
-            #expect(model.decidingProposals.isEmpty)
             #expect(model.lines.last?.seq == 2)
 
             await model.rejectAnnouncement?.value
+            await model.settleWrites()
+
+            #expect(model.decidingProposals.isEmpty)
 
             #expect(sends().count == 1)
             #expect(model.lines.last?.seq == 4)
@@ -70,6 +74,7 @@ extension SmokeTests {
 
             model.isSending = true
             await model.decide(seq: 2, index: 0, decision: .reject)
+            await model.settleWrites()
             await model.rejectAnnouncement?.value
 
             #expect(model.followUps.items.map(\.id) == ["reject:k1:2:0"])
@@ -87,6 +92,7 @@ extension SmokeTests {
 
             model.capReached = true
             await model.decide(seq: 2, index: 0, decision: .reject)
+            await model.settleWrites()
             await model.rejectAnnouncement?.value
 
             #expect(sends().isEmpty)
@@ -101,6 +107,7 @@ extension SmokeTests {
 
             model.capReached = true
             await model.decide(seq: 2, index: 0, decision: .reject, feedback: "too vague")
+            await model.settleWrites()
             await model.rejectAnnouncement?.value
 
             #expect(model.draft == "I rejected your proposed card: Q?. What is wrong: too vague")
@@ -114,6 +121,7 @@ extension SmokeTests {
             model.draft = "my note"
             model.capReached = true
             await model.decide(seq: 2, index: 0, decision: .reject, feedback: "too vague")
+            await model.settleWrites()
             await model.rejectAnnouncement?.value
 
             #expect(model.draft == "my note\n\nI rejected your proposed card: Q?. What is wrong: too vague")
@@ -126,6 +134,7 @@ extension SmokeTests {
 
             model.draft = "my note"
             await model.decide(seq: 2, index: 0, decision: .reject, feedback: "too vague")
+            await model.settleWrites()
             await model.rejectAnnouncement?.value
 
             #expect(model.draft == "my note")
@@ -138,6 +147,7 @@ extension SmokeTests {
 
             model.budgetPaused = true
             await model.decide(seq: 2, index: 0, decision: .reject)
+            await model.settleWrites()
             await model.rejectAnnouncement?.value
 
             #expect(sends().isEmpty)
@@ -152,6 +162,7 @@ extension SmokeTests {
             let feedback = ChatQueueProposalRejectFeedback.text(reason: .wrongAnswer, note: "  uses v2 ")
 
             await model.decide(seq: 2, index: 0, decision: .reject, feedback: feedback)
+            await model.settleWrites()
             await model.rejectAnnouncement?.value
 
             #expect(sends().count == 1)
@@ -165,6 +176,7 @@ extension SmokeTests {
             defer { session.end() }
 
             let ok = await model.decide(seq: 2, index: 0, decision: .reject, announcesRejection: false)
+            await model.settleWrites()
 
             #expect(ok)
             #expect(model.lines.first { $0.seq == 2 }?.proposals.first?.status == .rejected)

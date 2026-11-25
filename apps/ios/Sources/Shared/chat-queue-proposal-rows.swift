@@ -10,7 +10,7 @@ struct ChatQueueProposalRows: View {
             ForEach(line.proposals) { proposal in
                 ChatQueueProposalCard(
                     proposal: proposal,
-                    isBusy: model.isDeciding(line, proposal) || model.isResolving,
+                    isBusy: model.isResolving,
                     errorMessage: model.proposalError(line, proposal),
                     canTellTutor: !model.limitReached && !model.budgetPaused,
                     isRewording: model.isRewording(line, proposal),
@@ -38,7 +38,7 @@ struct ChatQueueProposalRows: View {
                 Button("Approve all", systemImage: "checkmark.circle") { Task { await model.approveAll(seq: seq) } }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
-                    .disabled(model.isResolving || !model.decidingProposals.isEmpty)
+                    .disabled(model.isResolving)
                     .accessibilityIdentifier("chat-queue-proposals-approve-all")
             }
         }
