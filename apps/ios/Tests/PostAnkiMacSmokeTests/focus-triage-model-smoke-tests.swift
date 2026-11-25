@@ -122,6 +122,7 @@ extension SmokeTests {
 
             await model.settlePending()
             await model.undo()
+            await model.settlePending()
 
             #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/a/approve", "/knowledge-bits/a/restore"])
             #expect(model.current?.id == "a")
@@ -144,10 +145,12 @@ extension SmokeTests {
             await model.reject()
             await model.settlePending()
             await model.undo()
+            await model.settlePending()
 
             #expect(model.current?.id == "b")
 
             await model.undo()
+            await model.settlePending()
 
             #expect(model.current?.id == "a")
             #expect(FakeServer.writes.suffix(2).map(\.path) == ["/knowledge-bits/b/restore", "/knowledge-bits/a/restore"])
@@ -165,6 +168,7 @@ extension SmokeTests {
 
                 await model.settlePending()
                 await model.undo()
+                await model.settlePending()
                 session.end()
 
                 #expect(model.undoMessage == "Couldn't undo. That item was already changed.")
@@ -185,9 +189,11 @@ extension SmokeTests {
 
             await model.settlePending()
             await model.undo()
+            await model.settlePending()
 
             #expect(model.undoMessage == "Couldn't connect to the server. Try Undo again.")
             #expect(model.canUndo)
+            #expect(model.current?.id == "b")
         }
 
         @Test("should save a note on approval as a neutral grade only after the approval succeeded")

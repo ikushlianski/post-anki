@@ -46,7 +46,7 @@ final class FocusTriageSubjectChangeModel {
         }
     }
 
-    func assign(subjectId: String) async -> String? {
+    func createSubject(name: String, parentId: String?, complexityLevel: ComplexityLevel? = nil) async -> (id: String, label: String)? {
         guard !isBusy else { return nil }
 
         isBusy = true
@@ -54,37 +54,12 @@ final class FocusTriageSubjectChangeModel {
         defer { isBusy = false }
 
         do {
-            let result = try await APIClient.moveKnowledgeBits(ids: [bitId], subjectId: subjectId)
-
-            guard result.moved.contains(bitId) else {
-                message = "Couldn't change the subject. Try again."
-
-                return nil
-            }
-
-            return label(for: subjectId)
-        } catch {
-            message = "Couldn't change the subject. Try again."
-
-            return nil
-        }
-    }
-
-    func createAndAssign(name: String, parentId: String?, complexityLevel: ComplexityLevel? = nil) async -> String? {
-        guard !isBusy else { return nil }
-
-        isBusy = true
-        message = nil
-
-        do {
             let created = try await APIClient.createSubject(name: name, parentId: parentId, complexityLevel: complexityLevel)
 
             subjects.append(created)
-            isBusy = false
 
-            return await assign(subjectId: created.id)
+            return (created.id, label(for: created.id))
         } catch {
-            isBusy = false
             message = "Couldn't create the subject. Try again."
 
             return nil

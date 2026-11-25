@@ -14,7 +14,7 @@ extension SmokeTests {
             let session = FakeServerSession(["/subjects": .json(200, Self.subjects)])
             defer { session.end() }
             let model = FocusTriageSubjectChangeModel(bitId: "kb_1")
-            let host = NSHostingView(rootView: FocusTriageSubjectSheet(model: model, currentId: "s_c") { _ in })
+            let host = NSHostingView(rootView: FocusTriageSubjectSheet(model: model, currentId: "s_c", onPicked: { _, _ in }))
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 420, height: 520), styleMask: [.titled], backing: .buffered, defer: false)
             window.contentView = host
             window.orderFront(nil)

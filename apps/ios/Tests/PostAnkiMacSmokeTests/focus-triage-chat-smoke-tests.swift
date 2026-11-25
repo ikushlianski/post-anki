@@ -31,6 +31,9 @@ extension SmokeTests {
             defer { session.end() }
 
             #expect(await model.sendToChat())
+
+            await model.settleMoves()
+
             #expect(model.current?.id == "b")
             #expect(model.readyCount == 2)
             #expect(model.sentToChatCount == 1)
@@ -44,6 +47,9 @@ extension SmokeTests {
             defer { session.end() }
 
             #expect(await model.sendToChat(prompt: "Why this?"))
+
+            await model.settleMoves()
+
             #expect(FakeServer.writes.first?.bodyObject?["prompt"] as? String == "Why this?")
         }
 
@@ -66,14 +72,21 @@ extension SmokeTests {
             #expect(model.sentToChatCount == 0)
         }
 
-        @Test("should keep the card in the stack with a connection message when the Chat move fails offline")
+        @Test("should put the card back in the stack without a Chat entry when the Chat move fails offline")
         func chatMoveOffline() async {
             let (model, session) = await make(extra: ["POST /knowledge-bits/a/chat-queue": .failure(.notConnectedToInternet)])
             defer { session.end() }
 
-            #expect(!(await model.sendToChat()))
-            #expect(model.current?.id == "a")
+            let before = ChatQueueCountStore.shared.count
+
+            #expect(await model.sendToChat())
+
+            await model.settleMoves()
+
+            #expect(model.readyCount == 3)
+            #expect(model.list.rowMessages["a"] == InboxMessages.offline)
             #expect(model.sentToChatCount == 0)
+            #expect(ChatQueueCountStore.shared.count == before)
             #expect(!model.canUndo)
         }
 

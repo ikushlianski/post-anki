@@ -8,10 +8,10 @@ struct UnsentTriageDecision {
 
 extension FocusTriageModel {
     var sourcesWithoutPending: [PendingReviewSource] {
-        guard !queuedIds.isEmpty else { return list.sources }
+        guard !queuedIds.isEmpty || !pendingMoves.isEmpty else { return list.sources }
 
         return list.sources.compactMap { source in
-            let bits = source.bits.filter { queuedIds[$0.id] == nil }
+            let bits = source.bits.filter { queuedIds[$0.id] == nil && pendingMoves[$0.id] == nil }
 
             return bits.isEmpty ? nil : source.withBits(bits)
         }
@@ -19,12 +19,19 @@ extension FocusTriageModel {
 
     func settlePending() async {
         await drainer.settle()
+        await settleMoves()
+        await settleRestores()
     }
 
     func decide(_ decision: PendingReviewDecision) async {
         guard saveFailure == nil, let bit = current, !list.inFlight.contains(bit.id), queuedIds[bit.id] == nil else { return }
 
         let bitId = bit.id
+
+        await restoreTails[bitId]?.value
+
+        guard current?.id == bitId, queuedIds[bitId] == nil else { return }
+
         let rawNote = notes[bitId] ?? ""
         let note = FocusTriageNote.trimmed(rawNote)
         let snapshot = list.snapshot(of: bitId)

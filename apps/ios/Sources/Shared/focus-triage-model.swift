@@ -29,6 +29,9 @@ final class FocusTriageModel {
     @ObservationIgnored var shown: (bitId: String, at: Date)?
     @ObservationIgnored var pollTask: Task<Void, Never>?
     @ObservationIgnored var queuedIds: [String: String] = [:]
+    @ObservationIgnored var pendingMoves: [String: FocusTriageExtraUndo.Kind] = [:]
+    @ObservationIgnored var moveTails: [String: Task<Void, Never>] = [:]
+    @ObservationIgnored var restoreTails: [String: Task<Void, Never>] = [:]
     @ObservationIgnored var unsent: [String: UnsentTriageDecision] = [:]
     @ObservationIgnored let decisionQueue: PendingDecisionQueue
     @ObservationIgnored let drainer: DecisionDrainer
@@ -112,71 +115,6 @@ final class FocusTriageModel {
         }
 
         await undoDecision()
-    }
-
-    private func undoDecision() async {
-        guard let entry = log.lastDecided else { return }
-
-        isUndoing = true
-        defer { isUndoing = false }
-
-        if await undoQueued(entry) { return }
-
-        guard log.lastDecided?.bitId == entry.bitId else { return }
-
-        await beforeRestore?(entry.bitId)
-
-        guard log.lastDecided?.bitId == entry.bitId else { return }
-
-        undoMessage = nil
-        notice = nil
-
-        let outcome: PendingReviewRestoreOutcome
-
-        let dropped = log.lastDecided?.dropped ?? []
-
-        do {
-            if dropped.isEmpty {
-                try await APIClient.restoreKnowledgeBit(id: entry.bitId)
-            } else {
-                try await APIClient.undoTriageKnowledgeBit(id: entry.bitId, restoreVariantIds: dropped)
-            }
-
-            outcome = .restored
-        } catch {
-            outcome = Self.restoreOutcome(for: error)
-        }
-
-        switch outcome {
-        case .restored:
-            log.remove(bitId: entry.bitId)
-
-            if let removed = entry.removed {
-                list.applyRestore(removed)
-                pinnedBitId = removed.bit.id
-            } else {
-                await load()
-            }
-
-            syncPin()
-            onDecisionsChanged?()
-            onUndone?(entry.bitId)
-        case .alreadyChanged:
-            log.remove(bitId: entry.bitId)
-            undoMessage = "Couldn't undo. That item was already changed."
-            Task { await list.counts.refresh() }
-            onDecisionsChanged?()
-        case .retryable(let message), .fatal(let message):
-            undoMessage = message
-        case .cancelled:
-            break
-        }
-    }
-
-    private static func restoreOutcome(for error: Error) -> PendingReviewRestoreOutcome {
-        if case APIError.badStatus(409, _) = error { return .alreadyChanged }
-
-        return PendingReviewRestoreOutcome.restoreOutcome(for: error)
     }
 }
 

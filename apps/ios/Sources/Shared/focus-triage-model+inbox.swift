@@ -44,72 +44,19 @@ extension FocusTriageModel {
 
     @discardableResult
     func sendToInbox() async -> Bool {
-        await moveCurrent(.inbox, doing: "send this to the Inbox") { id in
+        moveCurrent(.inbox, doing: "send this to the Inbox") { [self] id in
             let inboxCount = try await APIClient.moveKnowledgeBitToInbox(id: id)
+            let others = pendingMoves.filter { $0.key != id && $0.value == .inbox }.count
 
-            list.counts.setInbox(inboxCount)
+            list.counts.setInbox(inboxCount + others)
         }
     }
 
     @discardableResult
     func sendToChat(prompt: String? = nil) async -> Bool {
-        await moveCurrent(.chat, doing: "send this to Chat") { id in
+        moveCurrent(.chat, doing: "send this to Chat") { id in
             try await APIClient.moveToChatQueue(id: id, prompt: prompt)
-            ChatQueueCountStore.shared.adjust(by: 1)
         }
-    }
-
-    private func moveCurrent(
-        _ kind: FocusTriageExtraUndo.Kind,
-        doing: String,
-        call: (String) async throws -> Void
-    ) async -> Bool {
-        guard let bit = current, !isBusy, queuedIds[bit.id] == nil else { return false }
-
-        let bitId = bit.id
-        let snapshot = list.snapshot(of: bitId)
-        let marker = log.lastDecided?.bitId
-
-        list.inFlight.insert(bitId)
-        list.rowMessages[bitId] = nil
-        notice = nil
-        undoMessage = nil
-        defer { list.inFlight.remove(bitId) }
-
-        do {
-            try await call(bitId)
-
-            list.remove(bitId: bitId)
-            list.counts.adjust(by: -1)
-            notes[bitId] = nil
-            extras.append(FocusTriageExtraUndo(bitId: bitId, kind: kind, afterDecisionBitId: marker))
-            movedSnapshots[bitId] = snapshot
-            syncPin()
-
-            return true
-        } catch {
-            switch Self.moveOutcome(for: error, doing: doing) {
-            case .removedElsewhere:
-                list.remove(bitId: bitId)
-                notes[bitId] = nil
-                notice = "That item was already decided elsewhere, so it was removed."
-                syncPin()
-                Task { await list.counts.refresh() }
-            case .kept(let message):
-                list.rowMessages[bitId] = message
-            }
-
-            return false
-        }
-    }
-
-    private static func moveOutcome(for error: Error, doing: String) -> InboxMoveOutcome {
-        if case APIError.badStatus(let status, let code) = error,
-           (status == 409 && code == "blocked") || (status == 404 && code == "not_found") {
-            return .removedElsewhere
-        }
-
-        return .kept(message: InboxMessages.message(for: error, doing: doing))
     }
 
     @discardableResult
@@ -167,6 +114,10 @@ extension FocusTriageModel {
 
         undoMessage = nil
         notice = nil
+
+        await moveTails[extra.bitId]?.value
+
+        guard extras.contains(extra) else { return }
 
         switch extra.kind {
         case .inbox:

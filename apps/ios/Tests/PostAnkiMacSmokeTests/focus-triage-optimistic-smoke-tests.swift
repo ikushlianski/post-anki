@@ -119,6 +119,7 @@ extension SmokeTests {
 
             FakeServer.releaseHeld()
             await undo.value
+            await model.settlePending()
 
             #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/a/approve", "/knowledge-bits/a/restore"])
             #expect(model.current?.id == "a")

@@ -169,6 +169,7 @@ extension SmokeTests {
             await model.approve()
             await model.settlePending()
             await model.undo()
+            await model.settlePending()
 
             let undo = FakeServer.writes.last
 

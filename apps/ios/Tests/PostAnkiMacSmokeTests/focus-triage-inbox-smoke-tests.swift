@@ -39,6 +39,8 @@ extension SmokeTests {
 
             let moved = await model.sendToInbox()
 
+            await model.settleMoves()
+
             #expect(moved)
             #expect(model.current?.id == "b")
             #expect(model.readyCount == 2)
@@ -70,49 +72,40 @@ extension SmokeTests {
             #expect(model.list.counts.inboxCount == 0)
         }
 
-        @Test("should keep the card, show the connection message and queue nothing when the server is unreachable")
+        @Test("should put the card back behind the one on screen with the connection message when the Inbox move fails offline")
         func inboxMoveOffline() async {
             let (model, session) = await make(extra: ["POST /knowledge-bits/a/inbox": .failure(.notConnectedToInternet)])
             defer { session.end() }
 
             let moved = await model.sendToInbox()
 
-            #expect(!moved)
-            #expect(model.current?.id == "a")
-            #expect(model.message == InboxMessages.offline)
+            #expect(moved)
+
+            await model.settleMoves()
+
+            #expect(model.current?.id == "b")
+            #expect(model.readyCount == 3)
+            #expect(model.list.rowMessages["a"] == InboxMessages.offline)
             #expect(model.sentToInboxCount == 0)
+            #expect(model.list.counts.inboxCount == 0)
             #expect(model.log.entries.isEmpty)
             #expect(!model.canUndo)
         }
 
-        @Test("should remove the card with the decided-elsewhere notice when the Inbox move is refused with 409")
+        @Test("should keep the card removed with the decided-elsewhere notice when the Inbox move is refused with 409")
         func inboxMoveConflict() async {
             let (model, session) = await make(extra: ["POST /knowledge-bits/a/inbox": .json(409, #"{"error":"blocked"}"#)])
             defer { session.end() }
 
-            let moved = await model.sendToInbox()
+            #expect(await model.sendToInbox())
 
-            #expect(!moved)
+            await model.settleMoves()
+
             #expect(model.current?.id == "b")
+            #expect(model.readyCount == 2)
             #expect(model.notice == "That item was already decided elsewhere, so it was removed.")
-        }
-
-        @Test("should send one request when the Inbox button is pressed twice quickly")
-        func inboxMoveBusyGuard() async throws {
-            let (model, session) = await make(extra: ["POST /knowledge-bits/a/inbox": .held(200, #"{"ok":true,"inboxCount":1}"#)])
-            defer { session.end() }
-
-            let first = Task { await model.sendToInbox() }
-
-            for _ in 0..<300 where FakeServer.heldCount < 1 { try await Task.sleep(for: .milliseconds(10)) }
-
-            let second = await model.sendToInbox()
-
-            FakeServer.releaseHeld()
-
-            #expect(await first.value)
-            #expect(!second)
-            #expect(FakeServer.writes.count == 1)
+            #expect(model.sentToInboxCount == 0)
+            #expect(model.list.counts.inboxCount == 0)
         }
 
         @Test("should show the AI example on the same card and keep the queue unchanged")
@@ -224,6 +217,7 @@ extension SmokeTests {
             #expect(FakeServer.writes.last?.method == "DELETE")
 
             await model.undo()
+            await model.settlePending()
 
             #expect(FakeServer.writes.last?.path == "/knowledge-bits/a/restore")
             #expect(model.current?.id == "a")

@@ -4,8 +4,7 @@ import SwiftUI
 struct FocusTriageSubjectSheet: View {
     let model: FocusTriageSubjectChangeModel
     let currentId: String?
-    var onPicked: ((_ id: String, _ label: String) -> Void)?
-    let onChanged: (String) -> Void
+    let onPicked: (_ id: String, _ label: String) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var isCreating = false
@@ -34,12 +33,8 @@ struct FocusTriageSubjectSheet: View {
                     ) { id in
                         guard let id else { return }
 
-                        if let onPicked {
-                            onPicked(id, model.label(for: id))
-                            dismiss()
-                        } else {
-                            Task { complete(await model.assign(subjectId: id)) }
-                        }
+                        onPicked(id, model.label(for: id))
+                        dismiss()
                     }
                 }
             }
@@ -57,11 +52,12 @@ struct FocusTriageSubjectSheet: View {
             }
             .disabled(model.isBusy)
             .sheet(isPresented: $isCreating) {
-                FocusTriageNewSubjectForm(model: model) { label in
-                    guard let label else { return }
+                FocusTriageNewSubjectForm(model: model) { created in
+                    guard let created else { return }
 
                     isCreating = false
-                    complete(label)
+                    onPicked(created.id, created.label)
+                    dismiss()
                 }
             }
         }
@@ -97,18 +93,11 @@ struct FocusTriageSubjectSheet: View {
         .frame(maxWidth: .infinity)
         .padding()
     }
-
-    private func complete(_ label: String?) {
-        guard let label else { return }
-
-        onChanged(label)
-        dismiss()
-    }
 }
 
 struct FocusTriageNewSubjectForm: View {
     let model: FocusTriageSubjectChangeModel
-    let onDone: (String?) -> Void
+    let onDone: ((id: String, label: String)?) -> Void
 
     var body: some View {
         NewSubjectForm(
@@ -117,7 +106,7 @@ struct FocusTriageNewSubjectForm: View {
             isBusy: model.isBusy,
             confirmTitle: "Create and assign"
         ) { name, parentId, level in
-            Task { onDone(await model.createAndAssign(name: name, parentId: parentId, complexityLevel: level)) }
+            Task { onDone(await model.createSubject(name: name, parentId: parentId, complexityLevel: level)) }
         }
     }
 }

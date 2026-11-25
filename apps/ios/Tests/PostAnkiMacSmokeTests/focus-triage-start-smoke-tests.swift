@@ -153,9 +153,10 @@ extension SmokeTests {
             await model.triage.approve()
             await model.triage.settlePending()
             await model.triage.undo()
+            await model.triage.settlePending()
             await model.settle()
 
-            let methods = FakeServer.writes.map(\.method)
+            let methods = FakeServer.writes.filter { $0.path.hasPrefix("/triage-sessions/") }.map(\.method)
 
             #expect(methods.last == "DELETE")
             #expect(methods.firstIndex(of: "PUT") ?? .max < methods.count - 1)

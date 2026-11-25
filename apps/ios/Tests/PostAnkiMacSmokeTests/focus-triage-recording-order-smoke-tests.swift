@@ -110,6 +110,7 @@ extension SmokeTests {
             await model.triage.settlePending()
             await model.settle()
             await model.triage.undo()
+            await model.triage.settlePending()
             await model.settle()
 
             #expect(recordings.map(\.method) == ["PUT", "DELETE"])

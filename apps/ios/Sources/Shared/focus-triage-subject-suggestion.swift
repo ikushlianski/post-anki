@@ -22,10 +22,7 @@ struct FocusTriageSubjectSuggestion: View {
                     model: model,
                     currentId: currentSubjectId,
                     onPicked: { id, label in move(to: id, name: label) }
-                ) { label in
-                    movedTo = label
-                    failed = false
-                }
+                )
                 .presentationDetents([.medium, .large])
             }
     }
