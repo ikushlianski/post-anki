@@ -91,3 +91,7 @@ final class FocusTriageSubjectChangeModel {
         }
     }
 }
+
+extension FocusTriageSubjectChangeModel: Identifiable {
+    nonisolated var id: ObjectIdentifier { ObjectIdentifier(self) }
+}

@@ -5,8 +5,7 @@ struct FocusTriageSubjectSuggestion: View {
     let bit: PendingReviewBit
     let source: PendingReviewSource?
 
-    @State private var changeModel: FocusTriageSubjectChangeModel?
-    @State private var isPickerPresented = false
+    @State private var pickerModel: FocusTriageSubjectChangeModel?
     @State private var movedTo: String?
     @State private var isMoving = false
     @State private var failed = false
@@ -19,14 +18,12 @@ struct FocusTriageSubjectSuggestion: View {
 
     var body: some View {
         content
-            .sheet(isPresented: $isPickerPresented) {
-                if let changeModel {
-                    FocusTriageSubjectSheet(model: changeModel, currentId: currentSubjectId) { label in
-                        movedTo = label
-                        failed = false
-                    }
-                    .presentationDetents([.medium, .large])
+            .sheet(item: $pickerModel) { model in
+                FocusTriageSubjectSheet(model: model, currentId: currentSubjectId) { label in
+                    movedTo = label
+                    failed = false
                 }
+                .presentationDetents([.medium, .large])
             }
     }
 
@@ -62,8 +59,7 @@ struct FocusTriageSubjectSuggestion: View {
             }
 
             Button(menuTitle) {
-                changeModel = changeModel ?? FocusTriageSubjectChangeModel(bitId: bit.id)
-                isPickerPresented = true
+                pickerModel = FocusTriageSubjectChangeModel(bitId: bit.id)
             }
             .buttonStyle(.bordered)
             .controlSize(.mini)
