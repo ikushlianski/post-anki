@@ -8,6 +8,7 @@ const APP: StudyOptions = {
   learningStepsMinutes: [1, 10],
   relearningStepsMinutes: [10],
   desiredRetention: 0.9,
+  newCardOrder: "oldest-first",
 };
 
 const link = (subjectId: string, patch: Partial<StudyPlanChainLink> = {}): StudyPlanChainLink => ({

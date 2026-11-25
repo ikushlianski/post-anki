@@ -37,4 +37,12 @@ export const desiredRetentionInputSchema = z
   .finite()
   .transform((value) => clampNumber(value, MIN_DESIRED_RETENTION, MAX_DESIRED_RETENTION));
 
+export const NEW_CARD_ORDERS = ["oldest-first", "newest-first"] as const;
+
+export const newCardOrderSchema = z.enum(NEW_CARD_ORDERS);
+
+export type NewCardOrder = z.infer<typeof newCardOrderSchema>;
+
+export const DEFAULT_NEW_CARD_ORDER: NewCardOrder = "oldest-first";
+
 export const APP_STUDY_OPTION_SOURCE = "app";

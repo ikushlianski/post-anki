@@ -28,6 +28,7 @@ interface ParentMixInput {
   filter: KnowledgeBitReviewCardsFilter;
   db: DbExecutor;
   stepsFor: StepsFor;
+  newestFirstSubjectIds: string[];
 }
 
 interface SubjectGroup {
@@ -74,7 +75,7 @@ async function readNotYetDue(
 
 // Null when fewer than two groups hold cards, so the caller keeps the plain subject order.
 export async function listParentMixCards(input: ParentMixInput): Promise<KnowledgeBitReviewCardRow[] | null> {
-  const { rootId, subjectRows, limit, clock, filter, db, stepsFor } = input;
+  const { rootId, subjectRows, limit, clock, filter, db, stepsFor, newestFirstSubjectIds } = input;
   const groups = buildGroups(rootId, subjectRows);
 
   if (groups.length < 2 || limit <= 0) {
@@ -95,7 +96,7 @@ export async function listParentMixCards(input: ParentMixInput): Promise<Knowled
 
         const [seen, fresh] = await Promise.all([
           listScopedCards(pool, scope, filter, clock.now, db, stepsFor, "seen"),
-          listScopedCards(pool, scope, filter, clock.now, db, stepsFor, "new"),
+          listScopedCards(pool, scope, filter, clock.now, db, stepsFor, "new", newestFirstSubjectIds),
         ]);
 
         return { key: group.key, seen, fresh };

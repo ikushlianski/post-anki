@@ -9,6 +9,7 @@ import {
   DEFAULT_LEARNING_STEPS_MINUTES,
   DEFAULT_MAX_REVIEWS_PER_DAY,
   DEFAULT_MIX_NEW_WITH_DUE,
+  DEFAULT_NEW_CARD_ORDER,
   DEFAULT_NEW_CARDS_PER_DAY,
   DEFAULT_RELEARNING_STEPS_MINUTES,
   DEFAULT_TRIAGE_ENABLED,
@@ -60,6 +61,7 @@ function toStudyDefaults(row: typeof appSettings.$inferSelect): StudyOptions {
       .catch(DEFAULT_RELEARNING_STEPS_MINUTES)
       .parse(row.relearningStepsMinutes),
     desiredRetention: desiredRetentionSchema.catch(DEFAULT_DESIRED_RETENTION).parse(row.desiredRetention),
+    newCardOrder: DEFAULT_NEW_CARD_ORDER,
   };
 }
 
@@ -69,6 +71,7 @@ const FALLBACK_STUDY_DEFAULTS: StudyOptions = {
   learningStepsMinutes: DEFAULT_LEARNING_STEPS_MINUTES,
   relearningStepsMinutes: DEFAULT_RELEARNING_STEPS_MINUTES,
   desiredRetention: DEFAULT_DESIRED_RETENTION,
+  newCardOrder: DEFAULT_NEW_CARD_ORDER,
 };
 
 function toFusionModelIds(stored: unknown): KnowledgeItemModelId[] {
@@ -76,11 +79,13 @@ function toFusionModelIds(stored: unknown): KnowledgeItemModelId[] {
 }
 
 async function toAdminSettings(row: typeof appSettings.$inferSelect): Promise<AdminSettings> {
+  const { newCardOrder: _newCardOrder, ...studyDefaults } = toStudyDefaults(row);
+
   return {
     testToggle: row.testToggle,
     modelTier: row.modelTier as ModelTier,
     knowledgeItemModelId: await parseKnowledgeItemModelId(row.knowledgeItemModelId),
-    ...toStudyDefaults(row),
+    ...studyDefaults,
     maxReviewsPerDay: clampMaxReviewsPerDay(row.maxReviewsPerDay),
     mixNewWithDue: row.mixNewWithDue,
     triageEnabled: row.triageEnabled,
@@ -106,11 +111,13 @@ export async function getAdminSettings(): Promise<AdminSettings> {
     .values({ id: SETTINGS_ID, knowledgeItemModelId: DEFAULT_KNOWLEDGE_ITEM_MODEL_ID })
     .onConflictDoNothing();
 
+  const { newCardOrder: _fallbackOrder, ...fallbackStudyDefaults } = FALLBACK_STUDY_DEFAULTS;
+
   return {
     testToggle: false,
     modelTier: DEFAULT_MODEL_TIER,
     knowledgeItemModelId: DEFAULT_KNOWLEDGE_ITEM_MODEL_ID,
-    ...FALLBACK_STUDY_DEFAULTS,
+    ...fallbackStudyDefaults,
     maxReviewsPerDay: DEFAULT_MAX_REVIEWS_PER_DAY,
     mixNewWithDue: DEFAULT_MIX_NEW_WITH_DUE,
     triageEnabled: DEFAULT_TRIAGE_ENABLED,

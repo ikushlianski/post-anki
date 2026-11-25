@@ -14,6 +14,7 @@ const inherited: SubjectStudyOptions = {
     learningStepsMinutes: null,
     relearningStepsMinutes: null,
     desiredRetention: null,
+    newCardOrder: null,
     complexityLevel: null,
     studyIntent: null,
     examDate: null,
@@ -27,6 +28,7 @@ const inherited: SubjectStudyOptions = {
     learningStepsMinutes: [1, 10],
     relearningStepsMinutes: [10],
     desiredRetention: 0.9,
+    newCardOrder: 'oldest-first',
   },
   complexity: { level: 'normal', source: 'app' },
   preview: { goodDays: 13, easyDays: 16 },
@@ -36,6 +38,7 @@ const inherited: SubjectStudyOptions = {
     learningStepsMinutes: 'app',
     relearningStepsMinutes: 'app',
     desiredRetention: 'app',
+    newCardOrder: 'app',
   },
 }
 

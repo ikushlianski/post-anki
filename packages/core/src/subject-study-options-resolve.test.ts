@@ -8,6 +8,7 @@ const APP: StudyOptions = {
   learningStepsMinutes: [1, 10],
   relearningStepsMinutes: [10],
   desiredRetention: 0.9,
+  newCardOrder: "oldest-first",
 };
 
 describe("resolveStudyOptions", () => {
@@ -39,6 +40,7 @@ describe("resolveStudyOptions", () => {
       learningStepsMinutes: [5],
       relearningStepsMinutes: [10],
       desiredRetention: 0.85,
+      newCardOrder: "oldest-first",
     });
     expect(result.sources).toEqual({
       newCardsPerDay: "parent",
@@ -46,6 +48,7 @@ describe("resolveStudyOptions", () => {
       learningStepsMinutes: "child",
       relearningStepsMinutes: "app",
       desiredRetention: "parent",
+      newCardOrder: "app",
     });
   });
 
@@ -123,6 +126,41 @@ describe("collectSubjectAncestorIds", () => {
 
   it("should return nothing for an unknown subject", () => {
     expect(collectSubjectAncestorIds("ghost", rows)).toEqual([]);
+  });
+});
+
+describe("resolveStudyOptions new card order", () => {
+  it("should default to oldest first for a subject with no setting anywhere in its chain", () => {
+    const result = resolveStudyOptions([{ subjectId: "child", options: {} }], APP);
+
+    expect(result.effective.newCardOrder).toBe("oldest-first");
+    expect(result.sources.newCardOrder).toBe("app");
+  });
+
+  it("should let a child inherit its parent's newest-first order", () => {
+    const result = resolveStudyOptions(
+      [
+        { subjectId: "child", options: {} },
+        { subjectId: "parent", options: { newCardOrder: "newest-first" } },
+      ],
+      APP,
+    );
+
+    expect(result.effective.newCardOrder).toBe("newest-first");
+    expect(result.sources.newCardOrder).toBe("parent");
+  });
+
+  it("should let a child set its own order over the parent's", () => {
+    const result = resolveStudyOptions(
+      [
+        { subjectId: "child", options: { newCardOrder: "oldest-first" } },
+        { subjectId: "parent", options: { newCardOrder: "newest-first" } },
+      ],
+      APP,
+    );
+
+    expect(result.effective.newCardOrder).toBe("oldest-first");
+    expect(result.sources.newCardOrder).toBe("child");
   });
 });
 

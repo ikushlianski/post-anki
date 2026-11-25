@@ -116,6 +116,7 @@ export async function createSubject(input: CreateSubjectInput): Promise<Subject>
     learningStepsMinutes: null,
     relearningStepsMinutes: null,
     desiredRetention: null,
+    newCardOrder: null,
     studyIntent: null,
     examDate: null,
     examPlannedAt: null,

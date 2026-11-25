@@ -6,6 +6,7 @@ import type {
   UpdateSubjectStudyOptionsInput,
 } from '@post-anki/shared'
 import { ComplexityField } from './complexity-field'
+import { NewCardOrderField } from './new-card-order-field'
 import { NewCardsPerDayField } from '../admin-settings/new-cards-per-day-field'
 import { isExamDateMessage } from '../study-plan/exam-date-messages'
 import { ExamDateField } from './exam-date-field'
@@ -144,6 +145,13 @@ export function SubjectStudyOptionsForm({
           disabled={busy}
           testId="study-options-new-cards"
           hint={hint('newCardsPerDay')}
+        />
+        <NewCardOrderField
+          own={options.own.newCardOrder}
+          effective={effective.newCardOrder}
+          disabled={busy}
+          onChange={(newCardOrder) => void save({ newCardOrder })}
+          hint={hint('newCardOrder')}
         />
         <ReviewsPerDayField
           label="Reviews per day"

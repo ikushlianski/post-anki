@@ -1,6 +1,6 @@
-import { and, asc, count, eq, inArray, isNull, lte, not, sql, type SQL } from "drizzle-orm";
-import type { KnowledgeBitQuestionVariantKind } from "@post-anki/shared";
-import { cardPhaseSchema, isOrderedListKind } from "@post-anki/shared";
+import { and, asc, count, desc, eq, inArray, isNull, lte, not, sql, type SQL } from "drizzle-orm";
+import type { KnowledgeBitQuestionVariantKind, NewCardOrder } from "@post-anki/shared";
+import { cardPhaseSchema, DEFAULT_NEW_CARD_ORDER, isOrderedListKind } from "@post-anki/shared";
 import type { DbExecutor } from "../db/client.js";
 import {
   curricula,
@@ -32,6 +32,18 @@ import type {
 export type StepsFor = (subjectId: string | null) => ScheduleOptions;
 
 export const defaultStepsFor: StepsFor = () => DEFAULT_STEP_OPTIONS;
+
+export type NewCardOrderFor = (subjectId: string | null) => NewCardOrder;
+
+export const defaultNewCardOrderFor: NewCardOrderFor = () => DEFAULT_NEW_CARD_ORDER;
+
+const newestFirstIn = (subjectIds: readonly string[]) =>
+  subjectIds.length === 0
+    ? sql`false`
+    : sql`(${cardSubjectIdSql} in (${sql.join(
+        subjectIds.map((id) => sql`${id}`),
+        sql`, `,
+      )}))`;
 
 export function toCard(
   row: Omit<
@@ -117,6 +129,7 @@ export async function listScopedCards(
   db: DbExecutor,
   stepsFor: StepsFor = defaultStepsFor,
   only?: "new" | "seen",
+  newestFirstSubjectIds: readonly string[] = [],
 ): Promise<KnowledgeBitReviewCardRow[]> {
   const reviewCount = count(knowledgeBitReviews.id);
   const dueRank = sql<number>`min(case when ${knowledgeBitSchedules.knowledgeBitId} is null or ${knowledgeBitSchedules.dueAt} <= now() then 0 else 1 end)`;
@@ -127,6 +140,8 @@ export async function listScopedCards(
     .where(eq(picked.pickRank, 1));
 
   const isNewCard = sql<boolean>`bool_and(${knowledgeBitSchedules.reviewCount} is null or ${knowledgeBitSchedules.reviewCount} = 0)`;
+  const createdAtEpoch = sql<number>`extract(epoch from ${knowledgeBitQuestionVariants.createdAt})`;
+  const newestFirstNewCard = sql<number>`case when ${isNewCard} and ${newestFirstIn(newestFirstSubjectIds)} then -1 else 1 end`;
   const onlyFilter = only === "new" ? isNewCard : only === "seen" ? not(isNewCard) : undefined;
 
   const rows = await db
@@ -202,7 +217,7 @@ export async function listScopedCards(
     .orderBy(
       ...(filter.topicId || only === "seen" ? [asc(dueRank)] : []),
       asc(reviewCount),
-      asc(knowledgeBitQuestionVariants.createdAt),
+      asc(sql`${newestFirstNewCard} * ${createdAtEpoch}`),
     )
     .limit(limit);
 
@@ -217,6 +232,7 @@ export async function listPickedCards(
   db: DbExecutor,
   stepsFor: StepsFor = defaultStepsFor,
   dueCutoff: Date = now,
+  newCardOrder: NewCardOrder = DEFAULT_NEW_CARD_ORDER,
 ): Promise<KnowledgeBitReviewCardRow[]> {
   if (limit <= 0) {
     return [];
@@ -254,7 +270,7 @@ export async function listPickedCards(
     .orderBy(
       ...(kind === "due"
         ? [asc(notYetDueRank(picked, now)), asc(phaseRank(picked)), asc(picked.dueAt)]
-        : [asc(picked.bitCreatedAt)]),
+        : [newCardOrder === "newest-first" ? desc(picked.bitCreatedAt) : asc(picked.bitCreatedAt)]),
       asc(picked.variantId),
     )
     .limit(limit);
@@ -271,6 +287,7 @@ export async function listPickedNewCards(
   db: DbExecutor,
   stepsFor: StepsFor = defaultStepsFor,
   shuffleSeed?: string,
+  orderFor: NewCardOrderFor = defaultNewCardOrderFor,
 ): Promise<KnowledgeBitReviewCardRow[]> {
   if (shuffleSeed) {
     return listShuffledNewCards(picked, allowance, limit, now, db, stepsFor, shuffleSeed);
@@ -320,17 +337,20 @@ export async function listPickedNewCards(
               subjectId === null ? isNull(picked.cardSubjectId) : eq(picked.cardSubjectId, subjectId),
             ),
           )
-          .orderBy(asc(picked.bitCreatedAt), asc(picked.variantId))
+          .orderBy(
+            orderFor(subjectId) === "newest-first" ? desc(picked.bitCreatedAt) : asc(picked.bitCreatedAt),
+            asc(picked.variantId),
+          )
           .limit(take);
       }),
   );
 
+  const sortKey = (row: { bitCreatedAt: Date; cardSubjectId: string | null }) =>
+    (orderFor(row.cardSubjectId) === "newest-first" ? -1 : 1) * row.bitCreatedAt.getTime();
+
   return batches
     .flat()
-    .sort(
-      (a, b) =>
-        a.bitCreatedAt.getTime() - b.bitCreatedAt.getTime() || a.variantId.localeCompare(b.variantId),
-    )
+    .sort((a, b) => sortKey(a) - sortKey(b) || a.variantId.localeCompare(b.variantId))
     .slice(0, limit)
     .map(({ bitCreatedAt: _bitCreatedAt, ...row }) => toCard(row, now, stepsFor));
 }

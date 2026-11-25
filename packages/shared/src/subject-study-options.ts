@@ -2,6 +2,7 @@ import { z } from "zod";
 import { maxReviewsPerDaySchema, newCardsPerDaySchema } from "./admin-settings";
 import {
   desiredRetentionSchema,
+  newCardOrderSchema,
   stepsMinutesSchema,
 } from "./study-option-fields";
 import { complexityLevelSchema, complexityPreviewSchema, complexityViewSchema } from "./study-complexity";
@@ -14,6 +15,7 @@ export const studyOptionsSchema = z.object({
   learningStepsMinutes: stepsMinutesSchema,
   relearningStepsMinutes: stepsMinutesSchema,
   desiredRetention: desiredRetentionSchema,
+  newCardOrder: newCardOrderSchema,
 });
 
 export type StudyOptions = z.infer<typeof studyOptionsSchema>;
@@ -26,6 +28,7 @@ export const STUDY_OPTION_KEYS: StudyOptionKey[] = [
   "learningStepsMinutes",
   "relearningStepsMinutes",
   "desiredRetention",
+  "newCardOrder",
 ];
 
 export const studyOptionsOverrideSchema = z.object({
@@ -34,6 +37,7 @@ export const studyOptionsOverrideSchema = z.object({
   learningStepsMinutes: stepsMinutesSchema.nullable().optional(),
   relearningStepsMinutes: stepsMinutesSchema.nullable().optional(),
   desiredRetention: desiredRetentionSchema.nullable().optional(),
+  newCardOrder: newCardOrderSchema.nullable().optional(),
   complexityLevel: complexityLevelSchema.nullable().optional(),
 });
 
@@ -66,6 +70,7 @@ export const subjectStudyOptionsSchema = z.object({
     learningStepsMinutes: stepsMinutesSchema.nullable(),
     relearningStepsMinutes: stepsMinutesSchema.nullable(),
     desiredRetention: desiredRetentionSchema.nullable(),
+    newCardOrder: newCardOrderSchema.nullable(),
     complexityLevel: complexityLevelSchema.nullable(),
     studyIntent: studyIntentSchema.nullable(),
     examDate: examDateSchema.nullable(),
@@ -86,6 +91,7 @@ export const subjectStudyOptionsSchema = z.object({
     learningStepsMinutes: studyOptionSourceSchema,
     relearningStepsMinutes: studyOptionSourceSchema,
     desiredRetention: studyOptionSourceSchema,
+    newCardOrder: studyOptionSourceSchema,
   }),
 });
 

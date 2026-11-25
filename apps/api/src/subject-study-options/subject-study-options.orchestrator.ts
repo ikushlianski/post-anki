@@ -51,6 +51,7 @@ export async function readSubjectStudyOptions(
       learningStepsMinutes: row.options.learningStepsMinutes ?? null,
       relearningStepsMinutes: row.options.relearningStepsMinutes ?? null,
       desiredRetention: row.options.desiredRetention ?? null,
+      newCardOrder: row.options.newCardOrder ?? null,
       complexityLevel: row.complexityLevel,
       studyIntent: row.studyIntent,
       examDate: row.examDate,

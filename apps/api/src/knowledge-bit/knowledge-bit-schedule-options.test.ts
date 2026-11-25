@@ -9,6 +9,7 @@ const APP = {
   learningStepsMinutes: [1, 10],
   relearningStepsMinutes: [10],
   desiredRetention: 0.9,
+  newCardOrder: "oldest-first" as const,
 };
 const CLOCK = { today: "2026-11-01", timeZone: "UTC" };
 

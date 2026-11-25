@@ -186,6 +186,7 @@ describe("subject study options storage (real Postgres)", () => {
       learningStepsMinutes: [5, 30],
       relearningStepsMinutes: [10],
       desiredRetention: 0.85,
+      newCardOrder: "oldest-first",
     });
   });
 

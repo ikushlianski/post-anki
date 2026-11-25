@@ -60,6 +60,7 @@ export const subjects = pgTable("subjects", {
   learningStepsMinutes: jsonb("learning_steps_minutes").$type<number[]>(),
   relearningStepsMinutes: jsonb("relearning_steps_minutes").$type<number[]>(),
   desiredRetention: real("desired_retention"),
+  newCardOrder: text("new_card_order"),
   complexityLevel: text("complexity_level"),
   studyIntent: text("study_intent"),
   examDate: text("exam_date"),

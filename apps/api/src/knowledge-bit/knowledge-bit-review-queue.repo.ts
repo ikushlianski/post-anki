@@ -108,18 +108,19 @@ async function listScopedBatch(
   stepsFor: (subjectId: string | null) => ScheduleOptions,
   mixNewWithDue: boolean,
   excludeNew: boolean,
+  newestFirstSubjectIds: string[],
 ): Promise<KnowledgeBitReviewCardRow[]> {
   if (excludeNew) {
     return listScopedCards(limit, scope, filter, now, db, stepsFor, "seen");
   }
 
   if (!mixNewWithDue) {
-    return listScopedCards(limit, scope, filter, now, db, stepsFor);
+    return listScopedCards(limit, scope, filter, now, db, stepsFor, undefined, newestFirstSubjectIds);
   }
 
   const [seen, fresh] = await Promise.all([
     listScopedCards(limit, scope, filter, now, db, stepsFor, "seen"),
-    listScopedCards(limit, scope, filter, now, db, stepsFor, "new"),
+    listScopedCards(limit, scope, filter, now, db, stepsFor, "new", newestFirstSubjectIds),
   ]);
 
   return interleaveNewWithSeen(seen, fresh, limit);
@@ -172,10 +173,21 @@ export async function getKnowledgeBitReviewQueue(
               filter,
               db,
               stepsFor,
+              newestFirstSubjectIds: resolver.newestFirstSubjectIds(),
             })
           : null;
 
-      return mixed ?? listScopedBatch(limit, scope, filter, now, db, stepsFor, mixNewWithDue, excludeNew);
+      return mixed ?? listScopedBatch(
+          limit,
+          scope,
+          filter,
+          now,
+          db,
+          stepsFor,
+          mixNewWithDue,
+          excludeNew,
+          resolver.newestFirstSubjectIds(),
+        );
     };
     const [cards, totals] = await Promise.all([readCards(), readEligibleTotals(picked, now, db)]);
 
@@ -215,7 +227,7 @@ export async function getKnowledgeBitReviewQueue(
         ),
     blockedByDailyLimit || excludeNew
       ? Promise.resolve([])
-      : listPickedNewCards(picked, freshBySubject, allowance, limit, now, db, stepsFor, clock.shuffleSeed),
+      : listPickedNewCards(picked, freshBySubject, allowance, limit, now, db, stepsFor, clock.shuffleSeed, resolver.newCardOrderFor),
     readEligibleTotals(picked, now, db),
   ]);
   const withNew = mixNewWithDue

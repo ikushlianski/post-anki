@@ -35,6 +35,14 @@ describe("subject study options contract", () => {
     expect(updateSubjectStudyOptionsInput.safeParse({ desiredRetention: retention }).success).toBe(false);
   });
 
+  it.each([["oldest-first"], ["newest-first"], [null]])("should accept new card order %s", (order) => {
+    expect(updateSubjectStudyOptionsInput.parse({ newCardOrder: order }).newCardOrder).toBe(order);
+  });
+
+  it.each([["random"], [""], [3]])("should reject unknown new card order %j", (order) => {
+    expect(updateSubjectStudyOptionsInput.safeParse({ newCardOrder: order }).success).toBe(false);
+  });
+
   it("should clamp the app-wide defaults a learner sends instead of rejecting them", () => {
     const parsed = updateAdminSettingsInput.parse({
       learningStepsMinutes: [0, 5000],

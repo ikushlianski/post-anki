@@ -3,6 +3,7 @@ import {
   complexityLevelSchema,
   desiredRetentionSchema,
   maxReviewsPerDaySchema,
+  newCardOrderSchema,
   newCardsPerDaySchema,
   stepsMinutesSchema,
   detailLevelSchema,
@@ -42,6 +43,7 @@ const optionColumns = {
   learningStepsMinutes: subjects.learningStepsMinutes,
   relearningStepsMinutes: subjects.relearningStepsMinutes,
   desiredRetention: subjects.desiredRetention,
+  newCardOrder: subjects.newCardOrder,
   complexityLevel: subjects.complexityLevel,
   studyIntent: subjects.studyIntent,
   examDate: subjects.examDate,
@@ -58,6 +60,7 @@ function toRow(row: {
   learningStepsMinutes: number[] | null;
   relearningStepsMinutes: number[] | null;
   desiredRetention: number | null;
+  newCardOrder: string | null;
   complexityLevel: string | null;
   studyIntent: string | null;
   examDate: string | null;
@@ -77,6 +80,7 @@ function toRow(row: {
         .catch(null)
         .parse(row.relearningStepsMinutes),
       desiredRetention: desiredRetentionSchema.nullable().catch(null).parse(row.desiredRetention),
+      newCardOrder: newCardOrderSchema.nullable().catch(null).parse(row.newCardOrder),
     },
     complexityLevel: complexityLevelSchema.nullable().catch(null).parse(row.complexityLevel),
     studyIntent: studyIntentSchema.nullable().catch(null).parse(row.studyIntent),
@@ -109,6 +113,7 @@ export async function writeSubjectStudyOptions(
       relearningStepsMinutes: input.relearningStepsMinutes,
     }),
     ...(input.desiredRetention !== undefined && { desiredRetention: input.desiredRetention }),
+    ...(input.newCardOrder !== undefined && { newCardOrder: input.newCardOrder }),
     ...(input.complexityLevel !== undefined && { complexityLevel: input.complexityLevel }),
     ...(input.detailLevel !== undefined && { detailLevel: input.detailLevel }),
     ...(input.hintingEnabled !== undefined && { hintingEnabled: input.hintingEnabled }),
