@@ -33,7 +33,6 @@ struct DomainNodeScreen: View {
                         Text(DomainDepth.label(depth)).tag(Optional(depth))
                     }
                 }
-                .disabled(model.isBusy)
                 .onChange(of: model.depth) { _, newDepth in
                     Task {
                         await model.saveDepth(newDepth)

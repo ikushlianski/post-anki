@@ -107,7 +107,6 @@ struct MacSubjectsView: View {
             } message: {
                 Text("Their courses are deleted too. Subjects inside them move up a level.")
             }
-            .disabled(model.isWorking)
             .task { await model.load() }
     }
 

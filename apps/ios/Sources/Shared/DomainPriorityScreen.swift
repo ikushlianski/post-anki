@@ -49,13 +49,19 @@ final class DomainPriorityModel {
     func resolve(_ suggestion: DomainPrioritySuggestion, accepted: Bool) async {
         notice = nil
 
+        guard let index = suggestions.firstIndex(where: { $0.id == suggestion.id }) else { return }
+
+        suggestions.remove(at: index)
+
         do {
             try await APIClient.resolveDomainPrioritySuggestion(id: suggestion.id, accepted: accepted)
         } catch {
             notice = DomainMapError.message(for: error)
-        }
 
-        await load()
+            if !suggestions.contains(where: { $0.id == suggestion.id }) {
+                suggestions.insert(suggestion, at: min(index, suggestions.count))
+            }
+        }
     }
 
     func run() async {

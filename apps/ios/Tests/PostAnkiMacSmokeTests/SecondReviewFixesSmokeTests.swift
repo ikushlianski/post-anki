@@ -101,7 +101,7 @@ extension SmokeTests {
             #expect(SheetFailure.message(false, nil) != nil)
         }
 
-        @Test("should return the failure for a rejected subject rename so the sheet can show it")
+        @Test("should close the rename sheet at once and show the failure on the list when the server rejects the rename")
         func renameFailureReachesSheet() async throws {
             let session = FakeServerSession([:])
             defer { session.end() }
@@ -111,10 +111,12 @@ extension SmokeTests {
                 SubjectManageSubject.self,
                 from: Data(#"{"id":"sub_01","name":"Old","kind":"topic","parentId":null,"sortOrder":null}"#.utf8)
             )
-            let succeeded = await model.rename(subject, to: "New")
+            let accepted = await model.rename(subject, to: "New")
 
-            #expect(!succeeded)
-            #expect(SheetFailure.message(succeeded, model.errorMessage) != nil)
+            await model.settle()
+
+            #expect(accepted)
+            #expect(model.errorMessage != nil)
         }
     }
 }

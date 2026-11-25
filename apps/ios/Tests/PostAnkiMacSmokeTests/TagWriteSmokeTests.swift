@@ -39,6 +39,8 @@ extension SmokeTests {
 
             let merged = await model.merge(source: source, into: kept)
 
+            await model.settle()
+
             #expect(merged)
             #expect(FakeServer.writes.map(\.method) == ["POST"])
             #expect(FakeServer.writes.map(\.path) == [mergePath])
@@ -57,9 +59,11 @@ extension SmokeTests {
 
             let merged = await model.merge(source: before[1], into: before[0])
 
-            #expect(!merged)
+            await model.settle()
+
+            #expect(merged)
             #expect(model.errorMessage == failure.message)
-            #expect(model.tags == before)
+            #expect(Set(model.tags) == Set(before))
             #expect(model.notice == nil)
             #expect(FakeServer.writes.count == 1)
         }
@@ -75,6 +79,8 @@ extension SmokeTests {
             let model = TopicTagModel(topicId: "topic_07")
 
             let created = await model.create(name: "sagas")
+
+            await model.settle()
 
             #expect(created)
             #expect(FakeServer.writes.map(\.path) == ["/tags", "/tags/tag_03/assignments"])
@@ -95,12 +101,14 @@ extension SmokeTests {
 
             let added = await model.add(tag)
 
+            await model.settle()
+
             #expect(added)
             #expect(FakeServer.writes.map(\.path) == ["/tags/tag_01/assignments"])
             #expect(model.added == [tag])
         }
 
-        @Test("should add nothing to the topic and say why when attaching a tag fails", arguments: [
+        @Test("should take the tag off the topic again and say why when attaching a tag fails", arguments: [
             WriteFailureCase.signedOut,
             WriteFailureCase.rejected("server_error", status: 500, message: "Something went wrong. Try again."),
             WriteFailureCase.offline
@@ -114,7 +122,11 @@ extension SmokeTests {
 
             let added = await model.add(tag)
 
-            #expect(!added)
+            #expect(model.added == [tag])
+
+            await model.settle()
+
+            #expect(added)
             #expect(model.added.isEmpty)
             #expect(model.message == failure.message)
         }
@@ -148,7 +160,9 @@ extension SmokeTests {
 
             let added = await model.add(tag)
 
-            #expect(!added)
+            await model.settle()
+
+            #expect(added)
             #expect(model.message == "That tag is gone.")
             #expect(model.allTags.map(\.id) == ["tag_01", "tag_02"])
         }

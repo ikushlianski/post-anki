@@ -81,7 +81,10 @@ extension SmokeTests {
 
             let renamed = await model.rename(model.subjects[0], to: "Alpha 2")
 
+            await model.settle()
+
             #expect(renamed)
+            #expect(model.subjects[0].name == "Alpha 2")
             #expect(FakeServer.writes.map(\.method) == ["PATCH"])
             #expect(FakeServer.writes.map(\.path) == ["/subjects/s_a"])
             #expect(FakeServer.writes.first?.bodyObject == ["name": "Alpha 2"] as NSDictionary)
@@ -93,6 +96,7 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.delete(model.subjects[2])
+            await model.settle()
 
             #expect(FakeServer.writes.map(\.method) == ["DELETE"])
             #expect(FakeServer.writes.map(\.path) == ["/subjects/s_c"])
@@ -107,6 +111,8 @@ extension SmokeTests {
 
             let merged = await model.merge(source: model.subjects[1], into: model.subjects[0])
 
+            await model.settle()
+
             #expect(merged)
             #expect(FakeServer.writes.map(\.path) == ["/subjects/s_a/merge"])
             #expect(FakeServer.writes.first?.bodyObject == ["sourceSubjectId": "s_b"] as NSDictionary)
@@ -119,6 +125,7 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.move(parentId: nil, from: IndexSet(integer: 2), to: 0)
+            await model.settle()
 
             let body = FakeServer.writes.first?.bodyObject
 
@@ -143,51 +150,57 @@ extension SmokeTests {
             #expect(!model.isWorking)
         }
 
-        @Test("should keep the old name and explain when renaming fails", arguments: failures)
+        @Test("should put the old name back and explain when renaming fails", arguments: failures)
         func renameFails(failure: WriteFailureCase) async throws {
             let (model, session) = await loadedModel(extra: ["PATCH /subjects/s_a": failure.reply])
             defer { session.end() }
 
             let renamed = await model.rename(model.subjects[0], to: "Alpha 2")
 
-            #expect(!renamed)
+            await model.settle()
+
+            #expect(renamed)
             #expect(model.errorMessage == failure.message)
             #expect(model.subjects[0].name == "Alpha")
             #expect(!model.didChange)
         }
 
-        @Test("should keep the subject and explain when deleting fails", arguments: failures)
+        @Test("should bring the subject back and explain when deleting fails", arguments: failures)
         func deleteFails(failure: WriteFailureCase) async throws {
             let (model, session) = await loadedModel(extra: ["DELETE /subjects/s_c": failure.reply])
             defer { session.end() }
 
             await model.delete(model.subjects[2])
+            await model.settle()
 
             #expect(model.errorMessage == failure.message)
             #expect(names(model) == ["Alpha", "Beta", "Gamma"])
             #expect(!model.didChange)
         }
 
-        @Test("should keep both subjects, show no move notice and explain when merging fails", arguments: failures)
+        @Test("should bring the merged subject back, show no move notice and explain when merging fails", arguments: failures)
         func mergeFails(failure: WriteFailureCase) async throws {
             let (model, session) = await loadedModel(extra: ["POST /subjects/s_a/merge": failure.reply])
             defer { session.end() }
 
             let merged = await model.merge(source: model.subjects[1], into: model.subjects[0])
 
-            #expect(!merged)
+            await model.settle()
+
+            #expect(merged)
             #expect(model.errorMessage == failure.message)
             #expect(model.notice == nil)
             #expect(names(model) == ["Alpha", "Beta", "Gamma"])
             #expect(model.courses.count == 2)
         }
 
-        @Test("should reload the server order and keep the error when reordering fails", arguments: failures)
+        @Test("should put the old order back and keep the error when reordering fails", arguments: failures)
         func reorderFails(failure: WriteFailureCase) async throws {
             let (model, session) = await loadedModel(extra: ["PATCH /subjects/order": failure.reply])
             defer { session.end() }
 
             await model.move(parentId: nil, from: IndexSet(integer: 2), to: 0)
+            await model.settle()
 
             #expect(model.errorMessage == failure.message)
             #expect(model.children(of: nil).map(\.id) == ["s_a", "s_b", "s_c"])

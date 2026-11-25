@@ -46,7 +46,6 @@ struct AdminSettingsScreen: View {
             Picker("Model tier", selection: tierBinding) {
                 ForEach(AdminModelTier.all) { Text($0.label).tag($0.id) }
             }
-            .disabled(model.savingField != nil)
         } footer: {
             footer(
                 "Global default model cost tier for every AI call that has no subject or curriculum override.",
@@ -58,7 +57,6 @@ struct AdminSettingsScreen: View {
             Picker("Knowledge item model", selection: itemModelBinding) {
                 ForEach(AdminExtractionModel.all) { Text($0.label).tag($0.id) }
             }
-            .disabled(model.savingField != nil)
 
             if let selected = AdminExtractionModel.all.first(where: { $0.id == model.knowledgeItemModelId }) {
                 Text(selected.priceText).zoomFont(.footnote).foregroundStyle(.secondary)
@@ -97,8 +95,7 @@ struct AdminSettingsScreen: View {
 
         Section {
             Toggle("Mix new cards with cards I've already seen", isOn: mixBinding)
-                .disabled(model.savingField != nil)
-        } footer: {
+            } footer: {
             footer(
                 "On: new cards are shown in between the cards you have already seen. Off: new cards come in a separate block.",
                 field: .mixNewWithDue
@@ -107,8 +104,7 @@ struct AdminSettingsScreen: View {
 
         Section {
             Toggle("Triage new cards before studying", isOn: triageBinding)
-                .disabled(model.savingField != nil)
-        } footer: {
+            } footer: {
             footer(
                 "Off: new cards go straight into their subject and can be studied at once. On: each new card waits in Triage until you approve it.",
                 field: .triageEnabled
@@ -120,7 +116,7 @@ struct AdminSettingsScreen: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(text)
 
-            if model.failedField == field {
+            if model.hasFailed(field) {
                 Text("Couldn't save").foregroundStyle(.red)
             }
         }
@@ -129,21 +125,21 @@ struct AdminSettingsScreen: View {
     private var tierBinding: Binding<String> {
         Binding(
             get: { model.modelTier },
-            set: { value in Task { await model.setModelTier(value) } }
+            set: { model.setModelTier($0) }
         )
     }
 
     private var itemModelBinding: Binding<String> {
         Binding(
             get: { model.knowledgeItemModelId },
-            set: { value in Task { await model.setKnowledgeItemModel(value) } }
+            set: { model.setKnowledgeItemModel($0) }
         )
     }
 
     private var mixBinding: Binding<Bool> {
         Binding(
             get: { model.mixNewWithDue },
-            set: { value in Task { await model.setMixNewWithDue(value) } }
+            set: { model.setMixNewWithDue($0) }
         )
     }
 
@@ -151,8 +147,10 @@ struct AdminSettingsScreen: View {
         Binding(
             get: { model.triageEnabled },
             set: { value in
+                model.setTriageEnabled(value)
+
                 Task {
-                    await model.setTriageEnabled(value)
+                    await model.settle()
                     await PendingReviewCountStore.shared.refresh()
                 }
             }
@@ -170,7 +168,11 @@ struct AdminSettingsScreen: View {
 
                     guard !Task.isCancelled else { return }
 
-                    await model.setMaxReviewsPerDay(value)
+                    model.setMaxReviewsPerDay(value)
+                    await model.settle()
+
+                    guard !Task.isCancelled else { return }
+
                     draftReviews = model.maxReviewsPerDay
                 }
             }
@@ -188,7 +190,11 @@ struct AdminSettingsScreen: View {
 
                     guard !Task.isCancelled else { return }
 
-                    await model.setNewCardsPerDay(value)
+                    model.setNewCardsPerDay(value)
+                    await model.settle()
+
+                    guard !Task.isCancelled else { return }
+
                     draftCards = model.newCardsPerDay
                 }
             }

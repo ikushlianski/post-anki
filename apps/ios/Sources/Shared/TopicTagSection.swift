@@ -10,6 +10,8 @@ final class TopicTagModel {
     var message: String?
     var isWorking = false
 
+    private let writes = SerialWriteQueue()
+
     init(topicId: String) {
         self.topicId = topicId
     }
@@ -25,7 +27,9 @@ final class TopicTagModel {
     }
 
     func add(_ tag: Tag) async -> Bool {
-        await assign(tag)
+        assign(tag)
+
+        return true
     }
 
     func create(name: String) async -> Bool {
@@ -39,7 +43,9 @@ final class TopicTagModel {
 
             if !allTags.contains(tag) { allTags.append(tag) }
 
-            return await assign(tag)
+            assign(tag)
+
+            return true
         } catch {
             message = TagError.message(for: error)
 
@@ -47,26 +53,30 @@ final class TopicTagModel {
         }
     }
 
-    private func assign(_ tag: Tag) async -> Bool {
+    func settle() async { await writes.settle() }
+
+    private func assign(_ tag: Tag) {
         message = nil
 
-        do {
-            try await APIClient.assignTag(tagId: tag.id, topicId: topicId)
+        let wasAdded = added.contains(tag)
 
-            if !added.contains(tag) { added.append(tag) }
+        if !wasAdded { added.append(tag) }
 
-            return true
-        } catch {
-            message = TagError.message(for: error)
+        writes.enqueue { [self] in
+            do {
+                try await APIClient.assignTag(tagId: tag.id, topicId: topicId)
+            } catch {
+                if !wasAdded { added.removeAll { $0 == tag } }
 
-            if TagError.isMissing(error) {
-                let failure = message
+                message = TagError.message(for: error)
 
-                await loadTags()
-                message = failure
+                if TagError.isMissing(error) {
+                    let failure = message
+
+                    await loadTags()
+                    message = failure
+                }
             }
-
-            return false
         }
     }
 }
@@ -131,7 +141,6 @@ struct TopicTagPickerSheet: View {
                     .foregroundStyle(.primary)
                 }
             }
-            .disabled(model.isWorking)
             .searchable(text: $query)
             .navigationTitle("Add tag")
             .inlineNavigationTitle()

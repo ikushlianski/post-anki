@@ -13,6 +13,15 @@ final class TagsModel {
     var failureKind: ProgressLoadError?
     var notice: String?
 
+    let writes = SerialWriteQueue()
+    var needsReconcile = false
+
+    init() {
+        writes.onIdle = { [weak self] in await self?.reconcile() }
+    }
+
+    func settle() async { await writes.settle() }
+
     var filtered: [Tag] {
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let sorted = tags.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
@@ -20,27 +29,44 @@ final class TagsModel {
         return text.isEmpty ? sorted : sorted.filter { $0.name.localizedCaseInsensitiveContains(text) }
     }
 
-    func load() async {
+    func load(whenIdle: Bool = false) async {
         guard !isLoading else { return }
 
         isLoading = true
-        errorMessage = nil
-        failureKind = nil
+
+        if !whenIdle {
+            errorMessage = nil
+            failureKind = nil
+        }
+
         defer { isLoading = false }
 
         do {
             async let fetchedTags = APIClient.listTags()
             async let fetchedMastery = APIClient.tagMastery()
+            let loadedTags = try await fetchedTags
+            let loadedMastery = Self.index(try await fetchedMastery)
 
-            tags = try await fetchedTags
-            mastery = Self.index(try await fetchedMastery)
+            if whenIdle && !writes.isIdle { return }
+
+            tags = loadedTags
+            mastery = loadedMastery
             hasLoaded = true
         } catch where ProgressLoadError.from(error) == nil {
             return
         } catch {
+            if whenIdle { return }
+
             errorMessage = TagError.message(for: error)
             failureKind = ProgressLoadError.from(error) ?? .other
         }
+    }
+
+    private func reconcile() async {
+        guard needsReconcile else { return }
+
+        needsReconcile = false
+        await load(whenIdle: true)
     }
 
     nonisolated static func index(_ rows: [TagMastery]) -> [String: TagMastery] {
@@ -49,19 +75,29 @@ final class TagsModel {
 
     func merge(source: Tag, into target: Tag) async -> Bool {
         notice = nil
+        errorMessage = nil
 
-        do {
-            let result = try await APIClient.mergeTag(keepId: target.id, sourceId: source.id)
+        let removedMastery = mastery[source.id]
 
-            notice = "Moved \(CountLabel.text(result.assignmentsMoved, "tag"))"
-            await load()
+        tags.removeAll { $0.id == source.id }
+        mastery[source.id] = nil
 
-            return true
-        } catch {
-            errorMessage = TagError.message(for: error)
+        writes.enqueue { [self] in
+            do {
+                let result = try await APIClient.mergeTag(keepId: target.id, sourceId: source.id)
 
-            return false
+                notice = "Moved \(CountLabel.text(result.assignmentsMoved, "tag"))"
+                needsReconcile = true
+            } catch {
+                if !tags.contains(where: { $0.id == source.id }) { tags.append(source) }
+
+                mastery[source.id] = removedMastery
+                errorMessage = TagError.message(for: error)
+                needsReconcile = true
+            }
         }
+
+        return true
     }
 }
 

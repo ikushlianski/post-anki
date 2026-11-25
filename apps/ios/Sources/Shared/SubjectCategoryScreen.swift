@@ -79,7 +79,6 @@ struct SubjectCategoryScreen: View {
                 }
             }
         }
-        .disabled(model.isWorking)
         #if os(macOS)
         .toolbar {
             ToolbarItem {

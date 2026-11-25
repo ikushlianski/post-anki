@@ -22,9 +22,14 @@ final class AdminSettingsModel {
     var isLoading = false
     var errorMessage: String?
     var failedField: AdminSettingField?
-    var savingField: AdminSettingField?
+    var failedFields: Set<AdminSettingField> = []
     var refusalMessage: String?
 
+    private var inFlight = AdminSettingsUpdate()
+    private var inFlightFields: Set<AdminSettingField> = []
+    private var unsent = AdminSettingsUpdate()
+    private var unsentFields: Set<AdminSettingField> = []
+    private var drainTask: Task<Void, Never>?
     private let loader: Loader
     private let saver: Saver
 
@@ -36,26 +41,40 @@ final class AdminSettingsModel {
         self.saver = saver
     }
 
-    var modelTier: String { settings?.modelTier ?? "balanced" }
-    var knowledgeItemModelId: String { settings?.knowledgeItemModelId ?? AdminExtractionModel.defaultId }
-    var newCardsPerDay: Int { settings?.newCardsPerDay ?? AdminSettingsLimits.defaultNewCardsPerDay }
-    var maxReviewsPerDay: Int { settings?.maxReviewsPerDay ?? AdminSettingsLimits.defaultMaxReviewsPerDay }
-    var mixNewWithDue: Bool { settings?.mixNewWithDue ?? true }
-    var triageEnabled: Bool { settings?.triageEnabled ?? false }
+    private var shown: AdminSettingsUpdate { inFlight.merged(with: unsent) }
 
-    var fusionEnabled: Bool { settings?.fusionEnabled ?? false }
-    var fusionModelIds: [String] { settings?.fusionModelIds ?? [] }
+    var modelTier: String { shown.modelTier ?? settings?.modelTier ?? "balanced" }
+    var knowledgeItemModelId: String {
+        shown.knowledgeItemModelId ?? settings?.knowledgeItemModelId ?? AdminExtractionModel.defaultId
+    }
+    var newCardsPerDay: Int {
+        shown.newCardsPerDay ?? settings?.newCardsPerDay ?? AdminSettingsLimits.defaultNewCardsPerDay
+    }
+    var maxReviewsPerDay: Int {
+        shown.maxReviewsPerDay ?? settings?.maxReviewsPerDay ?? AdminSettingsLimits.defaultMaxReviewsPerDay
+    }
+    var mixNewWithDue: Bool { shown.mixNewWithDue ?? settings?.mixNewWithDue ?? true }
+    var triageEnabled: Bool { shown.triageEnabled ?? settings?.triageEnabled ?? false }
 
-    func setFusionEnabled(_ value: Bool) async {
-        await save(.fusion, AdminSettingsUpdate(fusionEnabled: value))
+    var fusionEnabled: Bool { shown.fusionEnabled ?? settings?.fusionEnabled ?? false }
+    var fusionModelIds: [String] { shown.fusionModelIds ?? settings?.fusionModelIds ?? [] }
+
+    func hasFailed(_ field: AdminSettingField) -> Bool { failedFields.contains(field) }
+
+    func settle() async {
+        while let task = drainTask { await task.value }
     }
 
-    func toggleFusionModel(_ id: String) async {
+    func setFusionEnabled(_ value: Bool) {
+        save(.fusion, AdminSettingsUpdate(fusionEnabled: value))
+    }
+
+    func toggleFusionModel(_ id: String) {
         let ids = FusionSelection.toggled(fusionModelIds, id: id)
 
         guard ids != fusionModelIds else { return }
 
-        await save(.fusion, AdminSettingsUpdate(fusionModelIds: ids))
+        save(.fusion, AdminSettingsUpdate(fusionModelIds: ids))
     }
 
     func load() async {
@@ -66,7 +85,9 @@ final class AdminSettingsModel {
         defer { isLoading = false }
 
         do {
-            settings = try await loader()
+            let loaded = try await loader()
+
+            if drainTask == nil { settings = loaded }
         } catch where ProgressLoadError.from(error) == nil {
             return
         } catch {
@@ -74,51 +95,93 @@ final class AdminSettingsModel {
         }
     }
 
-    func setModelTier(_ value: String) async {
-        await save(.modelTier, AdminSettingsUpdate(modelTier: value))
+    func setModelTier(_ value: String) {
+        save(.modelTier, AdminSettingsUpdate(modelTier: value))
     }
 
-    func setKnowledgeItemModel(_ value: String) async {
-        await save(.knowledgeItemModel, AdminSettingsUpdate(knowledgeItemModelId: value))
+    func setKnowledgeItemModel(_ value: String) {
+        save(.knowledgeItemModel, AdminSettingsUpdate(knowledgeItemModelId: value))
     }
 
-    func setNewCardsPerDay(_ value: Int) async {
+    func setNewCardsPerDay(_ value: Int) {
         let clamped = min(AdminSettingsLimits.newCardsPerDay.upperBound, max(AdminSettingsLimits.newCardsPerDay.lowerBound, value))
 
-        await save(.newCardsPerDay, AdminSettingsUpdate(newCardsPerDay: clamped))
+        save(.newCardsPerDay, AdminSettingsUpdate(newCardsPerDay: clamped))
     }
 
-    func setMaxReviewsPerDay(_ value: Int) async {
+    func setMaxReviewsPerDay(_ value: Int) {
         let range = AdminSettingsLimits.maxReviewsPerDay
         let clamped = min(range.upperBound, max(range.lowerBound, value))
 
-        await save(.maxReviewsPerDay, AdminSettingsUpdate(maxReviewsPerDay: clamped))
+        save(.maxReviewsPerDay, AdminSettingsUpdate(maxReviewsPerDay: clamped))
     }
 
-    func setMixNewWithDue(_ value: Bool) async {
-        await save(.mixNewWithDue, AdminSettingsUpdate(mixNewWithDue: value))
+    func setMixNewWithDue(_ value: Bool) {
+        save(.mixNewWithDue, AdminSettingsUpdate(mixNewWithDue: value))
     }
 
-    func setTriageEnabled(_ value: Bool) async {
-        await save(.triageEnabled, AdminSettingsUpdate(triageEnabled: value))
+    func setTriageEnabled(_ value: Bool) {
+        save(.triageEnabled, AdminSettingsUpdate(triageEnabled: value))
     }
 
-    private func save(_ field: AdminSettingField, _ update: AdminSettingsUpdate) async {
+    private func save(_ field: AdminSettingField, _ update: AdminSettingsUpdate) {
         guard settings != nil else { return }
 
         failedField = nil
+        failedFields = []
         refusalMessage = nil
-        savingField = field
-        defer { savingField = nil }
+        unsent = unsent.merged(with: update)
+        unsentFields.insert(field)
 
-        do {
-            settings = try await saver(update)
-        } catch {
-            if error is CancellationError { return }
-
-            refusalMessage = (error as? AdminSettingsRefusal)?.message
-
-            failedField = field
+        if drainTask == nil {
+            drainTask = Task { [weak self] in await self?.drain() }
         }
+    }
+
+    private func drain() async {
+        while !unsentFields.isEmpty {
+            let batch = unsent
+            let fields = unsentFields
+
+            unsent = AdminSettingsUpdate()
+            unsentFields = []
+            inFlight = batch
+            inFlightFields = fields
+
+            do {
+                let saved = try await saver(batch)
+
+                inFlight = AdminSettingsUpdate()
+                inFlightFields = []
+                settings = saved
+            } catch {
+                inFlight = AdminSettingsUpdate()
+                inFlightFields = []
+
+                if error is CancellationError { continue }
+
+                refusalMessage = (error as? AdminSettingsRefusal)?.message
+                failedFields = fields
+                failedField = fields.first
+            }
+        }
+
+        drainTask = nil
+    }
+}
+
+extension AdminSettingsUpdate {
+    func merged(with newer: AdminSettingsUpdate) -> AdminSettingsUpdate {
+        AdminSettingsUpdate(
+            testToggle: newer.testToggle ?? testToggle,
+            modelTier: newer.modelTier ?? modelTier,
+            knowledgeItemModelId: newer.knowledgeItemModelId ?? knowledgeItemModelId,
+            newCardsPerDay: newer.newCardsPerDay ?? newCardsPerDay,
+            maxReviewsPerDay: newer.maxReviewsPerDay ?? maxReviewsPerDay,
+            mixNewWithDue: newer.mixNewWithDue ?? mixNewWithDue,
+            triageEnabled: newer.triageEnabled ?? triageEnabled,
+            fusionEnabled: newer.fusionEnabled ?? fusionEnabled,
+            fusionModelIds: newer.fusionModelIds ?? fusionModelIds
+        )
     }
 }

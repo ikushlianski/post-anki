@@ -7,6 +7,15 @@ public struct SubjectManageSubject: Decodable, Sendable, Hashable, Identifiable 
     public let parentId: String?
     public let sortOrder: Int?
     public let cardCount: Int?
+
+    public init(id: String, name: String, kind: String, parentId: String?, sortOrder: Int?, cardCount: Int?) {
+        self.id = id
+        self.name = name
+        self.kind = kind
+        self.parentId = parentId
+        self.sortOrder = sortOrder
+        self.cardCount = cardCount
+    }
 }
 
 public struct SubjectManageCourse: Decodable, Sendable, Hashable, Identifiable {
@@ -15,6 +24,14 @@ public struct SubjectManageCourse: Decodable, Sendable, Hashable, Identifiable {
     public let name: String
     public let status: String
     public let categoryId: String?
+
+    public init(id: String, subjectId: String, name: String, status: String, categoryId: String?) {
+        self.id = id
+        self.subjectId = subjectId
+        self.name = name
+        self.status = status
+        self.categoryId = categoryId
+    }
 }
 
 public struct SubjectManageCreateInput: Encodable, Sendable {
@@ -62,6 +79,13 @@ public struct SubjectCategory: Decodable, Sendable, Hashable, Identifiable {
     public let subjectId: String
     public let parentId: String?
     public let name: String
+
+    public init(id: String, subjectId: String, parentId: String?, name: String) {
+        self.id = id
+        self.subjectId = subjectId
+        self.parentId = parentId
+        self.name = name
+    }
 }
 
 public struct SubjectCategoryCreateInput: Encodable, Sendable {

@@ -71,7 +71,6 @@ struct SubjectManageScreen: View {
             }
             Button("Cancel", role: .cancel) { deleting = nil }
         }
-        .disabled(model.isWorking)
         .refreshable { await model.load() }
         .task { await model.load() }
         .onDisappear {

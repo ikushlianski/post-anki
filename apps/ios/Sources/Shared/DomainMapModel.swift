@@ -97,28 +97,38 @@ final class DomainNodeModel {
     var notice: String?
     var isBusy = false
     private var savedDepth: String?
+    private var requestedDepth: String?
+    private let writes = SerialWriteQueue()
 
     init(node: DomainNodeItem) {
         self.node = node
         depth = node.targetDepth
         savedDepth = node.targetDepth
+        requestedDepth = node.targetDepth
     }
 
     func saveDepth(_ newDepth: String?) async {
-        guard newDepth != savedDepth else { return }
+        guard newDepth != requestedDepth else { return }
 
         errorMessage = nil
-        isBusy = true
-        defer { isBusy = false }
+        requestedDepth = newDepth
 
-        do {
-            try await APIClient.setDomainNodeDepth(id: node.id, depth: newDepth)
-            savedDepth = newDepth
-            notice = "Saved."
-        } catch {
-            depth = savedDepth
-            errorMessage = DomainMapError.message(for: error)
+        writes.enqueue { [self] in
+            do {
+                try await APIClient.setDomainNodeDepth(id: node.id, depth: newDepth)
+                savedDepth = newDepth
+                notice = "Saved."
+            } catch {
+                if requestedDepth == newDepth {
+                    requestedDepth = savedDepth
+                    depth = savedDepth
+                }
+
+                errorMessage = DomainMapError.message(for: error)
+            }
         }
+
+        await writes.settle()
     }
 
     func merge(_ source: DomainNodeItem) async -> Bool {
