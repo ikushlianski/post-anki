@@ -26,6 +26,7 @@ enum SubjectSearch {
 
 struct SubjectSearchField: View {
     @Binding var text: String
+    var autofocus = true
     let onSubmit: () -> Void
     @FocusState private var isFocused: Bool
 
@@ -45,6 +46,8 @@ struct SubjectSearchField: View {
         .padding(.horizontal)
         .padding(.vertical, 6)
         .task {
+            guard autofocus else { return }
+
             try? await Task.sleep(for: .milliseconds(350))
             isFocused = true
         }

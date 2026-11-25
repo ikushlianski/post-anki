@@ -28,7 +28,8 @@ struct FocusTriageSubjectSheet: View {
                         parent: nil,
                         nodes: model.tree,
                         selection: currentId,
-                        allowsNone: false
+                        allowsNone: false,
+                        autofocusSearch: false
                     ) { id in
                         guard let id else { return }
 

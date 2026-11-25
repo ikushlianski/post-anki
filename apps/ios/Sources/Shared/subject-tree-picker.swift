@@ -93,6 +93,7 @@ struct SubjectTreePickerLevel: View {
     let nodes: [SubjectTreeNode]
     let selection: String?
     var allowsNone = true
+    var autofocusSearch = true
     let onPick: (String?) -> Void
     @State private var query = ""
 
@@ -105,7 +106,7 @@ struct SubjectTreePickerLevel: View {
     var body: some View {
         VStack(spacing: 0) {
             if parent == nil {
-                SubjectSearchField(text: $query) {
+                SubjectSearchField(text: $query, autofocus: autofocusSearch) {
                     if let only = SubjectSearch.onlyMatch(SubjectTreePath.options(from: nodes), query: query) {
                         onPick(only.id)
                     }
