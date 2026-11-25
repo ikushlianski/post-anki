@@ -119,6 +119,7 @@ extension SmokeTests {
             await model.grade(.good)
             await model.sendTask?.value
             await model.undo()
+            await model.settleBackgroundActions()
 
             #expect(FakeServer.requested.contains("/knowledge-bits/reviews/rev_01"))
             #expect(model.current?.variantId == "var_01")

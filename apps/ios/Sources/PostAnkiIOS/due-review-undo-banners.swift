@@ -21,7 +21,7 @@ struct DueReviewUndoBanners: View {
                     message: "Marked as known",
                     identifier: "due-review-known-undo",
                     isDisabled: model.isGrading,
-                    taskId: model.knownUndo?.reviewId,
+                    taskId: model.knownUndo?.token.uuidString,
                     onUndo: { await model.undoKnown() },
                     onExpire: { model.knownUndo = nil }
                 )

@@ -84,6 +84,7 @@ extension SmokeTests {
 
             await model.load()
             await model.markCurrentKnown()
+            await model.settleBackgroundActions()
 
             let sent = FakeServer.requests.filter { $0.path == "/knowledge-bits/reviews/known" }
 
@@ -106,6 +107,7 @@ extension SmokeTests {
 
             await model.load()
             await model.markCurrentKnown()
+            await model.settleBackgroundActions()
 
             #expect(model.reviewedCount == 0)
             #expect(model.gradedNewCount == 0)
@@ -121,7 +123,9 @@ extension SmokeTests {
 
             await model.load()
             await model.markCurrentKnown()
+            await model.settleBackgroundActions()
             await model.undoKnown()
+            await model.settleBackgroundActions()
 
             #expect(FakeServer.requests.contains { $0.method == "DELETE" && $0.path == "/knowledge-bits/reviews/rev_9" })
             #expect(model.current?.variantId == "v01")

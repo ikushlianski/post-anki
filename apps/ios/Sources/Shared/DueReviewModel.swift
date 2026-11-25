@@ -89,6 +89,11 @@ final class DueReviewModel {
     var sendTask: Task<Void, Never>?
     var sendAgain = false
     var retryTask: Task<Void, Never>?
+    var actionTasks: [UUID: Task<Void, Never>] = [:]
+    var bitWriteTails: [String: Task<Void, Never>] = [:]
+    var knownReviewIds: [String: String] = [:]
+    var revertedVariantIds: Set<String> = []
+    var movingBitIds: Set<String> = []
 
     init(
         gradeQueue: PendingGradeQueue = .shared,

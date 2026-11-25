@@ -87,6 +87,7 @@ extension SmokeTests {
 
             await model.load()
             await model.buryCurrent()
+            await model.settleBackgroundActions()
 
             #expect(model.current?.knowledgeBitId == "k2")
             #expect(model.progressLabel == "1 of 4")
@@ -105,6 +106,7 @@ extension SmokeTests {
 
             await model.load()
             await model.suspendCurrent(offersUndo: true)
+            await model.settleBackgroundActions()
 
             #expect(model.current?.knowledgeBitId == "k2")
             #expect(model.suspendedUndo?.variantId == "v1")
@@ -124,7 +126,9 @@ extension SmokeTests {
 
             await model.load()
             await model.suspendCurrent(offersUndo: true)
+            await model.settleBackgroundActions()
             await model.undoSuspend()
+            await model.settleBackgroundActions()
 
             #expect(model.current?.variantId == "v1")
             #expect(model.queue.first?.variantId == "v2")
@@ -144,6 +148,7 @@ extension SmokeTests {
 
             await model.load()
             await model.suspendCurrent()
+            await model.settleBackgroundActions()
 
             #expect(model.notice == "Card suspended")
             #expect(model.suspendedUndo == nil)

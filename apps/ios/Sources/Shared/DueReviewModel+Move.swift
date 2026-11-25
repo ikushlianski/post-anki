@@ -23,6 +23,8 @@ extension DueReviewModel {
     func moveCurrent(toSubject subjectId: String, label: String, recents: RecentMoveTargets = RecentMoveTargets()) async -> Bool {
         guard !isGrading, let card = movePickerCard ?? current else { return false }
 
+        guard !movingBitIds.contains(card.knowledgeBitId) else { return false }
+
         guard canReachServer else {
             moveError = Self.moveOfflineNotice
 
@@ -37,52 +39,85 @@ extension DueReviewModel {
         suspendedUndo = nil
         knownUndo = nil
 
-        let advanced = advanceFirst(past: card, buriedVariantIds: [])
+        guard let advanced = advanceFirst(past: card, buriedVariantIds: []) else {
+            return await moveWaitingForServer(card, subjectId: subjectId, label: label, recents: recents)
+        }
 
-        if advanced != nil { movePickerCard = nil }
+        movePickerCard = nil
+        movingBitIds.insert(card.knowledgeBitId)
+        skippedVariantIds.insert(card.variantId)
+        notice = "Moved to \(label)"
+
+        runInBackground(bitId: card.knowledgeBitId) { [self] in
+            await sendMove(card, advanced: advanced, subjectId: subjectId, label: label, recents: recents)
+        }
+
+        return true
+    }
+
+    private func sendMove(
+        _ card: ReviewCard,
+        advanced: AdvanceSnapshot,
+        subjectId: String,
+        label: String,
+        recents: RecentMoveTargets
+    ) async {
+        defer { movingBitIds.remove(card.knowledgeBitId) }
 
         do {
             let result = try await APIClient.moveKnowledgeBits(ids: [card.knowledgeBitId], subjectId: subjectId)
 
+            if result.moved.contains(card.knowledgeBitId) {
+                recents.record(subjectId)
+            } else {
+                failMove(card, advanced, message: Self.moveSkipMessage(result.skipped.first?.reason), moved: "Moved to \(label)")
+            }
+        } catch {
+            let message = Self.isCancellation(error) ? nil : KnowledgeManageError.message(for: error, action: "move this card")
+
+            failMove(card, advanced, message: message, moved: "Moved to \(label)")
+        }
+    }
+
+    private func moveWaitingForServer(_ card: ReviewCard, subjectId: String, label: String, recents: RecentMoveTargets) async -> Bool {
+        do {
+            let result = try await APIClient.moveKnowledgeBits(ids: [card.knowledgeBitId], subjectId: subjectId)
+
             guard result.moved.contains(card.knowledgeBitId) else {
-                failMove(card, advanced, message: Self.moveSkipMessage(result.skipped.first?.reason))
+                moveError = Self.moveSkipMessage(result.skipped.first?.reason)
 
                 return false
             }
 
             recents.record(subjectId)
             movePickerCard = nil
-
-            if advanced == nil {
-                removeFromQueue(afterGrading: card, buriedVariantIds: [])
-                await showNext()
-            }
-
+            removeFromQueue(afterGrading: card, buriedVariantIds: [])
+            await showNext()
             notice = "Moved to \(label)"
 
             return true
-        } catch is CancellationError {
-            failMove(card, advanced, message: nil)
-
-            return false
-        } catch let error as URLError where error.code == .cancelled {
-            failMove(card, advanced, message: nil)
-
-            return false
         } catch {
-            failMove(card, advanced, message: KnowledgeManageError.message(for: error, action: "move this card"))
+            if !Self.isCancellation(error) {
+                moveError = KnowledgeManageError.message(for: error, action: "move this card")
+            }
 
             return false
         }
     }
 
-    private func failMove(_ card: ReviewCard, _ advanced: AdvanceSnapshot?, message: String?) {
-        if let advanced {
-            rollBack(advanced)
-            movePickerCard = card
-        }
+    private func failMove(_ card: ReviewCard, _ advanced: AdvanceSnapshot, message: String?, moved: String) {
+        reinsert(advanced)
 
-        if let message { moveError = message }
+        if notice == moved { notice = nil }
+
+        guard let message else { return }
+
+        if current?.variantId == card.variantId {
+            movePickerCard = card
+            moveError = message
+        } else {
+            notice = message
+        }
     }
 
     static func moveSkipMessage(_ reason: String?) -> String {

@@ -43,6 +43,7 @@ extension SmokeTests {
             #expect(model.movePickerCard?.variantId == "v01")
 
             let moved = await model.moveCurrent(toSubject: "s1", label: "English", recents: store)
+            await model.settleBackgroundActions()
 
             #expect(moved)
             #expect(model.current?.variantId == "v02")
@@ -51,7 +52,7 @@ extension SmokeTests {
             #expect(store.load() == ["s1"])
         }
 
-        @Test("should keep the card and explain when the server refuses to move it")
+        @Test("should bring the card back and explain when the server refuses to move it")
         func refusedMoveKeepsCard() async {
             let session = FakeServerSession([
                 "/knowledge-bits/review-cards": .json(200, cardsJSON()),
@@ -65,10 +66,12 @@ extension SmokeTests {
             model.presentMovePicker()
 
             let moved = await model.moveCurrent(toSubject: "s1", label: "English", recents: store)
+            await model.settleBackgroundActions()
 
-            #expect(!moved)
-            #expect(model.current?.variantId == "v01")
-            #expect(model.moveError?.contains("course") == true)
+            #expect(moved)
+            #expect(model.current?.variantId == "v02")
+            #expect(model.queue.first?.variantId == "v01")
+            #expect(model.notice?.contains("course") == true)
             #expect(store.load().isEmpty)
         }
 

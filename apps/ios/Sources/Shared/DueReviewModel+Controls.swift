@@ -14,6 +14,16 @@ extension DueReviewModel {
 
         suspendedUndo = nil
         notice = nil
+        revertedVariantIds.insert(card.variantId)
+        putBack(card)
+
+        runInBackground(bitId: card.knowledgeBitId) { [self] in
+            await sendUnsuspend(card)
+        }
+    }
+
+    private func sendUnsuspend(_ card: ReviewCard) async {
+        guard revertedVariantIds.remove(card.variantId) != nil else { return }
 
         do {
             _ = try await APIClient.setSchedule(
@@ -22,20 +32,11 @@ extension DueReviewModel {
                 buried: nil,
                 variantId: card.variantId
             )
-
-            queue.removeAll { $0.variantId == card.variantId }
-
-            if let shown = current, shown.variantId != card.variantId {
-                queue.insert(shown, at: 0)
-            }
-
-            present(card)
-        } catch is CancellationError {
-            return
-        } catch let error as URLError where error.code == .cancelled {
-            return
         } catch {
-            notice = KnowledgeManageError.message(for: error, action: "unsuspend this card")
+            skippedVariantIds.insert(card.variantId)
+            suspendedUndo = card
+            await takeAway(card)
+            notice = "Couldn't unsuspend this card, so it stays suspended. Try again."
         }
     }
 
@@ -53,8 +54,66 @@ extension DueReviewModel {
         notice = nil
         suspendedUndo = nil
 
-        let advanced = advanceFirst(past: card, buriedVariantIds: card.isIndependentCard ? [] : nil)
+        guard let advanced = advanceFirst(past: card, buriedVariantIds: card.isIndependentCard ? [] : nil) else {
+            await applyControlWaitingForServer(card, suspended: suspended, buried: buried, done: done, offersUndo: offersUndo)
 
+            return
+        }
+
+        skippedVariantIds.insert(card.variantId)
+
+        if offersUndo {
+            suspendedUndo = card
+        } else {
+            notice = done
+        }
+
+        runInBackground(bitId: card.knowledgeBitId) { [self] in
+            await sendControl(card, advanced: advanced, suspended: suspended, buried: buried, offersUndo: offersUndo)
+        }
+    }
+
+    private func sendControl(
+        _ card: ReviewCard,
+        advanced: AdvanceSnapshot,
+        suspended: Bool?,
+        buried: Bool?,
+        offersUndo: Bool
+    ) async {
+        do {
+            _ = try await APIClient.setSchedule(
+                id: card.knowledgeBitId,
+                suspended: suspended,
+                buried: buried,
+                variantId: card.variantId
+            )
+        } catch {
+            if offersUndo, suspendedUndo?.variantId == card.variantId { suspendedUndo = nil }
+
+            guard revertedVariantIds.remove(card.variantId) == nil else { return }
+
+            if KnowledgeManageError.isGone(error) {
+                skippedVariantIds.insert(card.variantId)
+                notice = "That card is no longer available"
+
+                return
+            }
+
+            reinsert(advanced)
+
+            if !Self.isCancellation(error) {
+                notice = KnowledgeManageError.message(for: error, action: "update this card")
+            }
+        }
+    }
+
+    private func applyControlWaitingForServer(
+        _ card: ReviewCard,
+        suspended: Bool?,
+        buried: Bool?,
+        done: String,
+        offersUndo: Bool
+    ) async {
         do {
             _ = try await APIClient.setSchedule(
                 id: card.knowledgeBitId,
@@ -63,30 +122,22 @@ extension DueReviewModel {
                 variantId: card.variantId
             )
 
-            if advanced == nil {
-                removeFromQueue(afterGrading: card, buriedVariantIds: card.isIndependentCard ? [] : nil)
-                await showNext()
-            }
+            removeFromQueue(afterGrading: card, buriedVariantIds: card.isIndependentCard ? [] : nil)
+            await showNext()
 
             if offersUndo {
                 suspendedUndo = card
             } else {
                 notice = done
             }
-        } catch is CancellationError {
-            if let advanced { rollBack(advanced) }
-        } catch let error as URLError where error.code == .cancelled {
-            if let advanced { rollBack(advanced) }
         } catch {
+            guard !Self.isCancellation(error) else { return }
+
             if KnowledgeManageError.isGone(error) {
                 skippedVariantIds.insert(card.variantId)
-
-                if advanced == nil { await showNext() }
-
+                await showNext()
                 notice = "That card is no longer available"
             } else {
-                if let advanced { rollBack(advanced) }
-
                 notice = KnowledgeManageError.message(for: error, action: "update this card")
             }
         }
